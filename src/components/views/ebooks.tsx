@@ -1,0 +1,517 @@
+"use client";
+/**
+ * الكتب الإلكترونية
+ * • للجميع: العنوان + النبذة + الغلاف
+ * • القراءة داخل الموقع فقط — لا تحميل (بدون قوائم حفظ، ومحتوى عبر API للمسجّلين فقط)
+ * • أسطر إجابات تفاعلية يجيب فيها العميل ويحفظ
+ * • الإجابات تظهر للإدارة وللأخصائي المعالج فقط
+ * • الإدارة وحدها تضيف/تعدّل/تعطّل/تحذف
+ */
+import { useCallback, useEffect, useState } from "react";
+import { useApp } from "@/lib/app-context";
+import BackButton from "@/components/back-button";
+import { CardsSkeleton } from "@/components/brand-skeleton";
+import ImageInput from "@/components/image-input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  BookOpenText, Plus, Pencil, Trash2, Power, PenLine, Lock, ArrowRight, ArrowLeft, ShieldCheck, MessagesSquare, X,
+} from "lucide-react";
+import { toast } from "sonner";
+import { TriInput, TriTextarea, triFrom, flattenTri, pickTri } from "@/components/tri-input";
+import FullImage from "@/components/full-image";
+import Pagination from "@/components/pagination";
+import { cn } from "@/lib/utils";
+import type { Navigate } from "@/lib/nav";
+
+const PAGE_SIZE = 9;
+
+type Block = { type: "text" | "answer"; text: string; lines: number };
+type Ebook = { _id: string; title: string; titleFr?: string; titleEn?: string; summary: string; summaryFr?: string; summaryEn?: string; author: string; coverBase64: string; blocks: Block[]; active: boolean };
+
+export default function Ebooks({ navigate }: { navigate: Navigate }) {
+  const { t, me, lang } = useApp();
+  const isStaff = me?.role === "admin" || me?.role === "assistant";
+  const [ebooks, setEbooks] = useState<Ebook[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [reading, setReading] = useState<Ebook | null>(null);
+  const [editing, setEditing] = useState<Partial<Ebook> | null>(null);
+  const [delId, setDelId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/ebooks${isStaff ? "?all=1" : ""}`, { cache: "no-store" });
+      const j = await r.json();
+      setEbooks(j.ebooks || []);
+    } catch {}
+    setLoading(false);
+  }, [isStaff]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { setPage(1); }, [ebooks.length]);
+
+  /* بطاقة الكتاب بلغة المستخدم */
+  const titleOf = (e: Ebook) => pickTri(e as unknown as Record<string, unknown>, "title", lang) || e.title;
+  const summaryOf = (e: Ebook) => pickTri(e as unknown as Record<string, unknown>, "summary", lang);
+
+  /* ترقيم الصفحات الاحترافي */
+  const pageCount = Math.max(1, Math.ceil(ebooks.length / PAGE_SIZE));
+  const pageItems = ebooks.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const toggleActive = async (e: Ebook) => {
+    const r = await fetch(`/api/ebooks/${e._id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: !e.active }),
+    });
+    if (r.ok) { toast.success(e.active ? t("common.inactive") : t("common.active")); load(); }
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <BackButton onBack={() => navigate("home")} />
+          <h1 className="text-xl sm:text-2xl font-black">{t("nav.ebooks")}</h1>
+        </div>
+        {isStaff && (
+          <Button onClick={() => setEditing({ title: "", summary: "", author: "", coverBase64: "", blocks: [], active: true })}
+            className="gap-2 rounded-xl shadow-md shadow-primary/20">
+            <Plus className="h-4.5 w-4.5" /> {t("eb.newEbook")}
+          </Button>
+        )}
+      </div>
+
+      {!me && (
+        <p className="flex items-center gap-2 rounded-xl bg-primary/6 border border-primary/15 px-4 py-2.5 text-sm text-primary">
+          <Lock className="h-4 w-4 shrink-0" />
+          {t("eb.loginHint")}
+        </p>
+      )}
+
+      {loading ? (
+        <CardsSkeleton count={3} />
+      ) : ebooks.length === 0 ? (
+        <Card className="rounded-3xl border-dashed">
+          <CardContent className="py-14 text-center text-muted-foreground">
+            {isStaff ? t("eb.noEbooks") : t("eb.noEbooks")}
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* بطاقات أكبر تُظهر الغلاف جيداً مع كل التفاصيل — بلا نقصان في النص */}
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {pageItems.map((e) => (
+              <Card key={e._id} className={cn("overflow-hidden rounded-3xl shadow-sm hover:shadow-lg transition-all group flex flex-col", !e.active && "opacity-60")}>
+                <button type="button" className="block w-full text-start flex-1 flex flex-col" onClick={() => setReading(e)}>
+                  <div className="relative h-56 sm:h-64 bg-muted/30">
+                    {e.coverBase64 ? (
+                      <FullImage src={e.coverBase64} alt={titleOf(e)} className="h-56 w-full sm:h-64" />
+                    ) : (
+                      <span className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/15 to-accent/15 text-4xl"><BookOpenText className="h-14 w-14 text-primary/50" /></span>
+                    )}
+                    <Badge className="absolute top-3 end-3 bg-background/90 text-primary border-0 shadow gap-1">
+                      <Lock className="h-3 w-3" /> {t("eb.readOnlyInSite")}
+                    </Badge>
+                  </div>
+                  <CardContent className="flex-1 space-y-2 p-5">
+                    <h3 className="font-black leading-snug break-words whitespace-normal">{titleOf(e)}</h3>
+                    {summaryOf(e) && (
+                      <p className="text-sm text-muted-foreground leading-relaxed break-words whitespace-pre-line">{summaryOf(e)}</p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
+                      {e.author && (
+                        <span className="font-semibold">✍ {e.author}</span>
+                      )}
+                      {e.blocks?.length > 0 && (
+                        <span className="rounded-full bg-muted px-2.5 py-0.5 font-semibold">
+                          {e.blocks.length} {t("eb.sections")}
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </button>
+                {isStaff && (
+                  <CardContent className="flex items-center gap-1 border-t py-2 px-2 flex-wrap">
+                    <Button size="sm" variant="ghost" className="text-xs gap-1.5" onClick={() => setEditing(e)}>
+                      <Pencil className="h-3.5 w-3.5" /> {t("common.edit")}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-xs gap-1.5" onClick={() => toggleActive(e)}>
+                      <Power className="h-3.5 w-3.5" /> {e.active ? t("common.deactivate") : t("common.activate")}
+                    </Button>
+                    {me?.role === "admin" && (
+                      <Button size="icon" variant="ghost" className="ms-auto h-8 w-8 text-destructive" onClick={() => setDelId(e._id)} aria-label={t("common.delete")}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </CardContent>
+                )}
+              </Card>
+            ))}
+          </div>
+          <Pagination page={page} pageCount={pageCount} onPage={setPage} total={ebooks.length} pageSize={PAGE_SIZE} />
+        </>
+      )}
+
+      {/* القارئ الداخلي */}
+      {reading && (
+        <EbookReader ebook={reading} onClose={() => { setReading(null); load(); }} />
+      )}
+
+      {/* المحرر الإداري */}
+      <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
+        <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-start">{editing?._id ? t("common.edit") : t("eb.newEbook")}</DialogTitle>
+            <DialogDescription className="text-start flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              {t("eb.addedByAdmin")} — {t("eb.readOnlyInSite")}
+            </DialogDescription>
+          </DialogHeader>
+          <EbookEditor ebook={editing} onChange={setEditing} onDone={() => { setEditing(null); load(); }} />
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!delId} onOpenChange={(v) => !v && setDelId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>{t("common.confirmDelete")}</AlertDialogTitle></AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90"
+              onClick={async () => {
+                const r = await fetch(`/api/ebooks/${delId}`, { method: "DELETE" });
+                if (r.ok) { toast.success(t("toast.ebookDeleted")); setDelId(null); load(); }
+              }}>
+              {t("common.yes")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+/* ───────────────── القارئ — داخل الموقع فقط ───────────────── */
+function EbookReader({ ebook, onClose }: { ebook: Ebook; onClose: () => void }) {
+  const { t, me } = useApp();
+  const isClient = me?.role === "client";
+  const isStaff = me?.role === "admin" || me?.role === "assistant";
+  const isSpec = me?.role === "specialist";
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [staffAnswers, setStaffAnswers] = useState<{ clientId: string; clientName: string; answers: Record<string, string> }[]>([]);
+  const [answersVisible, setAnswersVisible] = useState(false);
+  /** ★ v3.2: إجابات كل عميل منفصلة — اختيار عميل يعرض إجاباته وحدها في مواقعها */
+  const [viewClientId, setViewClientId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const dir = document.documentElement.getAttribute("dir");
+  const NavIcon = dir === "rtl" ? ArrowRight : ArrowLeft;
+  const viewClient = staffAnswers.find((sa) => sa.clientId === viewClientId) || null;
+
+  /* منع التحويل/القص — قراءة داخلية فقط */
+  useEffect(() => {
+    const block = (e: Event) => e.preventDefault();
+    document.addEventListener("copy", block);
+    document.addEventListener("cut", block);
+    document.addEventListener("contextmenu", block);
+    return () => {
+      document.removeEventListener("copy", block);
+      document.removeEventListener("cut", block);
+      document.removeEventListener("contextmenu", block);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!me) return;
+    (async () => {
+      if (isClient) {
+        const r = await fetch(`/api/ebooks/${ebook._id}/answers`);
+        if (r.ok) { const j = await r.json(); setAnswers(j.answers || {}); }
+      } else if (isStaff || isSpec) {
+        const r = await fetch(`/api/ebooks/${ebook._id}`);
+        if (r.ok) {
+          const j = await r.json();
+          setAnswersVisible(j.answersVisible || false);
+          setStaffAnswers(j.answersList || []);
+        }
+      }
+    })();
+  }, [ebook._id, me, isClient, isStaff, isSpec]);
+
+  const saveAnswers = async () => {
+    setBusy(true);
+    const r = await fetch(`/api/ebooks/${ebook._id}/answers`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answers }),
+    });
+    setBusy(false);
+    if (r.ok) toast.success(t("eb.answersSaved"));
+    else toast.error(t("common.error"));
+  };
+
+  let answerIdx = 0;
+  const answeredCount = (sa: { answers: Record<string, string> }) =>
+    Object.values(sa.answers).filter((v) => v && v.trim()).length;
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      {/* v3.6: showCloseButton=false — زر الإغلاق المدمج كان يغطي زر الرجوع؛
+          الآن زرا «رجوع» و «إغلاق» مستقلان جنباً إلى جنب في رأس القارئ — لا تداخل أبداً */}
+      <DialogContent showCloseButton={false} className="max-w-3xl max-h-[92dvh] overflow-y-auto rounded-3xl select-none">
+        {/* رأس القارئ — سطر العنوان وسطر الأزرار منفصلان: لا تداخل بين النصوص والأزرار */}
+        <DialogHeader className="sticky top-0 z-10 -mx-1 bg-background/95 px-1 pb-3 pt-1 backdrop-blur border-b">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-start break-words whitespace-normal leading-relaxed">{ebook.title}</DialogTitle>
+              <DialogDescription className="text-start mt-1 flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5 shrink-0 text-primary" />
+                {t("eb.readOnlyInSite")}
+              </DialogDescription>
+            </div>
+            {/* زرا الرجوع والإغلاق — مجموعة أزرار متماسكة في سطر واحد */}
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Button variant="outline" size="sm" onClick={onClose} className="gap-1.5 rounded-full">
+                <NavIcon className="h-4 w-4" />
+                <span className="hidden min-[420px]:inline">{t("common.back")}</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onClose}
+                aria-label={t("common.close")}
+                title={t("common.close")}
+                className="h-9 w-9 shrink-0 rounded-full border text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+              >
+                <X className="h-4.5 w-4.5" />
+              </Button>
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* ★ عرض إجابات عميل محدد — الإدارة والأخصائي */}
+        {viewClient && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-primary/30 bg-primary/[0.05] px-4 py-3">
+            <p className="font-black text-sm text-primary flex items-center gap-2">
+              <MessagesSquare className="h-4 w-4" />
+              {t("eb.answersOf", { name: viewClient.clientName })}
+            </p>
+            <Button size="sm" variant="outline" onClick={() => setViewClientId(null)} className="gap-1.5 rounded-full">
+              <BookOpenText className="h-4 w-4" /> {t("eb.viewBookOnly")}
+            </Button>
+          </div>
+        )}
+
+        <div className="space-y-6 pb-4">
+          {ebook.author && <p className="text-sm text-muted-foreground">✍ {ebook.author}</p>}
+          {ebook.blocks.map((b, i) => {
+            if (b.type === "text") {
+              return (
+                <p key={i} className="text-[0.95rem] leading-loose whitespace-pre-wrap text-foreground/90">
+                  {b.text}
+                </p>
+              );
+            }
+            const myKey = String(i);
+            const label = `${t("eb.myAnswer")} ${++answerIdx}`;
+
+            /* عرض إجابات العميل المختار — مدمجة في مواقعها داخل الكتاب */
+            if (viewClient) {
+              const val = (viewClient.answers[myKey] || "").trim();
+              return (
+                <div key={i} className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/[0.03] p-4 space-y-2">
+                  <Label className="flex items-center gap-2 text-primary">
+                    <PenLine className="h-4 w-4" /> {label}
+                  </Label>
+                  <p className="whitespace-pre-wrap rounded-xl bg-background p-3 text-sm leading-relaxed ring-1 ring-border min-h-10">
+                    {val || "—"}
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div key={i} className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/[0.03] p-4 space-y-2">
+                <Label className="flex items-center gap-2 text-primary">
+                  <PenLine className="h-4 w-4" /> {label}
+                </Label>
+                {isClient ? (
+                  <Textarea
+                    value={answers[myKey] || ""}
+                    onChange={(e) => setAnswers({ ...answers, [myKey]: e.target.value })}
+                    rows={Math.max(2, b.lines)}
+                    placeholder={t("eb.writeHere")}
+                    className="bg-background"
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {t("eb.linesCount", { n: b.lines })}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+
+          {/* حفظ إجابات العميل */}
+          {isClient && (
+            <div className="space-y-2">
+              <Button onClick={saveAnswers} disabled={busy} className="w-full h-12 rounded-xl text-base">
+                {busy ? t("common.saving") : t("eb.saveAnswers")}
+              </Button>
+              <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                {t("eb.answersPrivate")}
+              </p>
+            </div>
+          )}
+
+          {/* ★ الإجابات للإدارة والأخصائي المعالج — كل عميل في بطاقة مستقلة */}
+          {!viewClient && answersVisible && (isStaff || isSpec) && (
+            <div className="space-y-3 rounded-2xl border bg-muted/30 p-4">
+              <p className="font-bold text-sm flex items-center gap-2">
+                <MessagesSquare className="h-4 w-4 text-primary" /> {t("eb.clientsAnswers")}
+              </p>
+              {staffAnswers.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t("eb.noAnsweredYet")}</p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">{t("eb.pickClient")}</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {staffAnswers.map((sa) => (
+                      <button
+                        key={sa.clientId}
+                        type="button"
+                        onClick={() => setViewClientId(sa.clientId)}
+                        className="flex items-center justify-between gap-2 rounded-xl bg-background p-3 text-start ring-1 ring-border transition-all hover:ring-primary/50 hover:shadow-md"
+                      >
+                        <span className="min-w-0">
+                          <span className="block break-words whitespace-normal font-bold text-sm leading-snug">{sa.clientName}</span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {t("eb.answeredCount", { n: answeredCount(sa) })}
+                          </span>
+                        </span>
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <NavIcon className="h-4 w-4 rtl:-scale-x-100" />
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ───────────────── المحرر الإداري ───────────────── */
+function EbookEditor({ ebook, onChange, onDone }: { ebook: Partial<Ebook> | null; onChange: (e: Partial<Ebook> | null) => void; onDone: () => void }) {
+  const { t } = useApp();
+  const [busy, setBusy] = useState(false);
+  const upd = (patch: Partial<Ebook>) => onChange({ ...ebook, ...patch });
+  const updBlock = (i: number, patch: Partial<Block>) =>
+    upd({ blocks: (ebook?.blocks || []).map((b, k) => (k === i ? { ...b, ...patch } : b)) });
+
+  const save = async () => {
+    if (!ebook?.title?.trim()) { toast.error(t("err.required")); return; }
+    setBusy(true);
+    const isNew = !ebook._id;
+    const r = await fetch(isNew ? "/api/ebooks" : `/api/ebooks/${ebook._id}`, {
+      method: isNew ? "POST" : "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(ebook),
+    });
+    setBusy(false);
+    if (r.ok) { toast.success(t("toast.ebookSaved")); onDone(); }
+    else toast.error(t("common.error"));
+  };
+
+  return (
+    <div className="space-y-4">
+      <TriInput
+        label={t("common.title")}
+        value={triFrom(ebook as Record<string, unknown>, "title")}
+        onChange={(v) => upd({ ...flattenTri("title", v) } as Partial<Ebook>)}
+      />
+      <div className="grid sm:grid-cols-2 gap-3">
+        <TriTextarea
+          label={t("eb.summary")}
+          value={triFrom(ebook as Record<string, unknown>, "summary")}
+          onChange={(v) => upd({ ...flattenTri("summary", v) } as Partial<Ebook>)}
+          rows={2}
+        />
+        <div className="space-y-2">
+          <Label>{t("acc.title")}</Label>
+          <Input value={ebook?.author || ""} onChange={(e) => upd({ author: e.target.value })} className="h-11" />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label>{t("eb.cover")}</Label>
+        <ImageInput value={ebook?.coverBase64 || ""} onChange={(v) => upd({ coverBase64: v })} />
+      </div>
+
+      {/* الكتل: نص / أسطر إجابة */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <Label>{t("eb.content")}</Label>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant="outline" className="gap-1.5"
+              onClick={() => upd({ blocks: [...(ebook?.blocks || []), { type: "text", text: "", lines: 1 }] })}>
+              <Plus className="h-4 w-4" /> {t("eb.addText")}
+            </Button>
+            <Button type="button" size="sm" variant="outline" className="gap-1.5 border-dashed border-primary/40 text-primary"
+              onClick={() => upd({ blocks: [...(ebook?.blocks || []), { type: "answer", text: "", lines: 2 }] })}>
+              <PenLine className="h-4 w-4" /> {t("eb.addAnswer")}
+            </Button>
+          </div>
+        </div>
+        {(ebook?.blocks || []).map((b, i) => (
+          <div key={i} className={cn(
+            "rounded-2xl border p-3 space-y-2",
+            b.type === "answer" ? "border-primary/30 bg-primary/[0.03]" : "bg-muted/20"
+          )}>
+            <div className="flex items-center gap-2">
+              <Badge variant={b.type === "answer" ? "default" : "secondary"} className="shrink-0">
+                {b.type === "answer" ? t("eb.addAnswer") : t("eb.addText")}
+              </Badge>
+              {b.type === "answer" && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {t("eb.answerLines")}
+                  <Input type="number" min={1} max={10} value={b.lines} onChange={(e) => updBlock(i, { lines: Number(e.target.value) })}
+                    className="h-8 w-16 text-center" />
+                </div>
+              )}
+              <button type="button" onClick={() => upd({ blocks: (ebook?.blocks || []).filter((_, k) => k !== i) })}
+                className="ms-auto flex h-8 w-8 items-center justify-center rounded-lg text-destructive hover:bg-destructive/10" aria-label={t("common.delete")}>
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+            {b.type === "text" && (
+              <Textarea value={b.text} onChange={(e) => updBlock(i, { text: e.target.value })} rows={3} placeholder={t("eb.blockText")} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      <label className="flex items-center justify-between rounded-xl border p-3">
+        <span className="text-sm font-semibold">{t("common.active")}</span>
+        <Switch checked={ebook?.active !== false} onCheckedChange={(v) => upd({ active: v })} />
+      </label>
+      <Button onClick={save} disabled={busy} className="w-full h-12 rounded-xl text-base">
+        {busy ? t("common.saving") : t("common.save")}
+      </Button>
+    </div>
+  );
+}

@@ -1,0 +1,759 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ═══ الخطوط مستضافة محلياً (v3.6) — إصلاح جذري لتشوّه الحروف في FR/EN ═══
+   كانت الخطوط تُحمَّل من Google Fonts وقت التشغيل؛ عند تعذّر الوصول إليها
+   يلجأ المتصفح لخط بديل بأوزان ناقصة فيولّد سماكة زائفة (faux bold) وتتشوه
+   الحروف (é è ç À …) في Toast وكل الصفحات. الآن الملفات مع المشروع نفسه:
+   لا اعتماد على الشبكة، أوزان حقيقية 400-900، ومحارف مركّبة صحيحة دائماً. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("/fonts/inter-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("/fonts/inter-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Cairo";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("/fonts/cairo-arabic.woff2") format("woff2");
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB, U+10E60-10E7E, U+10EC2-10EC4, U+10EFC-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22, U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49, U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F, U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E, U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1;
+}
+@font-face {
+  font-family: "Cairo";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("/fonts/cairo-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Cairo";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("/fonts/cairo-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  /* خط لاتيني احترافي أولاً (é è ç …) + خط Cairo للعربية — نهاية تشوّه الحروف اللاتينية */
+  --font-sans: "Inter", "Cairo", "Segoe UI", system-ui, sans-serif;
+  --font-cairo: "Inter", "Cairo", "Segoe UI", system-ui, sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   مركز أيت تقرين — نظام التصميم v4
+   أخضر مهدئ + رملي دافئ · توافق تام مع الوضع الليلي (نص أبيض ساطع)
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --radius: 0.75rem;
+
+  /* الهوية: أخضر إكلينيكي هادئ */
+  --primary: oklch(0.52 0.11 175);
+  --primary-foreground: oklch(0.985 0.01 175);
+  /* الثانوي والرملي الدافئ */
+  --secondary: oklch(0.955 0.012 80);
+  --secondary-foreground: oklch(0.32 0.05 70);
+  --accent: oklch(0.84 0.12 75);
+  --accent-foreground: oklch(0.28 0.05 60);
+
+  /* الأسطح — ورقي دافئ غير أزرق */
+  --background: oklch(0.975 0.004 95);
+  --foreground: oklch(0.23 0.02 170);
+  --card: oklch(0.995 0.002 95);
+  --card-foreground: oklch(0.23 0.02 170);
+  --popover: oklch(0.995 0.002 95);
+  --popover-foreground: oklch(0.23 0.02 170);
+  --muted: oklch(0.945 0.006 95);
+  --muted-foreground: oklch(0.48 0.02 170);
+  --destructive: oklch(0.58 0.2 25);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --border: oklch(0.23 0.02 170 / 0.11);
+  --input: oklch(0.23 0.02 170 / 0.14);
+  --ring: oklch(0.52 0.11 175 / 0.55);
+
+  --chart-1: oklch(0.52 0.11 175);
+  --chart-2: oklch(0.75 0.1 75);
+  --chart-3: oklch(0.55 0.12 200);
+  --chart-4: oklch(0.62 0.14 145);
+  --chart-5: oklch(0.64 0.16 30);
+
+  --sidebar: oklch(0.987 0.003 95);
+  --sidebar-foreground: oklch(0.23 0.02 170);
+  --sidebar-primary: oklch(0.52 0.11 175);
+  --sidebar-primary-foreground: oklch(0.985 0.01 175);
+  --sidebar-accent: oklch(0.945 0.008 175);
+  --sidebar-accent-foreground: oklch(0.3 0.04 175);
+  --sidebar-border: oklch(0.23 0.02 170 / 0.1);
+  --sidebar-ring: oklch(0.52 0.11 175);
+
+  /* ظلال منظومة — طبقات ناعمة واقعية */
+  --shadow-xs: 0 1px 2px oklch(0.23 0.02 170 / 0.05);
+  --shadow-card: 0 1px 2px oklch(0.23 0.02 170 / 0.05), 0 8px 28px -18px oklch(0.23 0.02 170 / 0.22);
+  --shadow-lift: 0 2px 4px oklch(0.23 0.02 170 / 0.06), 0 20px 44px -20px oklch(0.23 0.02 170 / 0.3), 0 0 0 1px oklch(0.52 0.11 175 / 0.1);
+  --shadow-pop: 0 4px 12px -4px oklch(0.23 0.02 170 / 0.12), 0 24px 56px -16px oklch(0.23 0.02 170 / 0.3), 0 0 0 1px oklch(0.23 0.02 170 / 0.05);
+
+  /* الحركات */
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ═══ الوضع الليلي — أسطح داكنة عميقة ونص أبيض ساطع ═══ */
+.dark {
+  --primary: oklch(0.72 0.12 175);
+  --primary-foreground: oklch(0.17 0.03 175);
+  --secondary: oklch(0.28 0.02 175);
+  --secondary-foreground: oklch(0.96 0.005 175);
+  --accent: oklch(0.78 0.11 75);
+  --accent-foreground: oklch(0.2 0.04 60);
+
+  --background: oklch(0.16 0.014 175);
+  /* نص أبيض ساطع — طلب صريح: وضوح أعلى في الوضع الليلي */
+  --foreground: oklch(0.975 0.003 175);
+  --card: oklch(0.205 0.018 175);
+  --card-foreground: oklch(0.975 0.003 175);
+  --popover: oklch(0.215 0.018 175);
+  --popover-foreground: oklch(0.975 0.003 175);
+  --muted: oklch(0.26 0.018 175);
+  --muted-foreground: oklch(0.76 0.015 175);
+  --destructive: oklch(0.66 0.19 25);
+  --destructive-foreground: oklch(0.16 0.01 25);
+
+  --border: oklch(1 0 0 / 0.12);
+  --input: oklch(1 0 0 / 0.16);
+  --ring: oklch(0.72 0.12 175 / 0.6);
+
+  --chart-1: oklch(0.72 0.12 175);
+  --chart-2: oklch(0.78 0.1 75);
+  --chart-3: oklch(0.7 0.12 200);
+  --chart-4: oklch(0.72 0.14 145);
+  --chart-5: oklch(0.7 0.16 30);
+
+  --sidebar: oklch(0.18 0.016 175);
+  --sidebar-foreground: oklch(0.97 0.003 175);
+  --sidebar-primary: oklch(0.72 0.12 175);
+  --sidebar-primary-foreground: oklch(0.16 0.03 175);
+  --sidebar-accent: oklch(0.26 0.018 175);
+  --sidebar-accent-foreground: oklch(0.97 0.003 175);
+  --sidebar-border: oklch(1 0 0 / 0.1);
+  --sidebar-ring: oklch(0.72 0.12 175);
+
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.35), 0 8px 28px -18px oklch(0 0 0 / 0.55);
+  --shadow-lift: 0 2px 6px oklch(0 0 0 / 0.4), 0 20px 44px -20px oklch(0 0 0 / 0.6), 0 0 0 1px oklch(0.72 0.12 175 / 0.14);
+  --shadow-pop: 0 4px 14px -4px oklch(0 0 0 / 0.5), 0 24px 60px -16px oklch(0 0 0 / 0.65), 0 0 0 1px oklch(1 0 0 / 0.08);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    /* منع تجاوز إطار الشاشة — مع الحفاظ على sticky */
+    overflow-x: clip;
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: "Inter", "Cairo", "Segoe UI", system-ui, sans-serif;
+    overflow-x: clip;
+    text-rendering: optimizeLegibility;
+  }
+  /* ─── حماية شاملة من تجاوز إطار الشاشة في كل حقول الإدخال والنصوص ───
+     طلب المستخدم: كل حقل إدخال نص بالموقع يجب أن يلتف السطر تلقائياً
+     ولا يتجاوز إطار الشاشة أبداً مهما طال النص */
+  input, select, textarea {
+    max-width: 100%;
+    min-width: 0;
+  }
+  textarea {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+  /* حاويات flex/grid: انكماش آمن بدل الفيضان الأفقي */
+  .flex > *, .grid > * {
+    min-width: 0;
+  }
+  p, span, a, label, li, td, th, button, blockquote, figcaption {
+    overflow-wrap: break-word;
+  }
+  h1, h2, h3, h4 {
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+  }
+  /* ═══ تشوّه الحروف — الإصلاح الجذري (v3.5) ═══
+     العربية خط متصل: أي تباعد أحرف (letter-spacing) موجب أو سالب يكسر
+     اتصال الحروف ويشوّه النص. كان الإصدار السابق يطبّق -0.01em على كل
+     العناوين + tracking-wide على شارات واجهة عربية — هذا هو مصدر التشوّه.
+     الآن: في واجهة العربية يُلغى تباعد الأحرف إجمالاً (ما عدا حقول
+     الأرقام dir=ltr)، وفي الفرنسية/الإنجليزية يبقى طبيعياً. */
+  html[lang="ar"] *:not(input):not(textarea) {
+    letter-spacing: normal !important;
+  }
+  /* v3.6: منع أي تباعد سالب في LTR أيضاً (يقصّ أول حرف ويبدو مشوّهاً) */
+  :not(input):not(textarea)[class*="tracking-tight"],
+  :not(input):not(textarea)[class*="tracking-tighter"] {
+    letter-spacing: normal;
+  }
+  /* v3.6: توحيد خط نوافذ التنبيه (Toast) مع خط الموقع — بلا تشوّه */
+  [data-sonner-toaster],
+  [data-sonner-toast] {
+    font-family: "Inter", "Cairo", "Segoe UI", system-ui, sans-serif;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  ::selection {
+    background: oklch(0.52 0.11 175 / 0.25);
+  }
+  .dark ::selection {
+    background: oklch(0.72 0.12 175 / 0.35);
+  }
+  /* تحسين تحويم الحقول في الوضعين */
+  input::placeholder, textarea::placeholder {
+    opacity: 0.65;
+  }
+  .dark input::placeholder, .dark textarea::placeholder {
+    color: oklch(0.75 0.01 175);
+  }
+}
+
+/* ══════════════ هوية مركز أيت تقرين — v4 ══════════════ */
+
+/* ═══ الهيدر — سطح صلب دافئ غير شفاف على أي تمرير (ثابت لا يُمس) ═══ */
+.ait-header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  box-shadow:
+    0 1px 2px oklch(0.23 0.02 170 / 0.06),
+    0 6px 20px -14px oklch(0.23 0.02 170 / 0.22);
+}
+.dark .ait-header {
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 0.45),
+    0 6px 20px -14px oklch(0 0 0 / 0.6);
+}
+
+/* ═══ تدرّج الهيرو والترويسات — ضوء طبيعي من أخضر إلى رملي ═══ */
+.ait-hero-gradient,
+.ait-hero {
+  background:
+    radial-gradient(1100px 420px at 88% -12%, oklch(0.84 0.12 75 / 0.18), transparent 60%),
+    radial-gradient(1000px 520px at 8% 112%, oklch(0.52 0.11 175 / 0.14), transparent 55%),
+    linear-gradient(135deg, oklch(0.52 0.11 175 / 0.08) 0%, oklch(0.99 0.003 95) 45%, oklch(0.84 0.12 75 / 0.12) 100%);
+}
+.dark .ait-hero-gradient,
+.dark .ait-hero {
+  background:
+    radial-gradient(1100px 420px at 88% -12%, oklch(0.78 0.11 75 / 0.14), transparent 60%),
+    radial-gradient(1000px 520px at 8% 112%, oklch(0.72 0.12 175 / 0.12), transparent 55%),
+    linear-gradient(135deg, oklch(0.72 0.12 175 / 0.1) 0%, oklch(0.22 0.02 175) 48%, oklch(0.78 0.11 75 / 0.08) 100%);
+}
+
+/* ═══ شريط الدعوة الختامي — عمق ومكانة ═══ */
+.ait-cta-band {
+  background:
+    radial-gradient(820px 320px at 82% 0%, oklch(0.84 0.12 75 / 0.24), transparent 55%),
+    radial-gradient(600px 300px at 12% 110%, oklch(0.72 0.12 175 / 0.2), transparent 55%),
+    linear-gradient(130deg, oklch(0.38 0.08 175) 0%, oklch(0.52 0.11 175) 55%, oklch(0.44 0.09 172) 100%);
+  box-shadow: 0 28px 56px -26px oklch(0.38 0.08 175 / 0.55);
+}
+
+/* ═══ البطاقة الراقية — إفْعاج ناعم وحافة ضوئية عند التحويم ═══ */
+.ait-card {
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+  transition:
+    transform 0.35s var(--ease-out-quint),
+    box-shadow 0.35s var(--ease-out-quint),
+    border-color 0.35s ease;
+}
+.ait-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lift);
+}
+
+/* ═══ شريط العدادات — سطح مميز بتدرّج هوية ═══ */
+.ait-stats-band {
+  background:
+    radial-gradient(700px 260px at 90% -20%, oklch(0.84 0.12 75 / 0.12), transparent 60%),
+    linear-gradient(120deg, oklch(0.52 0.11 175 / 0.07), oklch(0.995 0.002 95) 40%, oklch(0.84 0.12 75 / 0.09));
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+}
+.dark .ait-stats-band {
+  background:
+    radial-gradient(700px 260px at 90% -20%, oklch(0.78 0.11 75 / 0.1), transparent 60%),
+    linear-gradient(120deg, oklch(0.72 0.12 175 / 0.1), oklch(0.21 0.018 175) 40%, oklch(0.78 0.11 75 / 0.07));
+}
+.ait-stat {
+  transition: transform 0.3s var(--ease-spring), background 0.3s ease;
+}
+.ait-stat:hover {
+  transform: translateY(-3px) scale(1.02);
+  background: oklch(0.52 0.11 175 / 0.06);
+}
+.dark .ait-stat:hover {
+  background: oklch(0.72 0.12 175 / 0.1);
+}
+
+/* ═══ الفوتر — يتبع الثيم: فاتح رقيق في النهاري، داكن عميق في الليلي ═══ */
+.ait-footer {
+  /* الوضع النهاري: خلفية فاتحة مائلة للهوية — كل الرموز الداخلية تتبع ثيم الصفحة */
+  background:
+    radial-gradient(900px 300px at 90% -30%, oklch(0.52 0.11 175 / 0.05), transparent 60%),
+    linear-gradient(180deg, oklch(0.984 0.007 175) 0%, oklch(0.955 0.014 90) 100%);
+  color: var(--foreground);
+  border-top: 1px solid oklch(0.52 0.11 175 / 0.16);
+}
+.dark .ait-footer {
+  /* الوضع الليلي: عمق داكن أنيق مع نص أبيض ساطع من ثيم الصفحة */
+  background:
+    radial-gradient(900px 300px at 90% -30%, oklch(0.72 0.12 175 / 0.14), transparent 60%),
+    linear-gradient(180deg, oklch(0.245 0.03 176) 0%, oklch(0.215 0.026 176) 100%);
+  color: var(--foreground);
+  border-top: 1px solid oklch(1 0 0 / 0.07);
+}
+.ait-footer-top {
+  /* v3.5: الشريط الفاصل بين الفوتر والمحتوى — أنيميشن جميلة دائمة:
+     تدرّج هوية متحرك + لمعة ضوئية تنساب على طول الخط */
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, oklch(0.52 0.11 175), oklch(0.84 0.12 75) 55%, oklch(0.6 0.12 172));
+  background-size: 200% 100%;
+  animation: ait-footer-flow 8s linear infinite;
+}
+.ait-footer-top::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    oklch(0.995 0.002 95 / 0.65) 50%,
+    transparent 80%
+  );
+  transform: translateX(-100%);
+  animation: ait-footer-sheen 4.5s var(--ease-out-quint) infinite;
+}
+@keyframes ait-footer-flow {
+  0% { background-position: 0% 0; }
+  50% { background-position: 100% 0; }
+  100% { background-position: 0% 0; }
+}
+@keyframes ait-footer-sheen {
+  0% { transform: translateX(-100%); }
+  60%, 100% { transform: translateX(100%); }
+}
+.dark .ait-footer-top {
+  background: linear-gradient(90deg, oklch(0.72 0.12 175), oklch(0.78 0.11 75) 55%, oklch(0.64 0.12 172));
+  background-size: 200% 100%;
+}
+
+/* ═══ لمعان الهياكل (shimmer) ═══ */
+.ait-shimmer {
+  background: linear-gradient(
+    100deg,
+    oklch(0.52 0.11 175 / 0.1) 30%,
+    oklch(0.52 0.11 175 / 0.22) 50%,
+    oklch(0.52 0.11 175 / 0.1) 70%
+  );
+  background-size: 200% 100%;
+  animation: ait-shimmer-move 1.4s ease-in-out infinite;
+}
+@keyframes ait-shimmer-move {
+  from { background-position: 180% 0; }
+  to { background-position: -20% 0; }
+}
+
+/* ═══ نبض زر «هام جدا» — لفت انتباه راقٍ بلا إزعاج ═══ */
+@keyframes ait-pulse-soft {
+  0%, 100% { transform: scale(1); filter: saturate(1); }
+  50% { transform: scale(1.045); filter: saturate(1.2); }
+}
+.animate-ait-pulse {
+  animation: ait-pulse-soft 2.4s var(--ease-out-quint) infinite;
+}
+
+/* ═══ حركة دخول الصفحة — آمنة: بلا fill-mode يحبس transform ═══ */
+@keyframes ait-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ait-view > * {
+  animation: ait-fade-up 0.45s var(--ease-out-quint) backwards;
+}
+.ait-view > *:nth-child(2) { animation-delay: 0.05s; }
+.ait-view > *:nth-child(3) { animation-delay: 0.1s; }
+.ait-view > *:nth-child(n+4) { animation-delay: 0.14s; }
+
+/* ═══ حقول اللغات الثلاث — حاوية موحّدة ═══ */
+.ait-tri {
+  gap: 0.5rem;
+}
+
+/* ═══ نافذة التقييمات ═══ */
+.ait-rate-summary {
+  box-shadow: var(--shadow-xs);
+}
+.ait-rate-list {
+  overscroll-behavior: contain;
+}
+
+/* ═══ القائمة الجانبية — تمرير كامل ناعم ═══ */
+.ait-sidebar-scroll {
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+/* ═══ أزرار تعمل حتى بشاشة صغيرة — مساحة لمس مريحة ═══ */
+button,
+a[role="button"] {
+  min-height: 34px;
+}
+
+/* ═══ الحفاظ على حدود الشاشة في الجوال ═══ */
+img, video, iframe {
+  max-width: 100%;
+}
+
+/* ═══ منع تكبير النص في iOS عند الإدخال ═══ */
+@media (max-width: 640px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* ═══ هوامش آمنة لأجهزة النوتش ═══ */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ═══ احترام تفضيل تقليل الحركة ═══ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ═══ تحسين اللمس: تمرير أفقي سلس بالقصور الذاتي ═══ */
+.snap-x {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+/* ═══ شريط تمرير أنيق على هوية المركز ═══ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.52 0.11 175 / 0.3);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.52 0.11 175 / 0.55);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: oklch(0.72 0.12 175 / 0.3);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.72 0.12 175 / 0.55);
+}
+
+/* ═══ إخفاء شريط التمرير داخل المعارض الأفقية ═══ */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ═══ اهتزاز حاسبة الإخفاء السريع عند خطأ الحساب ═══ */
+@keyframes ait-quickhide-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+.ait-quickhide-shake {
+  animation: ait-quickhide-shake 0.3s ease-in-out;
+}
+
+/* ═══ نافذة لحظة اطمئنان — دخول ناعم يليق بجو المركز ═══ */
+@keyframes ait-re-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ait-re-enter {
+  animation: ait-re-in 0.55s var(--ease-out-quint, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+@keyframes ait-re-glow {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.06); }
+}
+.ait-re-glow {
+  animation: ait-re-glow 3.2s ease-in-out infinite;
+}
+
+/* ═══ أيقونات التواصل الاجتماعي — ألوان العلامات الرسمية دائماً (عرب + داكن) ═══ */
+.ait-social {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border-radius: 9999px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+.ait-social:hover { transform: scale(1.1); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+.ait-social:active { transform: scale(0.95); }
+
+.ait-social-fb { color: #1877F2; background: rgba(24, 119, 242, 0.12); }
+.ait-social-fb:hover { color: #fff; background: #1877F2; }
+
+.ait-social-ig { color: #E4405F; background: rgba(228, 64, 95, 0.12); }
+.ait-social-ig:hover { color: #fff; background: #E4405F; }
+
+/* تيك توك: أسود في النهاري / أبيض في الليلي — دائماً بلون العلامة الحقيقي */
+.ait-social-tt { color: #000000; background: rgba(0, 0, 0, 0.08); }
+.ait-social-tt:hover { color: #fff; background: #000000; }
+.dark .ait-social-tt { color: #ffffff; background: rgba(255, 255, 255, 0.14); }
+.dark .ait-social-tt:hover { color: #000; background: #ffffff; }
+
+.ait-social-yt { color: #FF0000; background: rgba(255, 0, 0, 0.12); }
+.ait-social-yt:hover { color: #fff; background: #FF0000; }
+
+.ait-social-tg { color: #26A5E4; background: rgba(38, 165, 228, 0.12); }
+.ait-social-tg:hover { color: #fff; background: #26A5E4; }
+
+.ait-social-wa { color: #25D366; background: rgba(37, 211, 102, 0.14); }
+.ait-social-wa:hover { color: #fff; background: #25D366; }
+
+/* ═══════════ v3.3.0 — قائمة التعديلات الثانية عشرة ═══════════ */
+
+/* ═══ بطاقة «خطوتك الأولى نحو راحة البال تبدأ اليوم» — نص أبيض ساطع دائماً ═══
+   كانت في الوضع الليلي تظهر سوداء لأن --primary-foreground الليلي داكن (لأزرار الهوية) */
+.ait-cta-band {
+  color: oklch(0.99 0.005 95) !important;
+  text-shadow: 0 1px 3px oklch(0.3 0.06 175 / 0.35);
+}
+.ait-cta-band h2,
+.ait-cta-band p {
+  color: inherit !important;
+}
+.ait-cta-band .ait-cta-btn {
+  color: var(--foreground) !important;
+  text-shadow: none;
+}
+.dark .ait-cta-band {
+  background:
+    radial-gradient(820px 320px at 82% 0%, oklch(0.84 0.12 75 / 0.14), transparent 55%),
+    radial-gradient(600px 300px at 12% 110%, oklch(0.72 0.12 175 / 0.16), transparent 55%),
+    linear-gradient(130deg, oklch(0.3 0.07 175) 0%, oklch(0.42 0.1 175) 55%, oklch(0.34 0.07 172) 100%);
+  box-shadow: 0 28px 56px -26px oklch(0.2 0.05 175 / 0.7);
+}
+
+/* ═══ أزرار الإغلاق (×) — تصعيد من النمط البدائي إلى نمط راقٍ موحّد ═══
+   دائرة ناعمة بخلفية خفيفة، دوران عند التحويم، تباين واضح نهاري/ليلي */
+[data-slot="dialog-close"],
+[data-slot="sheet-close"],
+[data-slot="alert-dialog-close"],
+[data-slot="drawer-close"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px !important;
+  background: var(--muted);
+  color: var(--muted-foreground) !important;
+  opacity: 1 !important;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.25s ease, box-shadow 0.2s ease;
+}
+[data-slot="dialog-close"] svg,
+[data-slot="sheet-close"] svg,
+[data-slot="alert-dialog-close"] svg,
+[data-slot="drawer-close"] svg {
+  width: 1rem;
+  height: 1rem;
+}
+[data-slot="dialog-close"]:hover,
+[data-slot="sheet-close"]:hover,
+[data-slot="alert-dialog-close"]:hover,
+[data-slot="drawer-close"]:hover {
+  background: oklch(0.66 0.19 25 / 0.12);
+  color: oklch(0.55 0.2 25) !important;
+  transform: rotate(90deg);
+  box-shadow: 0 2px 10px oklch(0.55 0.2 25 / 0.18);
+}
+[data-slot="dialog-close"]:focus-visible,
+[data-slot="sheet-close"]:focus-visible,
+[data-slot="alert-dialog-close"]:focus-visible,
+[data-slot="drawer-close"]:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+.dark [data-slot="dialog-close"],
+.dark [data-slot="sheet-close"],
+.dark [data-slot="alert-dialog-close"],
+.dark [data-slot="drawer-close"] {
+  background: oklch(1 0 0 / 0.08);
+  color: oklch(0.9 0.005 95) !important;
+}
+.dark [data-slot="dialog-close"]:hover,
+.dark [data-slot="sheet-close"]:hover,
+.dark [data-slot="alert-dialog-close"]:hover,
+.dark [data-slot="drawer-close"]:hover {
+  background: oklch(0.66 0.19 25 / 0.2);
+  color: oklch(0.75 0.16 25) !important;
+}
+
+/* ═══ الإعلانات — نمط طمأنينة ═══ */
+.ait-float-ad {
+  animation: ait-float-ad-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes ait-float-ad-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ait-ad-banner {
+  background:
+    radial-gradient(500px 130px at 88% -30%, oklch(0.84 0.12 75 / 0.12), transparent 60%),
+    linear-gradient(120deg, oklch(0.52 0.11 175 / 0.07), oklch(0.995 0.002 95) 45%, oklch(0.84 0.12 75 / 0.1));
+}
+.dark .ait-ad-banner {
+  background:
+    radial-gradient(500px 130px at 88% -30%, oklch(0.84 0.12 75 / 0.1), transparent 60%),
+    linear-gradient(120deg, oklch(0.72 0.12 175 / 0.1), oklch(0.205 0.018 175) 45%, oklch(0.84 0.12 75 / 0.08));
+}
+
+/* ═══ الطباعة / PDF — طباعة محتوى الوثيقة فقط لا كامل الواجهة ═══
+   زر الطباعة وزر PDF في إدارة الوثائق يطبعان منطقة .print-area
+   (معاينة الوثيقة) فقط: الترويسة، العنوان، المتن، التوقيع */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm;
+  }
+  html, body {
+    background: #fff !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  /* إخفاء كل الواجهة: الهيدر، القائمة الجانبية، الفوتر، لوحة الإعداد، الأزرار */
+  body * {
+    visibility: hidden !important;
+    box-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  /* إظهار معاينة الوثيقة وحدها في أعلى الصفحة */
+  .print-area,
+  .print-area * {
+    visibility: visible !important;
+  }
+  .print-area {
+    position: absolute !important;
+    inset-inline-start: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    min-height: 0 !important;
+  }
+  /* الوثيقة تُطبع دائماً بالأسود على الأبيض حتى في الوضع الليلي */
+  .print-area,
+  .print-area * {
+    background: transparent !important;
+    color: #000 !important;
+    border-color: #444 !important;
+  }
+  .print-area .text-muted-foreground {
+    color: #3a3a3a !important;
+  }
+  .print-area .text-primary,
+  .print-area .text-primary\/90 {
+    color: #000 !important;
+  }
+  .print-area .decoration-primary\/40 {
+    text-decoration-color: #666 !important;
+  }
+  /* حفظ الألوان بدقة ورفع جودة النص المطبوع */
+  * {
+    -webkit-print-color-adjust: economy !important;
+    print-color-adjust: economy !important;
+  }
+}
