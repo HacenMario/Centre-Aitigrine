@@ -447,3 +447,48 @@ export function resetHandledText(opts: { tempPassword?: string }): TriNotificati
     },
   };
 }
+
+/* ─────────── نشر مقال جديد (v3.6.0) ───────────
+ * staff: أخصائي نشر مقالاً → إشعار فريق الإدارة
+ * audience: إدارة نشرت مقالاً → إشعار العملاء والأخصائيين
+ * العنوان يُعرض بلغة القارئ إن توفرت، وإلا سقط إلى العربية */
+export function articlePublishedText(opts: {
+  title: string;
+  titleFr?: string;
+  titleEn?: string;
+  authorName: string;
+  viewer: "staff" | "audience";
+}): TriNotification {
+  const { title, titleFr, titleEn, authorName, viewer } = opts;
+  const t = {
+    ar: title,
+    fr: titleFr || title,
+    en: titleEn || title,
+  };
+  if (viewer === "staff") {
+    return {
+      titles: {
+        ar: "مقال جديد من أخصائي المركز",
+        fr: "Nouvel article d'un spécialiste du centre",
+        en: "New article from a center specialist",
+      },
+      bodies: {
+        ar: `نشر الأخصائي ${authorName} مقالاً جديداً بعنوان «${t.ar}» — يمكن الاطلاع عليه من صفحة المقالات.`,
+        fr: `Le spécialiste ${authorName} a publié un nouvel article intitulé « ${t.fr} » — consultez la page Articles.`,
+        en: `Specialist ${authorName} published a new article titled "${t.en}" — see the Articles page.`,
+      },
+    };
+  }
+  return {
+    titles: {
+      ar: "مقال جديد في مركز آيت تقرين",
+      fr: "Nouvel article au centre Aït Tegrine",
+      en: "New article at Aït Tegrine Center",
+    },
+    bodies: {
+      ar: `نُشر مقال جديد بعنوان «${t.ar}» في صفحة المقالات — قراءة سعيدة.`,
+      fr: `Un nouvel article intitulé « ${t.fr} » a été publié dans la page Articles — bonne lecture.`,
+      en: `A new article titled "${t.en}" was published on the Articles page — happy reading.`,
+    },
+  };
+}

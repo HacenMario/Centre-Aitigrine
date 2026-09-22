@@ -362,6 +362,49 @@ export const EbookAnswer =
   (mongoose.models.EbookAnswer as Model<InferSchemaType<typeof EbookAnswerSchema>>) ||
   mongoose.model("EbookAnswer", EbookAnswerSchema);
 
+/* ─────────────── المقالات (v3.6.0) ───────────────
+ * مقالات علمية في علم النفس والأرطفونية ينشرها الأخصائيون وإدارة المركز فقط.
+ * القراءة عامة للجميع (زوار ومستخدمون) — النشر/التعديل بصلاحيات.
+ * العنوان والنبذة والمتن ثلاثية اللغة: يقرأ كل زائر المقال بلغته
+ * (إن فارغت الترجمة سقطت تلقائياً إلى العربية في الواجهة).
+ */
+const ArticleSchema = new Schema(
+  {
+    title: { type: String, required: true, trim: true, maxlength: 200 },
+    titleFr: { type: String, default: "", trim: true, maxlength: 200 },
+    titleEn: { type: String, default: "", trim: true, maxlength: 200 },
+    summary: { type: String, default: "", trim: true, maxlength: 600 },
+    summaryFr: { type: String, default: "", trim: true, maxlength: 600 },
+    summaryEn: { type: String, default: "", trim: true, maxlength: 600 },
+    /** متن المقال — فقرات نصية تفصل بينها أسطر فارغة */
+    content: { type: String, required: true, maxlength: 30000 },
+    contentFr: { type: String, default: "", maxlength: 30000 },
+    contentEn: { type: String, default: "", maxlength: 30000 },
+    /** مجال المقال */
+    category: {
+      type: String,
+      enum: ["psychology", "orthophony", "general"],
+      default: "general",
+      index: true,
+    },
+    coverBase64: { type: String, default: "" },
+    /** بطاقة الكاتب — لقطة محفوظة لحظة النشر (لا تتأثر بتغيّر الحساب لاحقاً) */
+    authorId: { type: Schema.Types.ObjectId, ref: "User", index: true },
+    authorName: { type: String, default: "", maxlength: 120 },
+    authorRole: { type: String, default: "", enum: ["", "admin", "assistant", "specialist"] },
+    authorTitle: { type: String, default: "", maxlength: 120 },
+    authorTitleFr: { type: String, default: "", maxlength: 120 },
+    authorTitleEn: { type: String, default: "", maxlength: 120 },
+    /** المعطّل يختفي من العرض العمومي — يبقى مرئياً للإدارة */
+    active: { type: Boolean, default: true, index: true },
+  },
+  { timestamps: true, collection: "articles" }
+);
+ArticleSchema.index({ active: 1, createdAt: -1 });
+export type ArticleDoc = InferSchemaType<typeof ArticleSchema> & { _id: mongoose.Types.ObjectId };
+export const Article: Model<ArticleDoc> =
+  (mongoose.models.Article as Model<ArticleDoc>) || mongoose.model<ArticleDoc>("Article", ArticleSchema);
+
 /* ─────────────── صفحات المحتوى (FAQ / عن المركز / خصوصية / شروط) ─────────────── */
 const PageContentSchema = new Schema(
   {
