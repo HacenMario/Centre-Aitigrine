@@ -24,6 +24,7 @@ import Services from "@/components/views/services";
 import Courses from "@/components/views/courses";
 import Ads from "@/components/views/ads";
 import Ebooks from "@/components/views/ebooks";
+import Articles from "@/components/views/articles";
 import Accounts from "@/components/views/accounts";
 import CenterSettings from "@/components/views/center-settings";
 import Feedback from "@/components/views/feedback";
@@ -97,6 +98,8 @@ function Shell() {
             {view === "ads" && <Ads navigate={navigate} />}
             {view === "ebooks" && <Ebooks navigate={navigate} />}
             {view === "ebook" && <Ebooks navigate={navigate} />}
+            {/* v3.6.0: المقالات العلمية — للجميع، النشر للأخصائيين والإدارة */}
+            {view === "articles" && <Articles navigate={navigate} />}
             {view === "accounts" && <Accounts navigate={navigate} />}
             {view === "dashboard" && <Dashboard navigate={navigate} />}
             {view === "patients" && <Patients navigate={navigate} />}

@@ -13,6 +13,7 @@ export type ViewKey =
   | "courses"
   | "ebooks"
   | "ebook"
+  | "articles"
   | "ads"
   | "accounts"
   | "patients"
@@ -64,6 +65,8 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "services", label: "nav.services", icon: "Sparkles", roles: ["guest", "admin", "assistant", "specialist", "client"] },
   { key: "courses", label: "nav.courses", icon: "GraduationCap", roles: ["guest", "admin", "assistant", "specialist", "client"] },
   { key: "ebooks", label: "nav.ebooks", icon: "BookOpenText", roles: ["guest", "admin", "assistant", "specialist", "client"] },
+  /* v3.6.0: المقالات العلمية — القراءة للجميع والنشر للأخصائيين والإدارة */
+  { key: "articles", label: "nav.articles", icon: "Newspaper", roles: ["guest", "admin", "assistant", "specialist", "client"] },
   { key: "ads", label: "nav.ads", icon: "Megaphone", roles: ["guest", "admin", "assistant", "specialist", "client"], divider: true },
   { key: "contact", label: "nav.contact", icon: "Mail", roles: ["guest", "admin", "assistant", "specialist", "client"] },
   { key: "feedback", label: "nav.feedback", icon: "MessageSquareHeart", roles: ["guest", "admin", "assistant", "specialist", "client"] },
