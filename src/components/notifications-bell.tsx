@@ -150,15 +150,10 @@ export default function NotificationsBell() {
   if (!me) return null;
 
   /* النص بلغة المستخدم — سقوط تلقائي إلى العربية */
-  const pick = (map: TriMap | undefined, fallback: string) => {
-    if (!map) return fallback;
-    const own = map[lang];
-    if (own) return own;
-    if (lang === "tr" || lang === "es") return map.en || map.fr || map.ar || fallback;
-    return map.ar || map.fr || map.en || fallback;
-  };
+  const pick = (map: TriMap | undefined, fallback: string) =>
+    (map && (map[lang] || map.ar || map.fr || map.en)) || fallback;
 
-  const locale = lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : lang === "tr" ? "tr-TR" : lang === "es" ? "es-ES" : "en-GB";
+  const locale = lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB";
 
   return (
     <DropdownMenu open={open} onOpenChange={(v) => { setOpen(v); setConfirmDelete(false); if (v) load(); }}>

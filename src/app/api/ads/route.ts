@@ -150,13 +150,11 @@ export async function POST(req: NextRequest) {
           if (publish) {
             notifyStaff(
               {
-                titles: { ar: "نُشر إعلان جديد", fr: "Nouvelle annonce publiée", en: "New ad published", tr: "Yeni duyuru yayınlandı", es: "Nuevo anuncio publicado" },
+                titles: { ar: "نُشر إعلان جديد", fr: "Nouvelle annonce publiée", en: "New ad published" },
                 bodies: {
                   ar: `نُشر إعلان «${title}» بواسطة ${staff.name}.`,
                   fr: `L'annonce « ${title} » a été publiée par ${staff.name}.`,
                   en: `Ad "${title}" was published by ${staff.name}.`,
-                  tr: `«${title}» duyurusu ${staff.name} tarafından yayınlandı.`,
-                  es: `El anuncio «${title}» fue publicado por ${staff.name}.`,
                 },
               },
               "ads",
@@ -237,13 +235,11 @@ export async function POST(req: NextRequest) {
           notifyUser(
             String(uid),
             {
-              titles: { ar: "رد المركز على تعليقك", fr: "Réponse du centre à votre commentaire", en: "Center replied to your comment", tr: "Merkezin yorumunuza yanıtı", es: "Respuesta del centro a su comentario" },
+              titles: { ar: "رد المركز على تعليقك", fr: "Réponse du centre à votre commentaire", en: "Center replied to your comment" },
               bodies: {
                 ar: `ردّ فريق المركز على تعليقك في إعلان «${ad.title}»: «${text.slice(0, 200)}»`,
                 fr: `Le centre a répondu à votre commentaire sur « ${ad.title} » : « ${text.slice(0, 200)} »`,
                 en: `The center replied to your comment on "${ad.title}": "${text.slice(0, 200)}"`,
-                tr: `Merkez, «${ad.title}» duyurusundaki yorumunuza yanıt verdi: «${text.slice(0, 200)}»`,
-                es: `El centro respondió a su comentario en «${ad.title}»: «${text.slice(0, 200)}»`,
               },
             },
             "ads",

@@ -1,7 +1,7 @@
 "use client";
 /**
  * مركز أيت تقرين — سياق التطبيق العام (v3)
- * اللغة (ar/fr/en/tr/es) + حجم النص + المستخدم + إعدادات المركز + الإخفاء السريع
+ * اللغة (ar/fr/en) + حجم النص + المستخدم + إعدادات المركز + الإخفاء السريع
  * ★ الجديد v3: التنقل الداخلي (view/navigate) مصدر وحيد للحقيقة —
  *   الهيدر والقائمة الجانبية والفوتر والشعار كلها تتنقل عبر useApp().navigate
  *   (يقتل جذرياً أخطاء "النقر على القائمة الجانبية لا يفعل شيئاً" و"الشعار لا يوجه للرئيسية")
@@ -15,7 +15,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { ar, fr, en, tr, es } from "./dicts";
+import { ar, fr, en } from "./dicts";
 import type { ViewKey, Navigate } from "./nav";
 import { isHidden as qhIsHidden, setHidden as qhSetHidden } from "./quick-hide";
 import {
@@ -27,9 +27,7 @@ import {
   setToken,
 } from "./client-api";
 
-export type Lang = "ar" | "fr" | "en" | "tr" | "es";
-/** كل لغات الموقع — للتحقق من التخزين المحلي والتطبيع */
-export const ALL_LANGS: Lang[] = ["ar", "fr", "en", "tr", "es"];
+export type Lang = "ar" | "fr" | "en";
 export type Me = {
   _id: string;
   name: string;
@@ -40,13 +38,9 @@ export type Me = {
   title?: string;
   titleFr?: string;
   titleEn?: string;
-  titleTr?: string;
-  titleEs?: string;
   bio?: string;
   bioFr?: string;
   bioEn?: string;
-  bioTr?: string;
-  bioEs?: string;
   yearsExperience?: number;
   specialties?: string[];
   photoBase64?: string;
@@ -55,33 +49,25 @@ export type Me = {
   active?: boolean;
 } | null;
 
-export type TriCat = { ar: string; fr: string; en: string; tr: string; es: string };
+export type TriCat = { ar: string; fr: string; en: string };
 export type DayHours = { start: string; end: string; closed: boolean };
 
 export type CenterSettings = {
   centerName: string;
   centerNameFr: string;
   centerNameEn: string;
-  centerNameTr: string;
-  centerNameEs: string;
   tagline: string;
   taglineFr: string;
   taglineEn: string;
-  taglineTr: string;
-  taglineEs: string;
   aboutShort: string;
   aboutShortFr: string;
   aboutShortEn: string;
-  aboutShortTr: string;
-  aboutShortEs: string;
   phone: string;
   whatsapp: string;
   email: string;
   address: string;
   addressFr: string;
   addressEn: string;
-  addressTr: string;
-  addressEs: string;
   lat: number;
   lng: number;
   /** رابط الموقع على خرائط Google — يوجه الزوار للمركز مباشرة من الفوتر وصفحة التواصل */
@@ -89,12 +75,9 @@ export type CenterSettings = {
   logoBase64: string;
   langFr: boolean;
   langEn: boolean;
-  /** v3.7: اللغتان التركية والإسبانية — تفعيل/تعطيل من الإعدادات */
-  langTr: boolean;
-  langEs: boolean;
   options: {
     specialties: string[];
-    /** v3.7: التصنيفات خماسية اللغة — { ar, fr, en, tr, es } */
+    /** v3.5: التصنيفات ثلاثية اللغة — { ar, fr, en } */
     serviceCategories: TriCat[];
     courseCategories: TriCat[];
     slotMinutes: number;
@@ -113,7 +96,7 @@ export type CenterSettings = {
   sliderMedia: { type: "image" | "video"; url?: string; data?: string; title: string }[];
 };
 
-const dicts: Record<Lang, Record<string, string>> = { ar, fr, en, tr, es };
+const dicts: Record<Lang, Record<string, string>> = { ar, fr, en };
 /** الوصول للقواميس من الخارج (enable-push ومكوّنات خارج مزوّد السياق) */
 export { dicts };
 
@@ -150,34 +133,24 @@ const DEFAULT_SETTINGS: CenterSettings = {
   centerName: "مركز أيت تقرين",
   centerNameFr: "",
   centerNameEn: "",
-  centerNameTr: "",
-  centerNameEs: "",
   tagline: "",
   taglineFr: "",
   taglineEn: "",
-  taglineTr: "",
-  taglineEs: "",
   aboutShort: "",
   aboutShortFr: "",
   aboutShortEn: "",
-  aboutShortTr: "",
-  aboutShortEs: "",
   phone: "",
   whatsapp: "",
   email: "",
   address: "",
   addressFr: "",
   addressEn: "",
-  addressTr: "",
-  addressEs: "",
   lat: 36.7538,
   lng: 3.0588,
   mapsUrl: "",
   logoBase64: "",
   langFr: true,
   langEn: true,
-  langTr: true,
-  langEs: true,
   options: {
     specialties: [],
     serviceCategories: [],
@@ -237,7 +210,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     installAuthFetch();
     try {
       const l = localStorage.getItem("ait_lang") as Lang | null;
-      if (l && ALL_LANGS.includes(l)) setLangState(l);
+      if (l && ["ar", "fr", "en"].includes(l)) setLangState(l);
       const f = parseFloat(localStorage.getItem("ait_font") || "1");
       if (f >= 0.8 && f <= 1.4) setFontScale(f);
     } catch {}
@@ -283,12 +256,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const s = { ...DEFAULT_SETTINGS, ...j.settings } as CenterSettings;
         /* حماية إضافية: تطبيع التصنيفات وأوقات الأسبوع مهما كان شكلها */
         s.options = { ...DEFAULT_SETTINGS.options, ...(s.options || {}) };
-        const normCat = (c: unknown): TriCat =>
-          typeof c === "string"
-            ? { ar: c, fr: "", en: "", tr: "", es: "" }
-            : Object.assign({ ar: "", fr: "", en: "", tr: "", es: "" }, (c || {}) as Partial<TriCat>);
-        s.options.serviceCategories = (s.options.serviceCategories || []).map(normCat);
-        s.options.courseCategories = (s.options.courseCategories || []).map(normCat);
+        s.options.serviceCategories = (s.options.serviceCategories || []).map((c: unknown) =>
+          typeof c === "string" ? { ar: c, fr: "", en: "" } : (c as TriCat)
+        );
+        s.options.courseCategories = (s.options.courseCategories || []).map((c: unknown) =>
+          typeof c === "string" ? { ar: c, fr: "", en: "" } : (c as TriCat)
+        );
         s.options.dayHours = s.options.dayHours || {};
         setSettings(s);
       }

@@ -32,8 +32,6 @@ export default function LanguageMenu() {
     { key: "ar", name: LANG_NAMES.ar, native: "Arabic", enabled: true },
     { key: "fr", name: LANG_NAMES.fr, native: "French", enabled: settings?.langFr !== false },
     { key: "en", name: LANG_NAMES.en, native: "English", enabled: settings?.langEn !== false },
-    { key: "tr", name: LANG_NAMES.tr, native: "Turkish", enabled: settings?.langTr !== false },
-    { key: "es", name: LANG_NAMES.es, native: "Spanish", enabled: settings?.langEs !== false },
   ];
 
   const toggle = async (r: LangRow, on: boolean) => {
@@ -43,15 +41,7 @@ export default function LanguageMenu() {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          r.key === "fr"
-            ? { langFr: on }
-            : r.key === "en"
-              ? { langEn: on }
-              : r.key === "tr"
-                ? { langTr: on }
-                : { langEs: on }
-        ),
+        body: JSON.stringify(r.key === "fr" ? { langFr: on } : { langEn: on }),
       });
       if (res.ok) {
         toast.success(`${LANG_FLAGS[r.key]} ${r.name}: ${on ? "On" : "Off"}`);

@@ -8,21 +8,15 @@ import { Settings } from "@/lib/models";
 import { requireUser } from "@/lib/auth";
 import { ensureVapidKeys } from "@/lib/push";
 
-/** v3.7: تطبيع التصنيفات خماسية اللغة — النصوص القديمة تصبح { ar } */
-type TriCat = { ar: string; fr: string; en: string; tr: string; es: string };
+/** v3.5: تطبيع التصنيفات ثلاثية اللغة — النصوص القديمة تصبح { ar } */
+type TriCat = { ar: string; fr: string; en: string };
 function normCats(v: unknown): TriCat[] {
   if (!Array.isArray(v)) return [];
   return v
     .map((c) => {
-      if (typeof c === "string") return { ar: c, fr: "", en: "", tr: "", es: "" };
+      if (typeof c === "string") return { ar: c, fr: "", en: "" };
       const o = (c ?? {}) as Record<string, unknown>;
-      return {
-        ar: String(o.ar ?? "").trim(),
-        fr: String(o.fr ?? "").trim(),
-        en: String(o.en ?? "").trim(),
-        tr: String(o.tr ?? "").trim(),
-        es: String(o.es ?? "").trim(),
-      };
+      return { ar: String(o.ar ?? "").trim(), fr: String(o.fr ?? "").trim(), en: String(o.en ?? "").trim() };
     })
     .filter((c) => c.ar);
 }
@@ -78,26 +72,18 @@ export async function PUT(req: NextRequest) {
       "centerName",
       "centerNameFr",
       "centerNameEn",
-      "centerNameTr",
-      "centerNameEs",
       "tagline",
       "taglineFr",
       "taglineEn",
-      "taglineTr",
-      "taglineEs",
       "aboutShort",
       "aboutShortFr",
       "aboutShortEn",
-      "aboutShortTr",
-      "aboutShortEs",
       "phone",
       "whatsapp",
       "email",
       "address",
       "addressFr",
       "addressEn",
-      "addressTr",
-      "addressEs",
       "mapsUrl",
     ] as const;
     for (const f of strFields) if (b[f] !== undefined) s[f] = String(b[f]);
@@ -106,8 +92,6 @@ export async function PUT(req: NextRequest) {
     if (typeof b.logoBase64 === "string") s.logoBase64 = b.logoBase64;
     if (typeof b.langFr === "boolean") s.langFr = b.langFr;
     if (typeof b.langEn === "boolean") s.langEn = b.langEn;
-    if (typeof b.langTr === "boolean") s.langTr = b.langTr;
-    if (typeof b.langEs === "boolean") s.langEs = b.langEs;
     if (b.options) {
       const o = b.options;
       s.options = {

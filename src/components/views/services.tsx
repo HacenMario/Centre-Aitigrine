@@ -106,11 +106,7 @@ export default function Services({ navigate }: { navigate: Navigate }) {
     if (!value) return "";
     const hit = cats.find((c) => c.ar === value);
     if (!hit) return value;
-    return lang === "fr" ? (hit.fr || hit.ar)
-      : lang === "en" ? (hit.en || hit.ar)
-      : lang === "tr" ? (hit.tr || hit.en || hit.fr || hit.ar)
-      : lang === "es" ? (hit.es || hit.en || hit.fr || hit.ar)
-      : hit.ar;
+    return lang === "fr" ? (hit.fr || hit.ar) : lang === "en" ? (hit.en || hit.ar) : hit.ar;
   };
 
   /* ترقيم الصفحات الاحترافي */
@@ -249,7 +245,7 @@ export default function Services({ navigate }: { navigate: Navigate }) {
                   <Select value={editing?.category || ""} onValueChange={(v) => setEditing({ ...editing, category: v })}>
                     <SelectTrigger className="h-11 w-40"><SelectValue placeholder="—" /></SelectTrigger>
                     <SelectContent>
-                      {cats.map((c) => <SelectItem key={c.ar} value={c.ar}>{lang === "fr" ? (c.fr || c.ar) : lang === "en" ? (c.en || c.ar) : lang === "tr" ? (c.tr || c.en || c.fr || c.ar) : lang === "es" ? (c.es || c.en || c.fr || c.ar) : c.ar}</SelectItem>)}
+                      {cats.map((c) => <SelectItem key={c.ar} value={c.ar}>{lang === "fr" ? (c.fr || c.ar) : lang === "en" ? (c.en || c.ar) : c.ar}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 ) : (

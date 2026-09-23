@@ -29,13 +29,9 @@ export async function POST(req: NextRequest) {
       title,
       titleFr: String(b.titleFr || ""),
       titleEn: String(b.titleEn || ""),
-      titleTr: String(b.titleTr || ""),
-      titleEs: String(b.titleEs || ""),
       summary: String(b.summary || ""),
       summaryFr: String(b.summaryFr || ""),
       summaryEn: String(b.summaryEn || ""),
-      summaryTr: String(b.summaryTr || ""),
-      summaryEs: String(b.summaryEs || ""),
       author: String(b.author || ""),
       coverBase64: String(b.coverBase64 || ""),
       blocks: Array.isArray(b.blocks)

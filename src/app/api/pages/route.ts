@@ -1,6 +1,6 @@
 /**
- * صفحات المحتوى: faq / about / privacy / terms — خماسية اللغة
- * GET ?key=faq&lang=tr → النسخة التركية إن وُجدت وإلا العربية (وإلا الافتراضي الاحترافي)
+ * صفحات المحتوى: faq / about / privacy / terms — ثلاثي اللغة
+ * GET ?key=faq&lang=fr → النسخة الفرنسية إن وُجدت وإلا العربية (وإلا الافتراضي الاحترافي)
  * PUT: الإدارة — { key, lang?, items }
  */
 import { NextRequest } from "next/server";
@@ -14,26 +14,19 @@ const KEYS = ["faq", "about", "privacy", "terms"];
 type Item = Record<string, unknown>;
 
 function byLang(
-  doc: { items?: Item[]; itemsFr?: Item[]; itemsEn?: Item[]; itemsTr?: Item[]; itemsEs?: Item[] } | null,
+  doc: { items?: Item[]; itemsFr?: Item[]; itemsEn?: Item[] } | null,
   key: string,
   lang: string
 ): Item[] {
   const pick = (v?: Item[]) => (Array.isArray(v) && v.length ? v : null);
   if (doc) {
     const custom =
-      (lang === "fr"
-        ? pick(doc.itemsFr)
-        : lang === "en"
-          ? pick(doc.itemsEn)
-          : lang === "tr"
-            ? pick(doc.itemsTr)
-            : lang === "es"
-              ? pick(doc.itemsEs)
-              : pick(doc.items)) || pick(doc.items);
+      (lang === "fr" ? pick(doc.itemsFr) : lang === "en" ? pick(doc.itemsEn) : pick(doc.items)) ||
+      pick(doc.items);
     if (custom) return custom;
   }
-  const pack = PAGE_DEFAULTS[lang as keyof typeof PAGE_DEFAULTS] || PAGE_DEFAULTS.ar;
-  return pack[key as "faq"] as unknown as Item[];
+  const d = PAGE_DEFAULTS[lang === "fr" ? "fr" : lang === "en" ? "en" : "ar"][key as "faq"];
+  return d as unknown as Item[];
 }
 
 export async function GET(req: NextRequest) {
@@ -46,8 +39,6 @@ export async function GET(req: NextRequest) {
         items: Item[];
         itemsFr?: Item[];
         itemsEn?: Item[];
-        itemsTr?: Item[];
-        itemsEs?: Item[];
       } | null>();
       return ok({ key, lang, items: byLang(p, key, lang) });
     }
@@ -56,8 +47,6 @@ export async function GET(req: NextRequest) {
       items: Item[];
       itemsFr?: Item[];
       itemsEn?: Item[];
-      itemsTr?: Item[];
-      itemsEs?: Item[];
     }[]>();
     const map: Record<string, Item[]> = {};
     KEYS.forEach((k) => {
@@ -76,8 +65,7 @@ export async function PUT(req: NextRequest) {
     const lang = String(b.lang || "ar");
     if (!KEYS.includes(key)) return fail(400, "صفحة غير معروفة");
     if (!Array.isArray(b.items)) return fail(400, "عناصر غير صحيحة");
-    const field =
-      lang === "fr" ? "itemsFr" : lang === "en" ? "itemsEn" : lang === "tr" ? "itemsTr" : lang === "es" ? "itemsEs" : "items";
+    const field = lang === "fr" ? "itemsFr" : lang === "en" ? "itemsEn" : "items";
     await PageContent.findOneAndUpdate(
       { key },
       {

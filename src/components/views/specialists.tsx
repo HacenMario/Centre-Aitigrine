@@ -18,15 +18,13 @@ import {
   Stethoscope, Languages, UserRound, CalendarClock, Info, Star, Award,
 } from "lucide-react";
 
-type SpecSpecialty = { _id: string; ar: string; fr?: string; en?: string; tr?: string; es?: string; builtin?: boolean };
+type SpecSpecialty = { _id: string; ar: string; fr: string; en: string; builtin?: boolean };
 type Spec = {
   _id: string;
   name: string;
   title: string;
   titleFr?: string;
   titleEn?: string;
-  titleTr?: string;
-  titleEs?: string;
   specialty: string;
   langs: string[];
   bio: string;
@@ -72,23 +70,17 @@ export default function Specialists({ navigate }: { navigate?: (v: "appointments
   const specName = (s: SpecSpecialty) => {
     if (lang === "fr") return s.fr || s.ar;
     if (lang === "en") return s.en || s.ar;
-    if (lang === "tr") return s.tr || s.en || s.fr || s.ar;
-    if (lang === "es") return s.es || s.en || s.fr || s.ar;
     return s.ar;
   };
   /** اللقب المهني حسب اللغة */
   const specTitle = (sp: Spec) => {
     if (lang === "fr") return sp.titleFr || sp.title || "";
     if (lang === "en") return sp.titleEn || sp.title || "";
-    if (lang === "tr") return sp.titleTr || sp.titleEn || sp.title || "";
-    if (lang === "es") return sp.titleEs || sp.titleEn || sp.title || "";
     return sp.title || "";
   };
   const specBio = (sp: Spec) => {
     if (lang === "fr") return sp.bioFr || sp.bio || "";
     if (lang === "en") return sp.bioEn || sp.bio || "";
-    if (lang === "tr") return sp.bioTr || sp.bioEn || sp.bio || "";
-    if (lang === "es") return sp.bioEs || sp.bioEn || sp.bio || "";
     return sp.bio || "";
   };
   const legacyBadge = (s: string) => {

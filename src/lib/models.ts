@@ -22,18 +22,14 @@ const UserSchema = new Schema(
       enum: ["psychological", "art_therapy", "both"],
       default: undefined,
     },
-    /** لغات الأخصائي (عربية دائماً + فرنسية/إنجليزية/تركية/إسبانية اختيارياً) */
+    /** لغات الأخصائي (عربية دائماً + فرنسية/إنجليزية اختيارياً) */
     langs: { type: [String], default: ["ar"] },
     title: { type: String, default: "" }, // اللقب المهني (عربي)
     titleFr: { type: String, default: "" }, // اللقب المهني بالفرنسية
     titleEn: { type: String, default: "" }, // اللقب المهني بالإنجليزية
-    titleTr: { type: String, default: "" }, // اللقب المهني بالتركية (v3.7)
-    titleEs: { type: String, default: "" }, // اللقب المهني بالإسبانية (v3.7)
     bio: { type: String, default: "" },
     bioFr: { type: String, default: "" },
     bioEn: { type: String, default: "" },
-    bioTr: { type: String, default: "" },
-    bioEs: { type: String, default: "" },
     photoBase64: { type: String, default: "" },
     /** سنوات الخبرة (للأخصائي) */
     yearsExperience: { type: Number, default: 0, min: 0, max: 70 },
@@ -65,8 +61,6 @@ const SpecialtySchema = new Schema(
       ar: { type: String, required: true },
       fr: { type: String, default: "" },
       en: { type: String, default: "" },
-      tr: { type: String, default: "" },
-      es: { type: String, default: "" },
     },
     builtin: { type: Boolean, default: false, index: true },
     order: { type: Number, default: 0 },
@@ -99,40 +93,30 @@ const SettingsSchema = new Schema(
     centerName: { type: String, default: "مركز أيت تقرين" },
     centerNameFr: { type: String, default: "" },
     centerNameEn: { type: String, default: "" },
-    centerNameTr: { type: String, default: "" },
-    centerNameEs: { type: String, default: "" },
     tagline: { type: String, default: "" },
     taglineFr: { type: String, default: "" },
     taglineEn: { type: String, default: "" },
-    taglineTr: { type: String, default: "" },
-    taglineEs: { type: String, default: "" },
     aboutShort: { type: String, default: "" },
     aboutShortFr: { type: String, default: "" },
     aboutShortEn: { type: String, default: "" },
-    aboutShortTr: { type: String, default: "" },
-    aboutShortEs: { type: String, default: "" },
     phone: { type: String, default: "" },
     whatsapp: { type: String, default: "" },
     email: { type: String, default: "" },
     address: { type: String, default: "" },
     addressFr: { type: String, default: "" },
     addressEn: { type: String, default: "" },
-    addressTr: { type: String, default: "" },
-    addressEs: { type: String, default: "" },
     lat: { type: Number, default: 36.7538 }, // الجزائر العاصمة افتراضياً
     lng: { type: Number, default: 3.0588 },
     /** رابط الموقع على خرائط Google — يوجّه الزوار للمركز مباشرة */
     mapsUrl: { type: String, default: "" },
     logoBase64: { type: String, default: "" },
-    /** تفعيل اللغات FR/EN/TR/ES (العربية دائماً) — v3.7: خمس لغات */
+    /** تفعيل اللغات FR/EN (العربية دائماً) */
     langFr: { type: Boolean, default: true },
     langEn: { type: Boolean, default: true },
-    langTr: { type: Boolean, default: true },
-    langEs: { type: Boolean, default: true },
     /** خيارات الحقول تُدار من الإدارة */
     options: {
       specialties: { type: [String], default: [] },
-      /** v3.7: التصنيفات خماسية اللغة — كل عنصر { ar, fr, en, tr, es } (القديمة تُطبَّع تلقائياً) */
+      /** v3.5: التصنفات ثلاثية اللغة — كل عنصر { ar, fr, en } (القديمة نصوص تُطبَّع تلقائياً) */
       serviceCategories: { type: [Schema.Types.Mixed], default: [] },
       courseCategories: { type: [Schema.Types.Mixed], default: [] },
       slotMinutes: { type: Number, default: 60 },
@@ -174,13 +158,9 @@ const ServiceSchema = new Schema(
     title: { type: String, required: true, trim: true },
     titleFr: { type: String, default: "" },
     titleEn: { type: String, default: "" },
-    titleTr: { type: String, default: "" },
-    titleEs: { type: String, default: "" },
     description: { type: String, default: "" },
     descriptionFr: { type: String, default: "" },
     descriptionEn: { type: String, default: "" },
-    descriptionTr: { type: String, default: "" },
-    descriptionEs: { type: String, default: "" },
     icon: { type: String, default: "✨" }, // أيقونة إيموجي من كيبورد الهاتف
     category: { type: String, default: "" },
     price: { type: Number, default: 0 },
@@ -201,13 +181,9 @@ const CourseSchema = new Schema(
     title: { type: String, required: true, trim: true },
     titleFr: { type: String, default: "" },
     titleEn: { type: String, default: "" },
-    titleTr: { type: String, default: "" },
-    titleEs: { type: String, default: "" },
     description: { type: String, default: "" },
     descriptionFr: { type: String, default: "" },
     descriptionEn: { type: String, default: "" },
-    descriptionTr: { type: String, default: "" },
-    descriptionEs: { type: String, default: "" },
     category: { type: String, default: "" },
     trainerName: { type: String, default: "" },
     price: { type: Number, default: 0 },
@@ -313,11 +289,9 @@ const AppointmentSchema = new Schema(
     specialistId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     serviceId: { type: Schema.Types.ObjectId, ref: "Service", default: null },
     serviceTitle: { type: String, default: "" },
-    /** العنوان بخمس لغات ليظهر الموعد مترجماً عند كل مستخدم */
+    /** العنوان بثلاث لغات ليظهر الموعد مترجماً عند كل مستخدم */
     serviceTitleFr: { type: String, default: "" },
     serviceTitleEn: { type: String, default: "" },
-    serviceTitleTr: { type: String, default: "" },
-    serviceTitleEs: { type: String, default: "" },
     kind: { type: String, enum: ["psychological", "art_therapy"], default: "psychological" },
     /** طريقة الجلسة: حضورية أو عن بُعد */
     mode: { type: String, enum: ["onsite", "remote"], default: "onsite" },
@@ -351,13 +325,9 @@ const EbookSchema = new Schema(
     title: { type: String, required: true, trim: true },
     titleFr: { type: String, default: "" },
     titleEn: { type: String, default: "" },
-    titleTr: { type: String, default: "" },
-    titleEs: { type: String, default: "" },
     summary: { type: String, default: "" },
     summaryFr: { type: String, default: "" },
     summaryEn: { type: String, default: "" },
-    summaryTr: { type: String, default: "" },
-    summaryEs: { type: String, default: "" },
     author: { type: String, default: "" },
     coverBase64: { type: String, default: "" },
     /** محتوى: فقرات نصية + أسطر إجابات تفاعلية */
@@ -395,27 +365,21 @@ export const EbookAnswer =
 /* ─────────────── المقالات (v3.6.0) ───────────────
  * مقالات علمية في علم النفس والأرطفونية ينشرها الأخصائيون وإدارة المركز فقط.
  * القراءة عامة للجميع (زوار ومستخدمون) — النشر/التعديل بصلاحيات.
- * العنوان والنبذة والمتن خماسية اللغة: يقرأ كل زائر المقال بلغته
- * (إن فارغت الترجمة سقطت تلقائياً إلى الإنجليزية ثم العربية في الواجهة).
+ * العنوان والنبذة والمتن ثلاثية اللغة: يقرأ كل زائر المقال بلغته
+ * (إن فارغت الترجمة سقطت تلقائياً إلى العربية في الواجهة).
  */
 const ArticleSchema = new Schema(
   {
     title: { type: String, required: true, trim: true, maxlength: 200 },
     titleFr: { type: String, default: "", trim: true, maxlength: 200 },
     titleEn: { type: String, default: "", trim: true, maxlength: 200 },
-    titleTr: { type: String, default: "", trim: true, maxlength: 200 },
-    titleEs: { type: String, default: "", trim: true, maxlength: 200 },
     summary: { type: String, default: "", trim: true, maxlength: 600 },
     summaryFr: { type: String, default: "", trim: true, maxlength: 600 },
     summaryEn: { type: String, default: "", trim: true, maxlength: 600 },
-    summaryTr: { type: String, default: "", trim: true, maxlength: 600 },
-    summaryEs: { type: String, default: "", trim: true, maxlength: 600 },
     /** متن المقال — فقرات نصية تفصل بينها أسطر فارغة */
     content: { type: String, required: true, maxlength: 30000 },
     contentFr: { type: String, default: "", maxlength: 30000 },
     contentEn: { type: String, default: "", maxlength: 30000 },
-    contentTr: { type: String, default: "", maxlength: 30000 },
-    contentEs: { type: String, default: "", maxlength: 30000 },
     /** مجال المقال */
     category: {
       type: String,
@@ -431,8 +395,6 @@ const ArticleSchema = new Schema(
     authorTitle: { type: String, default: "", maxlength: 120 },
     authorTitleFr: { type: String, default: "", maxlength: 120 },
     authorTitleEn: { type: String, default: "", maxlength: 120 },
-    authorTitleTr: { type: String, default: "", maxlength: 120 },
-    authorTitleEs: { type: String, default: "", maxlength: 120 },
     /** المعطّل يختفي من العرض العمومي — يبقى مرئياً للإدارة */
     active: { type: Boolean, default: true, index: true },
   },
@@ -449,11 +411,9 @@ const PageContentSchema = new Schema(
     key: { type: String, enum: ["faq", "about", "privacy", "terms"], unique: true },
     /** faq: [{q,a}] — البقية: [{title, text}] */
     items: { type: [], default: [] },
-    /** النسخ المترجمة — بنفس بنية items، وإن فارغتُ استُخدمت العربية */
+    /** النسخ الفرنسية/الإنجليزية — بنفس بنية items، وإن فارغتُ استُخدمت العربية */
     itemsFr: { type: [], default: [] },
     itemsEn: { type: [], default: [] },
-    itemsTr: { type: [], default: [] },
-    itemsEs: { type: [], default: [] },
     updatedAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
@@ -492,8 +452,8 @@ export type FeedbackDoc = InferSchemaType<typeof FeedbackSchema> & { _id: mongoo
 export const Feedback: Model<FeedbackDoc> =
   (mongoose.models.Feedback as Model<FeedbackDoc>) || mongoose.model<FeedbackDoc>("Feedback", FeedbackSchema);
 
-/* ─────────────── الإشعارات الداخلية (خماسية اللغة) ───────────────
- * titles/bodies = { ar, fr, en, tr, es } — الواجهة تعرض حسب لغة المستخدم
+/* ─────────────── الإشعارات الداخلية (ثلاثية اللغة) ───────────────
+ * titles/bodies = { ar, fr, en } — الواجهة تعرض حسب لغة المستخدم
  * title/body = النص العربي (توافق قديم + احتياط)
  */
 const NotificationSchema = new Schema(
@@ -505,15 +465,11 @@ const NotificationSchema = new Schema(
       ar: { type: String, default: "" },
       fr: { type: String, default: "" },
       en: { type: String, default: "" },
-      tr: { type: String, default: "" },
-      es: { type: String, default: "" },
     },
     bodies: {
       ar: { type: String, default: "" },
       fr: { type: String, default: "" },
       en: { type: String, default: "" },
-      tr: { type: String, default: "" },
-      es: { type: String, default: "" },
     },
     kind: { type: String, default: "general" }, // reminder_day | reminder_hour | booking | status | general
     /* ★ وجهة الإشعار: الضغط عليه ينقل المستخدم للموضع المناسب (نمط طمأنينة)
@@ -562,25 +518,17 @@ const MedicalRecordSchema = new Schema(
     symptoms: { type: String, default: "" },
     symptomsFr: { type: String, default: "" },
     symptomsEn: { type: String, default: "" },
-    symptomsTr: { type: String, default: "" },
-    symptomsEs: { type: String, default: "" },
     motive: { type: String, default: "" },
     motiveFr: { type: String, default: "" },
     motiveEn: { type: String, default: "" },
-    motiveTr: { type: String, default: "" },
-    motiveEs: { type: String, default: "" },
     diagnosis: { type: String, default: "" },
     diagnosisFr: { type: String, default: "" },
     diagnosisEn: { type: String, default: "" },
-    diagnosisTr: { type: String, default: "" },
-    diagnosisEs: { type: String, default: "" },
     diagnosisSystem: { type: String, enum: ["", "dsm5", "icd10"], default: "" },
     diagnosisCode: { type: String, default: "" },
     treatmentPlan: { type: String, default: "" },
     treatmentPlanFr: { type: String, default: "" },
     treatmentPlanEn: { type: String, default: "" },
-    treatmentPlanTr: { type: String, default: "" },
-    treatmentPlanEs: { type: String, default: "" },
     sessionNotes: [{ date: { type: String, default: "" }, text: { type: String, default: "" } }],
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User" },
@@ -602,8 +550,6 @@ const WelcomeQuoteSchema = new Schema(
     textAr: { type: String, required: true, trim: true, maxlength: 500 },
     textFr: { type: String, default: "", trim: true, maxlength: 500 },
     textEn: { type: String, default: "", trim: true, maxlength: 500 },
-    textTr: { type: String, default: "", trim: true, maxlength: 500 },
-    textEs: { type: String, default: "", trim: true, maxlength: 500 },
     author: { type: String, default: "", trim: true, maxlength: 120 },
     active: { type: Boolean, default: true },
   },

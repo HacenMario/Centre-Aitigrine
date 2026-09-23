@@ -68,12 +68,8 @@ export default function Contact({ navigate }: { navigate?: (v: "feedback" | "hom
       ? ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]
       : lang === "fr"
         ? ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
-        : lang === "tr"
-          ? ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"]
-        : lang === "es"
-          ? ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
         : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const locale = lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : lang === "tr" ? "tr-TR" : lang === "es" ? "es-ES" : "en-GB";
+  const locale = lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB";
 
   return (
     <div className="space-y-6">
@@ -144,7 +140,7 @@ export default function Contact({ navigate }: { navigate?: (v: "feedback" | "hom
                 </span>
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase text-muted-foreground">{t("contact.address")}</p>
-                  <p className="text-sm font-black leading-snug break-words">{lang === "ar" ? s.address : lang === "tr" ? (s.addressTr || s.addressEn || s.addressFr || s.address) : lang === "es" ? (s.addressEs || s.addressEn || s.addressFr || s.address) : (s.addressFr || s.addressEn || s.address)}</p>
+                  <p className="text-sm font-black leading-snug break-words">{lang === "ar" ? s.address : s.addressFr || s.addressEn || s.address}</p>
                 </div>
               </CardContent>
             </Card>
@@ -172,7 +168,7 @@ export default function Contact({ navigate }: { navigate?: (v: "feedback" | "hom
                       rel="noopener noreferrer"
                       className="group inline-flex items-start gap-1 leading-relaxed underline decoration-primary/30 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
                     >
-                      {lang === "ar" ? s.address : lang === "tr" ? (s.addressTr || s.addressEn || s.addressFr || s.address) : lang === "es" ? (s.addressEs || s.addressEn || s.addressFr || s.address) : (s.addressFr || s.addressEn || s.address)}
+                      {lang === "ar" ? s.address : s.addressFr || s.addressEn || s.address}
                       <MapPin className="mt-1 h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
                     </a>
                   </p>

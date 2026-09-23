@@ -59,7 +59,7 @@ export default function Documents({ navigate }: { navigate: Navigate }) {
   const s = settings;
   /* التاريخ بلغة الواجهة الحالية (الإنجليزية كانت تُعرض بتاريخ فرنسي — أُصلح) */
   const today = new Date().toLocaleDateString(
-    lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-DZ" : lang === "tr" ? "tr-TR" : lang === "es" ? "es-ES" : "en-GB",
+    lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-DZ" : "en-GB",
     { year: "numeric", month: "long", day: "numeric" }
   );
 
@@ -106,16 +106,12 @@ export default function Documents({ navigate }: { navigate: Navigate }) {
     (lang === "ar"
       ? s?.centerName
       : pickTri(s as unknown as Record<string, unknown>, "centerName", lang)) || t("app.name");
-  const centerSub = t("app.subLine");
-  const centerAddress = lang === "ar" ? s?.address : lang === "tr" ? (s?.addressTr || s?.addressEn || s?.addressFr || s?.address || "") : lang === "es" ? (s?.addressEs || s?.addressEn || s?.addressFr || s?.address || "") : (s?.addressFr || s?.addressEn || s?.address || "");
+  const centerSub = lang === "ar" ? t("app.subLine") : t("app.subLine");
+  const centerAddress = lang === "ar" ? s?.address : (s?.addressFr || s?.addressEn || s?.address || "");
 
   /* الأخصائي المعالج بلغة الوثيقة — يظهر في الوثائق السريرية المناسبة */
   const specTitle = specialist
-    ? lang === "fr" ? (specialist.titleFr || specialist.title)
-      : lang === "en" ? (specialist.titleEn || specialist.title)
-      : lang === "tr" ? (specialist.titleTr || specialist.titleEn || specialist.title)
-      : lang === "es" ? (specialist.titleEs || specialist.titleEn || specialist.title)
-      : specialist.title
+    ? lang === "fr" ? (specialist.titleFr || specialist.title) : lang === "en" ? (specialist.titleEn || specialist.title) : specialist.title
     : "";
 
   /* توليد النص التلقائي حسب نوع الوثيقة — الحقول مترجمة بالكامل حسب لغة الواجهة */

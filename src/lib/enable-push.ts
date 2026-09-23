@@ -18,7 +18,7 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
 function msg(key: string): string {
   if (typeof window === "undefined") return key;
   try {
-    const lang = (localStorage.getItem("ait_lang") || "ar") as "ar" | "fr" | "en" | "tr" | "es";
+    const lang = (localStorage.getItem("ait_lang") || "ar") as "ar" | "fr" | "en";
     const d = dicts[lang] || dicts.ar;
     return d[key] || dicts.ar[key] || key;
   } catch {

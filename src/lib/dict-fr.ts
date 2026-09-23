@@ -92,8 +92,6 @@ export const fr: Record<string, string> = {
   "lang.ar": "Arabe",
   "lang.fr": "Français",
   "lang.en": "Anglais",
-  "lang.tr": "Turc",
-  "lang.es": "Espagnol",
 
   "landing.heroBadge": "Un espace sûr pour l'esprit et le psychisme",
   "landing.heroTitle": "Des soins psychologiques complets et une orthophonie spécialisée",
@@ -286,8 +284,6 @@ export const fr: Record<string, string> = {
   "set.langHint": "Activez les langues disponibles pour les visiteurs",
   "set.langFr": "Français",
   "set.langEn": "Anglais",
-  "set.langTr": "Turc",
-  "set.langEs": "Espagnol",
   "set.options": "Options",
   "set.optSpecialties": "Spécialités des praticiens",
   "set.optServiceCat": "Catégories de services",

@@ -39,12 +39,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (b.title !== undefined) c.title = String(b.title).trim();
     if (b.titleFr !== undefined) c.titleFr = String(b.titleFr);
     if (b.titleEn !== undefined) c.titleEn = String(b.titleEn);
-    if (b.titleTr !== undefined) c.titleTr = String(b.titleTr);
-    if (b.titleEs !== undefined) c.titleEs = String(b.titleEs);
     if (b.description !== undefined) c.description = String(b.description);
     if (b.descriptionFr !== undefined) c.descriptionFr = String(b.descriptionFr);
-    if (b.descriptionTr !== undefined) c.descriptionTr = String(b.descriptionTr);
-    if (b.descriptionEs !== undefined) c.descriptionEs = String(b.descriptionEs);
     if (b.descriptionEn !== undefined) c.descriptionEn = String(b.descriptionEn);
     if (b.category !== undefined) c.category = String(b.category);
     if (b.trainerName !== undefined) c.trainerName = String(b.trainerName);

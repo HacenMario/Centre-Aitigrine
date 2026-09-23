@@ -35,13 +35,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (b.title !== undefined) $set.title = String(b.title);
     if (b.titleFr !== undefined) $set.titleFr = String(b.titleFr);
     if (b.titleEn !== undefined) $set.titleEn = String(b.titleEn);
-    if (b.titleTr !== undefined) $set.titleTr = String(b.titleTr);
-    if (b.titleEs !== undefined) $set.titleEs = String(b.titleEs);
     if (b.bio !== undefined) $set.bio = String(b.bio);
     if (b.bioFr !== undefined) $set.bioFr = String(b.bioFr);
     if (b.bioEn !== undefined) $set.bioEn = String(b.bioEn);
-    if (b.bioTr !== undefined) $set.bioTr = String(b.bioTr);
-    if (b.bioEs !== undefined) $set.bioEs = String(b.bioEs);
     if (b.yearsExperience !== undefined)
       $set.yearsExperience = Math.max(0, Math.min(70, Math.round(Number(b.yearsExperience) || 0)));
     if (b.specialties !== undefined) {
