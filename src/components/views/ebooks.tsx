@@ -39,7 +39,7 @@ import type { Navigate } from "@/lib/nav";
 const PAGE_SIZE = 9;
 
 type Block = { type: "text" | "answer"; text: string; lines: number };
-type Ebook = { _id: string; title: string; titleFr?: string; titleEn?: string; summary: string; summaryFr?: string; summaryEn?: string; author: string; coverBase64: string; blocks: Block[]; active: boolean };
+type Ebook = { _id: string; title: string; titleFr?: string; titleEn?: string; titleTr?: string; titleEs?: string; summary: string; summaryFr?: string; summaryEn?: string; summaryTr?: string; summaryEs?: string; author: string; coverBase64: string; blocks: Block[]; active: boolean };
 
 export default function Ebooks({ navigate }: { navigate: Navigate }) {
   const { t, me, lang } = useApp();

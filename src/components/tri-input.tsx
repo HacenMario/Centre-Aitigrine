@@ -1,51 +1,82 @@
 "use client";
 /**
- * حقول إدخال نصوص ثلاثية اللغة (عربي / فرنسي / إنجليزي) — نمط موحّد للمنصة كلها
- * ★ لكل لغة مكانها الخاص: ثلاثة حقول مع أعلام اللغات تظهر دائماً معاً
+ * حقول إدخال نصوص متعددة اللغات (عربي / فرنسي / إنجليزي / تركي / إسباني) — نمط موحّد للمنصة كلها
+ * ★ لكل لغة مكانها الخاص: خمسة حقول مع أعلام اللغات تظهر دائماً معاً
  *   (طلب المستخدم: «حقول إدخال النصوص في كامل المنصة لا يوجد بها مكان خاص بكل لغة»)
- * الإرسال يُلوّح الحقول المترجمة تلقائياً (titleFr, titleEn, ...)
+ * الإرسال يُلوّح الحقول المترجمة تلقائياً (titleFr, titleEn, titleTr, titleEs, ...)
+ * v3.7: إضافة اللغتين التركية والإسبانية — خمس لغات كاملة
  */
 import { useApp, type Lang } from "@/lib/app-context";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
-export const LANG_FLAGS: Record<Lang, string> = { ar: "🇩🇿", fr: "🇫🇷", en: "🇬🇧" };
-export const LANG_TAB: Record<Lang, string> = { ar: "ع", fr: "FR", en: "EN" };
-export const LANG_NAMES: Record<Lang, string> = { ar: "العربية", fr: "Français", en: "English" };
+export const LANG_FLAGS: Record<Lang, string> = { ar: "🇩🇿", fr: "🇫🇷", en: "🇬🇧", tr: "🇹🇷", es: "🇪🇸" };
+export const LANG_TAB: Record<Lang, string> = { ar: "ع", fr: "FR", en: "EN", tr: "TR", es: "ES" };
+export const LANG_NAMES: Record<Lang, string> = {
+  ar: "العربية",
+  fr: "Français",
+  en: "English",
+  tr: "Türkçe",
+  es: "Español",
+};
 
-export type Tri = { ar: string; fr: string; en: string };
+/** ترتيب اللغات في حقول الإدخال — العربية أولاً ثم اللاتينية */
+export const LANG_ORDER: Lang[] = ["ar", "fr", "en", "tr", "es"];
 
-/** يبني كائناً ثلاثياً من كائن مسطح (base + suffixes) */
+export type Tri = { ar: string; fr: string; en: string; tr: string; es: string };
+
+/** يبني كائناً خماسياً من كائن مسطح (base + suffixes) */
 export function triFrom(obj: Record<string, unknown> | undefined | null, base: string): Tri {
-  if (!obj) return { ar: "", fr: "", en: "" };
+  if (!obj) return { ar: "", fr: "", en: "", tr: "", es: "" };
   return {
     ar: String(obj[base] ?? ""),
     fr: String(obj[`${base}Fr`] ?? ""),
     en: String(obj[`${base}En`] ?? ""),
+    tr: String(obj[`${base}Tr`] ?? ""),
+    es: String(obj[`${base}Es`] ?? ""),
   };
 }
 
-/** يفرد الكائن الثلاثي إلى حقول مسطحة: { title, titleFr, titleEn } */
+/** يفرد الكائن الخماسي إلى حقول مسطحة: { title, titleFr, titleEn, titleTr, titleEs } */
 export function flattenTri(base: string, tri: Tri): Record<string, string> {
-  return { [base]: tri.ar, [`${base}Fr`]: tri.fr, [`${base}En`]: tri.en };
+  return {
+    [base]: tri.ar,
+    [`${base}Fr`]: tri.fr,
+    [`${base}En`]: tri.en,
+    [`${base}Tr`]: tri.tr,
+    [`${base}Es`]: tri.es,
+  };
 }
 
-/** يقرأ القيمة المترجمة المناسبة للغة الحالية مع سقوط تلقائي إلى العربية */
+/** يقرأ القيمة المترجمة المناسبة للغة الحالية مع سقوط تلقائي: tr/es ← en ← fr ← ar */
 export function pickTri(
   obj: Record<string, unknown> | undefined | null,
   base: string,
   lang: string
 ): string {
   if (!obj) return "";
-  const l = (lang === "fr" || lang === "en" ? lang : "ar") as "ar" | "fr" | "en";
-  const suffix = l === "ar" ? "" : l === "fr" ? "Fr" : "En";
-  const v = String(obj[`${base}${suffix}`] ?? "").trim();
+  const val = (k: string) => String(obj[`${base}${k}`] ?? "").trim();
+  const v = val(langSuffixOf(lang));
   if (v) return v;
+  if (lang === "tr" || lang === "es") {
+    const en = val("En");
+    if (en) return en;
+    const fr = val("Fr");
+    if (fr) return fr;
+  }
   return String(obj[base] ?? "").trim();
 }
 
-/** حقل نصي ثلاثي اللغة */
+function langSuffixOf(lang: string): "" | "Fr" | "En" | "Tr" | "Es" {
+  if (lang === "fr") return "Fr";
+  if (lang === "en") return "En";
+  if (lang === "tr") return "Tr";
+  if (lang === "es") return "Es";
+  return "";
+}
+
+/** حقل نصي متعدد اللغات */
 export function TriInput({
   label, value, onChange, placeholder, required, id,
 }: {
@@ -69,7 +100,7 @@ export function TriInput({
   );
 }
 
-/** منطقة نص ثلاثية اللغة */
+/** منطقة نص متعددة اللغات */
 export function TriTextarea({
   label, value, onChange, placeholder, rows = 3, id,
 }: {
@@ -93,6 +124,14 @@ export function TriTextarea({
   );
 }
 
+const TRI_PLACEHOLDER: Record<Lang, string> = {
+  ar: "",
+  fr: "Français…",
+  en: "English…",
+  tr: "Türkçe…",
+  es: "Español…",
+};
+
 function TriField({
   label, value, onChange, placeholder, required, id, rows = 3, kind,
 }: {
@@ -109,7 +148,7 @@ function TriField({
     <div className="space-y-1.5">
       {label ? <Label htmlFor={id}>{label}</Label> : null}
       <div className="ait-tri space-y-2 rounded-xl border bg-card/40 p-2.5">
-        {(["ar", "fr", "en"] as Lang[]).map((l) => (
+        {LANG_ORDER.map((l) => (
           <div key={l} className="flex items-start gap-2">
             <span
               className="mt-1.5 flex w-11 shrink-0 items-center justify-center gap-1 rounded-md bg-muted/70 py-1 text-[11px] font-black text-muted-foreground"
@@ -125,7 +164,7 @@ function TriField({
                 value={value[l]}
                 required={required && l === "ar"}
                 onChange={(e) => onChange({ ...value, [l]: e.target.value })}
-                placeholder={l === "ar" ? placeholder : l === "fr" ? "Français…" : "English…"}
+                placeholder={l === "ar" ? placeholder : TRI_PLACEHOLDER[l]}
                 className="h-10"
               />
             ) : (
@@ -134,7 +173,7 @@ function TriField({
                 rows={rows}
                 value={value[l]}
                 onChange={(e) => onChange({ ...value, [l]: e.target.value })}
-                placeholder={l === "ar" ? placeholder : l === "fr" ? "Français…" : "English…"}
+                placeholder={l === "ar" ? placeholder : TRI_PLACEHOLDER[l]}
               />
             )}
           </div>

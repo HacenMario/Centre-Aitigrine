@@ -443,6 +443,8 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
           serviceTitle: services.find((s) => s._id === serviceId)?.title || "",
           serviceTitleFr: services.find((s) => s._id === serviceId)?.titleFr || "",
           serviceTitleEn: services.find((s) => s._id === serviceId)?.titleEn || "",
+          serviceTitleTr: services.find((s) => s._id === serviceId)?.titleTr || "",
+          serviceTitleEs: services.find((s) => s._id === serviceId)?.titleEs || "",
           kind: spec?.specialty === "art_therapy" ? "art_therapy" : "psychological",
           date, time, notes,
         }),

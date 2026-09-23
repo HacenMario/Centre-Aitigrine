@@ -24,18 +24,19 @@ import { Plus, Trash2, X, Building2, Save, Images, MapPin, Share2, Languages, Sl
 import { toast } from "sonner";
 import type { Navigate } from "@/lib/nav";
 
-const emptyTri: Tri = { ar: "", fr: "", en: "" };
-type SpecialtyRow = { _id: string; ar: string; fr: string; en: string; builtin: boolean };
+const emptyTri: Tri = { ar: "", fr: "", en: "", tr: "", es: "" };
+type SpecialtyRow = { _id: string; ar: string; fr?: string; en?: string; tr?: string; es?: string; builtin: boolean };
 
 type PageItem = { q?: string; a?: string; title?: string; text?: string };
-type QuoteRow = { id: string; textAr: string; textFr: string; textEn: string; author: string; active: boolean };
+type QuoteRow = { id: string; textAr: string; textFr?: string; textEn?: string; textTr?: string; textEs?: string; author: string; active: boolean };
+type PageLang = "ar" | "fr" | "en" | "tr" | "es";
 
 export default function CenterSettings({ navigate }: { navigate: Navigate }) {
   const { t, settings, refreshSettings, me } = useApp();
   const [form, setForm] = useState<CenterSettings | null>(null);
   const [busy, setBusy] = useState(false);
   const [pages, setPages] = useState<Record<string, PageItem[]>>({});
-  const [pageLang, setPageLang] = useState<"ar" | "fr" | "en">("ar");
+  const [pageLang, setPageLang] = useState<PageLang>("ar");
 
   useEffect(() => {
     if (settings) setForm({ ...settings });
@@ -297,6 +298,14 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
               <span className="font-bold">{t("set.langEn")}</span>
               <Switch checked={form.langEn} onCheckedChange={(v) => upd({ langEn: v })} />
             </label>
+            <label className="flex items-center justify-between rounded-2xl border p-4">
+              <span className="font-bold flex items-center gap-2"><span aria-hidden="true">{LANG_FLAGS.tr}</span>{t("set.langTr")}</span>
+              <Switch checked={form.langTr !== false} onCheckedChange={(v) => upd({ langTr: v })} />
+            </label>
+            <label className="flex items-center justify-between rounded-2xl border p-4">
+              <span className="font-bold flex items-center gap-2"><span aria-hidden="true">{LANG_FLAGS.es}</span>{t("set.langEs")}</span>
+              <Switch checked={form.langEs !== false} onCheckedChange={(v) => upd({ langEs: v })} />
+            </label>
           </div>
           <Button onClick={save} disabled={busy} className="w-full sm:w-auto h-12 rounded-xl gap-2 px-8 text-base">
             <Save className="h-4.5 w-4.5" /> {busy ? t("common.saving") : t("common.save")}
@@ -345,7 +354,7 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-bold">{t("header.language")}:</span>
             <div className="flex items-center gap-1 rounded-full border bg-muted/50 p-1">
-              {(["ar", "fr", "en"] as const).map((lg) => (
+              {(["ar", "fr", "en", "tr", "es"] as const).map((lg) => (
                 <button key={lg} type="button" onClick={() => setPageLang(lg)}
                   className={"min-w-11 h-8 rounded-full text-xs font-bold transition-all " +
                     (pageLang === lg ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:bg-accent")}>
@@ -417,8 +426,15 @@ function SpecialtiesManager() {
     else toast.error(j.error || t("common.error"));
   };
 
-  const nameOf = (sp: SpecialtyRow) =>
-    lang === "fr" ? (sp.fr || sp.ar) : lang === "en" ? (sp.en || sp.ar) : sp.ar;
+  const nameOf = (sp: SpecialtyRow) => {
+    const v =
+      lang === "fr" ? sp.fr :
+      lang === "en" ? sp.en :
+      lang === "tr" ? (sp.tr || sp.en || sp.fr) :
+      lang === "es" ? (sp.es || sp.en || sp.fr) :
+      sp.ar;
+    return v || sp.ar;
+  };
 
   return (
     <div className="space-y-5">
@@ -457,6 +473,8 @@ function SpecialtiesManager() {
                   <span aria-hidden="true">{LANG_FLAGS.ar}</span> {sp.ar}
                   {sp.fr && <> · <span aria-hidden="true">{LANG_FLAGS.fr}</span> {sp.fr}</>}
                   {sp.en && <> · <span aria-hidden="true">{LANG_FLAGS.en}</span> {sp.en}</>}
+                  {sp.tr && <> · <span aria-hidden="true">{LANG_FLAGS.tr}</span> {sp.tr}</>}
+                  {sp.es && <> · <span aria-hidden="true">{LANG_FLAGS.es}</span> {sp.es}</>}
                 </p>
               </div>
               {sp.builtin ? (
@@ -486,7 +504,7 @@ function QuotesManager() {
   const [rows, setRows] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<QuoteRow | null>(null);
-  const [form, setForm] = useState({ textAr: "", textFr: "", textEn: "", author: "" });
+  const [form, setForm] = useState({ textAr: "", textFr: "", textEn: "", textTr: "", textEs: "", author: "" });
   const [busy, setBusy] = useState(false);
   const [delTarget, setDelTarget] = useState<QuoteRow | null>(null);
 
@@ -508,11 +526,11 @@ function QuotesManager() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ textAr: "", textFr: "", textEn: "", author: "" });
+    setForm({ textAr: "", textFr: "", textEn: "", textTr: "", textEs: "", author: "" });
   };
   const openEdit = (q: QuoteRow) => {
     setEditing(q);
-    setForm({ textAr: q.textAr, textFr: q.textFr || "", textEn: q.textEn || "", author: q.author || "" });
+    setForm({ textAr: q.textAr, textFr: q.textFr || "", textEn: q.textEn || "", textTr: q.textTr || "", textEs: q.textEs || "", author: q.author || "" });
   };
 
   const save = async () => {
@@ -549,7 +567,11 @@ function QuotesManager() {
   };
 
   const showTri = (q: QuoteRow) =>
-    lang === "fr" ? (q.textFr || q.textAr) : lang === "en" ? (q.textEn || q.textAr) : q.textAr;
+    lang === "fr" ? (q.textFr || q.textAr)
+      : lang === "en" ? (q.textEn || q.textAr)
+      : lang === "tr" ? (q.textTr || q.textEn || q.textFr || q.textAr)
+      : lang === "es" ? (q.textEs || q.textEn || q.textFr || q.textAr)
+      : q.textAr;
 
   return (
     <div className="space-y-5">
@@ -562,8 +584,9 @@ function QuotesManager() {
             <Plus className="h-4 w-4 text-primary" />
             {editing ? t("set.quoteEdit") : t("set.quoteAdd")}
           </p>
-          <TriInput label={t("set.quoteText")} value={{ ar: form.textAr, fr: form.textFr, en: form.textEn }}
-            onChange={(v) => setForm({ ...form, textAr: v.ar, textFr: v.fr, textEn: v.en })} />
+          <TriInput label={t("set.quoteText")}
+            value={{ ar: form.textAr, fr: form.textFr, en: form.textEn, tr: form.textTr, es: form.textEs }}
+            onChange={(v) => setForm({ ...form, textAr: v.ar, textFr: v.fr, textEn: v.en, textTr: v.tr, textEs: v.es })} />
           <div className="grid sm:grid-cols-[1fr_auto] gap-3 items-end">
             <div className="space-y-1.5">
               <Label>{t("set.quoteAuthor")} <span className="text-muted-foreground text-xs">({t("common.optional")})</span></Label>
@@ -615,6 +638,8 @@ function QuotesManager() {
                   <span aria-hidden="true">{LANG_FLAGS.ar}</span> {q.textAr}
                   {q.textFr && <> · <span aria-hidden="true">{LANG_FLAGS.fr}</span> {q.textFr}</>}
                   {q.textEn && <> · <span aria-hidden="true">{LANG_FLAGS.en}</span> {q.textEn}</>}
+                  {q.textTr && <> · <span aria-hidden="true">{LANG_FLAGS.tr}</span> {q.textTr}</>}
+                  {q.textEs && <> · <span aria-hidden="true">{LANG_FLAGS.es}</span> {q.textEs}</>}
                 </p>
                 {q.author && (
                   <span className="inline-block rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground" dir="auto">{q.author}</span>
@@ -642,12 +667,17 @@ function QuotesManager() {
   );
 }
 
-/* ── قائمة تصنيفات ثلاثية اللغة (إضافة/حذف — كل عنصر { ar, fr, en }) ── */
+/* ── قائمة تصنيفات خماسية اللغة (إضافة/حذف — كل عنصر { ar, fr, en, tr, es }) ── */
 function TriCatList({ label, values, onChange }: { label: string; values: TriCat[]; onChange: (v: TriCat[]) => void }) {
   const { t, lang } = useApp();
   const [nv, setNv] = useState<Tri>(emptyTri);
   const list = values || [];
-  const nameOf = (c: TriCat) => (lang === "fr" ? c.fr || c.ar : lang === "en" ? c.en || c.ar : c.ar);
+  const nameOf = (c: TriCat) =>
+    lang === "fr" ? (c.fr || c.ar)
+      : lang === "en" ? (c.en || c.ar)
+      : lang === "tr" ? (c.tr || c.en || c.fr || c.ar)
+      : lang === "es" ? (c.es || c.en || c.fr || c.ar)
+      : c.ar;
 
   return (
     <div className="space-y-2">
@@ -665,20 +695,20 @@ function TriCatList({ label, values, onChange }: { label: string; values: TriCat
         ))}
       </div>
       <div className="ait-tri space-y-2 rounded-xl border bg-card/40 p-2.5">
-        {(["ar", "fr", "en"] as const).map((l) => (
+        {(["ar", "fr", "en", "tr", "es"] as const).map((l) => (
           <div key={l} className="flex items-center gap-2">
             <span className="flex w-11 shrink-0 items-center justify-center gap-1 rounded-md bg-muted/70 py-1 text-[11px] font-black text-muted-foreground" title={LANG_NAMES[l]}>
               <span aria-hidden="true">{LANG_FLAGS[l]}</span>
               <span className={l === "ar" ? "" : "tracking-wide"}>{l === "ar" ? "ع" : l.toUpperCase()}</span>
             </span>
             <Input dir={l === "ar" ? "rtl" : "ltr"} value={nv[l]} onChange={(e) => setNv({ ...nv, [l]: e.target.value })}
-              placeholder={l === "ar" ? t("common.add") : l === "fr" ? "Français…" : "English…"} className="h-10" />
+              placeholder={l === "ar" ? t("common.add") : l === "fr" ? "Français…" : l === "en" ? "English…" : l === "tr" ? "Türkçe…" : "Español…"} className="h-10" />
           </div>
         ))}
         <Button type="button" size="sm" variant="outline" className="gap-1.5 self-start"
           onClick={() => {
             if (!nv.ar.trim()) { toast.error(t("err.required")); return; }
-            onChange([...list, { ar: nv.ar.trim(), fr: nv.fr.trim(), en: nv.en.trim() }]);
+            onChange([...list, { ar: nv.ar.trim(), fr: nv.fr.trim(), en: nv.en.trim(), tr: nv.tr.trim(), es: nv.es.trim() }]);
             setNv(emptyTri);
           }}>
           <Plus className="h-4 w-4" /> {t("common.add")}
@@ -707,7 +737,11 @@ function DayHoursEditor({
       ? ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]
       : lang === "fr"
         ? ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
-        : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        : lang === "tr"
+          ? ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"]
+          : lang === "es"
+            ? ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+            : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
   const get = (k: string): DayHours | null => dayHours[k] || null;
   const set = (k: string, v: DayHours | null) => {

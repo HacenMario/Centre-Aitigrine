@@ -66,9 +66,17 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
   const [specList, setSpecList] = useState<SpecOption[]>([]);
 
   const titleOf = (c: Course) =>
-    (lang === "fr" ? c.titleFr || c.title : lang === "en" ? c.titleEn || c.title : c.title) || c.title;
+    (lang === "fr" ? c.titleFr || c.title
+      : lang === "en" ? c.titleEn || c.title
+      : lang === "tr" ? (c.titleTr || c.titleEn || c.titleFr || c.title)
+      : lang === "es" ? (c.titleEs || c.titleEn || c.titleFr || c.title)
+      : c.title) || c.title;
   const descOf = (c: Course) =>
-    (lang === "fr" ? c.descriptionFr || c.description : lang === "en" ? c.descriptionEn || c.description : c.description) || c.description;
+    (lang === "fr" ? c.descriptionFr || c.description
+      : lang === "en" ? c.descriptionEn || c.description
+      : lang === "tr" ? (c.descriptionTr || c.descriptionEn || c.descriptionFr || c.description)
+      : lang === "es" ? (c.descriptionEs || c.descriptionEn || c.descriptionFr || c.description)
+      : c.description) || c.description;
 
   const load = useCallback(async () => {
     try {
@@ -144,7 +152,11 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
     if (!value) return "";
     const hit = cats.find((c) => c.ar === value);
     if (!hit) return value;
-    return lang === "fr" ? (hit.fr || hit.ar) : lang === "en" ? (hit.en || hit.ar) : hit.ar;
+    return lang === "fr" ? (hit.fr || hit.ar)
+      : lang === "en" ? (hit.en || hit.ar)
+      : lang === "tr" ? (hit.tr || hit.en || hit.fr || hit.ar)
+      : lang === "es" ? (hit.es || hit.en || hit.fr || hit.ar)
+      : hit.ar;
   };
   const fmtPrice = (n: number) => `${n.toLocaleString(lang === "ar" ? "ar-DZ" : "fr-DZ")} ${lang === "ar" ? "دج" : "DA"}`;
 
@@ -358,7 +370,7 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
                 {cats.length ? (
                   <Select value={editing?.category || ""} onValueChange={(v) => setEditing({ ...editing, category: v })}>
                     <SelectTrigger className="h-11"><SelectValue placeholder="—" /></SelectTrigger>
-                    <SelectContent>{cats.map((c) => <SelectItem key={c.ar} value={c.ar}>{lang === "fr" ? (c.fr || c.ar) : lang === "en" ? (c.en || c.ar) : c.ar}</SelectItem>)}</SelectContent>
+                    <SelectContent>{cats.map((c) => <SelectItem key={c.ar} value={c.ar}>{lang === "fr" ? (c.fr || c.ar) : lang === "en" ? (c.en || c.ar) : lang === "tr" ? (c.tr || c.en || c.fr || c.ar) : lang === "es" ? (c.es || c.en || c.fr || c.ar) : c.ar}</SelectItem>)}</SelectContent>
                   </Select>
                 ) : (
                   <Input value={editing?.category || ""} onChange={(e) => setEditing({ ...editing, category: e.target.value })} className="h-11" />

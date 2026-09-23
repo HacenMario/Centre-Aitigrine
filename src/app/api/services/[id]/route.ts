@@ -16,8 +16,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (b.title !== undefined) s.title = String(b.title).trim();
     if (b.titleFr !== undefined) s.titleFr = String(b.titleFr);
     if (b.titleEn !== undefined) s.titleEn = String(b.titleEn);
+    if (b.titleTr !== undefined) s.titleTr = String(b.titleTr);
+    if (b.titleEs !== undefined) s.titleEs = String(b.titleEs);
     if (b.description !== undefined) s.description = String(b.description);
     if (b.descriptionFr !== undefined) s.descriptionFr = String(b.descriptionFr);
+    if (b.descriptionTr !== undefined) s.descriptionTr = String(b.descriptionTr);
+    if (b.descriptionEs !== undefined) s.descriptionEs = String(b.descriptionEs);
     if (b.descriptionEn !== undefined) s.descriptionEn = String(b.descriptionEn);
     if (b.icon !== undefined) s.icon = String(b.icon).slice(0, 8) || "✨";
     if (b.category !== undefined) s.category = String(b.category);

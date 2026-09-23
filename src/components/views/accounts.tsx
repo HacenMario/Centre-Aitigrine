@@ -48,7 +48,7 @@ type Account = {
   weeklyHours?: Record<string, string[]>; assignedSpecialistId?: string | null; active: boolean;
 };
 
-type SpecialtyRow = { _id: string; ar: string; fr: string; en: string; builtin: boolean };
+type SpecialtyRow = { _id: string; ar: string; fr?: string; en?: string; tr?: string; es?: string; builtin: boolean };
 
 const ROLE_BADGE: Record<string, string> = {
   admin: "bg-rose-500/12 text-rose-700 dark:text-rose-400 border-rose-500/25",
@@ -453,7 +453,12 @@ function AccountForm({
               <div className="flex flex-wrap gap-2 rounded-xl border bg-card/40 p-3">
                 {specialtyRows.map((sp) => {
                   const checked = (value?.specialties || []).includes(sp._id);
-                  const name = lang === "fr" ? (sp.fr || sp.ar) : lang === "en" ? (sp.en || sp.ar) : sp.ar;
+                  const name =
+                    lang === "fr" ? (sp.fr || sp.ar)
+                    : lang === "en" ? (sp.en || sp.ar)
+                    : lang === "tr" ? (sp.tr || sp.en || sp.fr || sp.ar)
+                    : lang === "es" ? (sp.es || sp.en || sp.fr || sp.ar)
+                    : sp.ar;
                   return (
                     <label
                       key={sp._id}

@@ -2,7 +2,7 @@
  * العبارات الترحيبية «لحظة اطمئنان» — نمط طمأنينة
  * GET  : عام — العبارات النشطة فقط (تُبذر المكتبة المدمجة مرة واحدة عند أول تشغيل)
  * POST : الإدارة — list-all / create / update / delete
- * كل عبارة بثلاث لغات (عربي/فرنسي/إنجليزي) + مؤلف اختياري + تفعيل
+ * كل عبارة بخمس لغات (عربي/فرنسي/إنجليزي/تركي/إسباني) + مؤلف اختياري + تفعيل
  */
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
@@ -24,6 +24,8 @@ async function ensureSeeded() {
         textAr: q.ar,
         textFr: q.fr,
         textEn: q.en,
+        textTr: q.tr,
+        textEs: q.es,
         author: "",
         active: true,
       }))
@@ -40,6 +42,8 @@ function mapQuote(q: Record<string, unknown>) {
     textAr: q.textAr,
     textFr: q.textFr ?? "",
     textEn: q.textEn ?? "",
+    textTr: q.textTr ?? "",
+    textEs: q.textEs ?? "",
     author: q.author ?? "",
     active: !!q.active,
     createdAt: q.createdAt,
@@ -50,7 +54,7 @@ export async function GET() {
   return handle(async () => {
     await ensureSeeded();
     const rows = await WelcomeQuote.find({ active: true })
-      .select("textAr textFr textEn author active createdAt")
+      .select("textAr textFr textEn textTr textEs author active createdAt")
       .limit(300)
       .lean<Record<string, unknown>[]>();
     return ok({ total: rows.length, quotes: rows.map(mapQuote) });
@@ -78,6 +82,8 @@ export async function POST(req: NextRequest) {
         textAr,
         textFr: String(b.textFr || "").trim(),
         textEn: String(b.textEn || "").trim(),
+        textTr: String(b.textTr || "").trim(),
+        textEs: String(b.textEs || "").trim(),
         author: String(b.author || "").trim(),
         active: b.active !== false,
       });
@@ -94,6 +100,8 @@ export async function POST(req: NextRequest) {
       }
       if (typeof b.textFr === "string") patch.textFr = b.textFr.trim();
       if (typeof b.textEn === "string") patch.textEn = b.textEn.trim();
+      if (typeof b.textTr === "string") patch.textTr = b.textTr.trim();
+      if (typeof b.textEs === "string") patch.textEs = b.textEs.trim();
       if (typeof b.author === "string") patch.author = b.author.trim();
       if (typeof b.active === "boolean") patch.active = b.active;
       const q = await WelcomeQuote.findByIdAndUpdate(id, { $set: patch }, { new: true }).lean();

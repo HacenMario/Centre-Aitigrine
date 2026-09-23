@@ -104,7 +104,7 @@ export default function RatingsDialog({
     setBusy(false);
   };
 
-  const locale = lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB";
+  const locale = lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : lang === "tr" ? "tr-TR" : lang === "es" ? "es-ES" : "en-GB";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

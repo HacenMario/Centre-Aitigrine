@@ -130,6 +130,8 @@ export async function POST(req: NextRequest) {
       serviceTitle: String(b.serviceTitle || ""),
       serviceTitleFr: String(b.serviceTitleFr || ""),
       serviceTitleEn: String(b.serviceTitleEn || ""),
+      serviceTitleTr: String(b.serviceTitleTr || ""),
+      serviceTitleEs: String(b.serviceTitleEs || ""),
       kind: ["psychological", "art_therapy"].includes(b.kind) ? b.kind : "psychological",
       mode: ["onsite", "remote"].includes(b.mode) ? b.mode : "onsite",
       date,

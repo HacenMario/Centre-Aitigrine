@@ -134,12 +134,18 @@ export async function PUT(req: NextRequest) {
       symptoms: String(b.symptoms ?? existing?.symptoms ?? ""),
       symptomsFr: String(b.symptomsFr ?? existing?.symptomsFr ?? ""),
       symptomsEn: String(b.symptomsEn ?? existing?.symptomsEn ?? ""),
+      symptomsTr: String(b.symptomsTr ?? existing?.symptomsTr ?? ""),
+      symptomsEs: String(b.symptomsEs ?? existing?.symptomsEs ?? ""),
       motive: String(b.motive ?? existing?.motive ?? ""),
       motiveFr: String(b.motiveFr ?? existing?.motiveFr ?? ""),
       motiveEn: String(b.motiveEn ?? existing?.motiveEn ?? ""),
+      motiveTr: String(b.motiveTr ?? existing?.motiveTr ?? ""),
+      motiveEs: String(b.motiveEs ?? existing?.motiveEs ?? ""),
       diagnosis: String(b.diagnosis ?? existing?.diagnosis ?? ""),
       diagnosisFr: String(b.diagnosisFr ?? existing?.diagnosisFr ?? ""),
       diagnosisEn: String(b.diagnosisEn ?? existing?.diagnosisEn ?? ""),
+      diagnosisTr: String(b.diagnosisTr ?? existing?.diagnosisTr ?? ""),
+      diagnosisEs: String(b.diagnosisEs ?? existing?.diagnosisEs ?? ""),
       diagnosisSystem: ["", "dsm5", "icd10"].includes(b.diagnosisSystem)
         ? b.diagnosisSystem
         : existing?.diagnosisSystem ?? "",
@@ -147,6 +153,8 @@ export async function PUT(req: NextRequest) {
       treatmentPlan: String(b.treatmentPlan ?? existing?.treatmentPlan ?? ""),
       treatmentPlanFr: String(b.treatmentPlanFr ?? existing?.treatmentPlanFr ?? ""),
       treatmentPlanEn: String(b.treatmentPlanEn ?? existing?.treatmentPlanEn ?? ""),
+      treatmentPlanTr: String(b.treatmentPlanTr ?? existing?.treatmentPlanTr ?? ""),
+      treatmentPlanEs: String(b.treatmentPlanEs ?? existing?.treatmentPlanEs ?? ""),
       sessionNotes: Array.isArray(b.sessionNotes)
         ? b.sessionNotes
             .filter((n: { text?: string }) => n && String(n.text || "").trim())

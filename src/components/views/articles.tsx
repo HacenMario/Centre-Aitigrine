@@ -44,9 +44,9 @@ const PAGE_SIZE = 9;
 
 type Article = {
   _id: string;
-  title: string; titleFr?: string; titleEn?: string;
-  summary: string; summaryFr?: string; summaryEn?: string;
-  content?: string; contentFr?: string; contentEn?: string;
+  title: string; titleFr?: string; titleEn?: string; titleTr?: string; titleEs?: string;
+  summary: string; summaryFr?: string; summaryEn?: string; summaryTr?: string; summaryEs?: string;
+  content?: string; contentFr?: string; contentEn?: string; contentTr?: string; contentEs?: string;
   category: "psychology" | "orthophony" | "general";
   coverBase64: string;
   authorId?: string; authorName: string; authorRole: string;
@@ -69,10 +69,10 @@ function dirOf(text: string): "rtl" | "ltr" {
 }
 
 /** تاريخ النشر بلغة القارئ */
-function fmtDate(iso: string, lang: "ar" | "fr" | "en"): string {
+function fmtDate(iso: string, lang: "ar" | "fr" | "en" | "tr" | "es"): string {
   try {
     return new Date(iso).toLocaleDateString(
-      lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB",
+      lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : lang === "tr" ? "tr-TR" : lang === "es" ? "es-ES" : "en-GB",
       { year: "numeric", month: "long", day: "numeric" }
     );
   } catch {
@@ -169,7 +169,7 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
         </div>
         {canPublish && (
           <Button
-            onClick={() => setEditing({ title: "", titleFr: "", titleEn: "", summary: "", summaryFr: "", summaryEn: "", content: "", contentFr: "", contentEn: "", category: "general", coverBase64: "", active: true })}
+            onClick={() => setEditing({ title: "", titleFr: "", titleEn: "", titleTr: "", titleEs: "", summary: "", summaryFr: "", summaryEn: "", summaryTr: "", summaryEs: "", content: "", contentFr: "", contentEn: "", contentTr: "", contentEs: "", category: "general", coverBase64: "", active: true })}
             className="gap-2 rounded-xl shadow-md shadow-primary/20"
           >
             <Plus className="h-4.5 w-4.5" /> {t("art.new")}

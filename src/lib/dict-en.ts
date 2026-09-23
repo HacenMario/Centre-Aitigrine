@@ -92,6 +92,8 @@ export const en: Record<string, string> = {
   "lang.ar": "Arabic",
   "lang.fr": "French",
   "lang.en": "English",
+  "lang.tr": "Turkish",
+  "lang.es": "Spanish",
 
   "landing.heroBadge": "A safe space for mind and soul",
   "landing.heroTitle": "Complete psychological care and specialized Speech Therapy",
@@ -284,6 +286,8 @@ export const en: Record<string, string> = {
   "set.langHint": "Enable the languages available to visitors",
   "set.langFr": "French",
   "set.langEn": "English",
+  "set.langTr": "Turkish",
+  "set.langEs": "Spanish",
   "set.options": "Options",
   "set.optSpecialties": "Specialist specialties",
   "set.optServiceCat": "Service categories",

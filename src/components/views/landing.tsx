@@ -35,7 +35,7 @@ type Course = {
   capacity: number; enrolledCount?: number;
   sessions: { date: string; start: string; end: string; title: string }[];
 };
-type SpecSpecialty = { _id: string; ar: string; fr: string; en: string };
+type SpecSpecialty = { _id: string; ar: string; fr?: string; en?: string; tr?: string; es?: string };
 type Specialist = {
   _id: string; name: string;
   title: string; titleFr?: string; titleEn?: string;
@@ -90,7 +90,12 @@ export default function Landing({ navigate }: { navigate: Navigate }) {
   const heroSub = s ? pickTri(s as unknown as Record<string, unknown>, "aboutShort", lang) : "";
   const specTitle = (sp: Specialist) => pickTri(sp as unknown as Record<string, unknown>, "title", lang);
   const specBio = (sp: Specialist) => pickTri(sp as unknown as Record<string, unknown>, "bio", lang);
-  const specName2 = (x: SpecSpecialty) => (lang === "fr" ? x.fr || x.ar : lang === "en" ? x.en || x.ar : x.ar);
+  const specName2 = (x: SpecSpecialty) =>
+    lang === "fr" ? (x.fr || x.ar)
+      : lang === "en" ? (x.en || x.ar)
+      : lang === "tr" ? (x.tr || x.en || x.fr || x.ar)
+      : lang === "es" ? (x.es || x.en || x.fr || x.ar)
+      : x.ar;
 
   /* v3.5: أوقات العمل لكل يوم من الأسبوع — من الإعدادات الجديدة */
   const dayNames =
@@ -98,6 +103,10 @@ export default function Landing({ navigate }: { navigate: Navigate }) {
       ? ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]
       : lang === "fr"
         ? ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
+        : lang === "tr"
+          ? ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"]
+        : lang === "es"
+          ? ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
         : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const dayHours = (s?.options?.dayHours || {}) as Record<string, DayHours>;
   const hoursOf = (d: number) => {

@@ -49,12 +49,18 @@ export async function POST(req: NextRequest) {
       title,
       titleFr: String(b.titleFr || "").trim(),
       titleEn: String(b.titleEn || "").trim(),
+      titleTr: String(b.titleTr || "").trim(),
+      titleEs: String(b.titleEs || "").trim(),
       summary: String(b.summary || "").trim(),
       summaryFr: String(b.summaryFr || "").trim(),
       summaryEn: String(b.summaryEn || "").trim(),
+      summaryTr: String(b.summaryTr || "").trim(),
+      summaryEs: String(b.summaryEs || "").trim(),
       content,
       contentFr: String(b.contentFr || ""),
       contentEn: String(b.contentEn || ""),
+      contentTr: String(b.contentTr || ""),
+      contentEs: String(b.contentEs || ""),
       category,
       coverBase64: typeof b.coverBase64 === "string" ? b.coverBase64 : "",
       authorId: me._id,
@@ -63,14 +69,18 @@ export async function POST(req: NextRequest) {
       authorTitle: String(me.title || ""),
       authorTitleFr: String(me.titleFr || ""),
       authorTitleEn: String(me.titleEn || ""),
+      authorTitleTr: String(me.titleTr || ""),
+      authorTitleEs: String(me.titleEs || ""),
       active: b.active !== false,
     });
 
-    /* إشعارات النشر — ثلاثية اللغة، لا يُشعَر الكاتب نفسه */
+    /* إشعارات النشر — خماسية اللغة، لا يُشعَر الكاتب نفسه */
     const tri = {
       title,
       titleFr: String(b.titleFr || ""),
       titleEn: String(b.titleEn || ""),
+      titleTr: String(b.titleTr || ""),
+      titleEs: String(b.titleEs || ""),
     };
     try {
       if (me.role === "specialist") {

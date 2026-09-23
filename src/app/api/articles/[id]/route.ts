@@ -45,9 +45,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
     if (b.titleFr !== undefined) a.titleFr = String(b.titleFr).trim();
     if (b.titleEn !== undefined) a.titleEn = String(b.titleEn).trim();
+    if (b.titleTr !== undefined) a.titleTr = String(b.titleTr).trim();
+    if (b.titleEs !== undefined) a.titleEs = String(b.titleEs).trim();
     if (b.summary !== undefined) a.summary = String(b.summary).trim();
     if (b.summaryFr !== undefined) a.summaryFr = String(b.summaryFr).trim();
     if (b.summaryEn !== undefined) a.summaryEn = String(b.summaryEn).trim();
+    if (b.summaryTr !== undefined) a.summaryTr = String(b.summaryTr).trim();
+    if (b.summaryEs !== undefined) a.summaryEs = String(b.summaryEs).trim();
     if (b.content !== undefined) {
       const c = String(b.content).trim();
       if (!c) return fail(400, "نص المقال مطلوب");
@@ -55,6 +59,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
     if (b.contentFr !== undefined) a.contentFr = String(b.contentFr);
     if (b.contentEn !== undefined) a.contentEn = String(b.contentEn);
+    if (b.contentTr !== undefined) a.contentTr = String(b.contentTr);
+    if (b.contentEs !== undefined) a.contentEs = String(b.contentEs);
     if (b.category !== undefined && ["psychology", "orthophony", "general"].includes(String(b.category)))
       a.category = String(b.category);
     if (typeof b.coverBase64 === "string") a.coverBase64 = b.coverBase64;

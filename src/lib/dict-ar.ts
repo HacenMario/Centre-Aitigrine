@@ -92,6 +92,8 @@ export const ar: Record<string, string> = {
   "lang.ar": "العربية",
   "lang.fr": "الفرنسية",
   "lang.en": "الإنجليزية",
+  "lang.tr": "التركية",
+  "lang.es": "الإسبانية",
 
   "landing.heroBadge": "مساحة آمنة للنفس والعقل",
   "landing.heroTitle": "رعاية نفسية متكاملة وأرطفونية متخصصة",
@@ -284,6 +286,8 @@ export const ar: Record<string, string> = {
   "set.langHint": "فعّل اللغات المتاحة للزوار في الموقع",
   "set.langFr": "الفرنسية",
   "set.langEn": "الإنجليزية",
+  "set.langTr": "التركية",
+  "set.langEs": "الإسبانية",
   "set.options": "الخيارات",
   "set.optSpecialties": "تخصصات الأخصائيين",
   "set.optServiceCat": "تصنيفات الخدمات",
