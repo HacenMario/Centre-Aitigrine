@@ -1,8 +1,8 @@
 /** Español — diccionario completo (v3.7 — cinco idiomas: AR/FR/EN/TR/ES) */
 export const es: Record<string, string> = {
-  "app.name": "Centro Ait Tegrine",
-  "app.full": "Centro Ait Tegrine de Cuidado Psicológico, Fonoaudiología y Formación",
-  "app.nameLine": "Centro Ait Tegrine",
+  "app.name": "Centro Aitigrine",
+  "app.full": "Centro Aitigrine de Cuidado Psicológico, Fonoaudiología y Formación",
+  "app.nameLine": "Centro Aitigrine",
   "app.subLine": "Cuidado psicológico, fonoaudiología y formación",
   "app.tagline": "Cuidado Psicológico · Fonoaudiología · Formación",
 
@@ -103,7 +103,7 @@ export const es: Record<string, string> = {
   "landing.trust1": "Especialistas acreditados",
   "landing.trust2": "Confidencialidad total",
   "landing.trust3": "Precios claros en dinares",
-  "landing.featuresTitle": "¿Por qué el Centro Ait Tegrine?",
+  "landing.featuresTitle": "¿Por qué el Centro Aitigrine?",
   "landing.featuresSub": "Un sistema de cuidado completo que une el seguimiento psicológico, la fonoaudiología y la formación profesional",
   "landing.feat1Title": "Cuidado psicológico",
   "landing.feat1Desc": "Sesiones de diálogo, evaluación y seguimiento individual con especialistas cualificados, en un espacio seguro y sin juicios.",
@@ -144,7 +144,7 @@ export const es: Record<string, string> = {
   "landing.noCourses": "Las formaciones se mostrarán aquí pronto",
   "landing.sessions": "sesión",
 
-  "login.welcome": "Bienvenido al Centro Ait Tegrine",
+  "login.welcome": "Bienvenido al Centro Aitigrine",
   "login.sub": "Inicie sesión con su número de teléfono para acceder a sus citas y servicios",
   "login.createAdmin": "Crear la cuenta de administración (primera vez)",
   "login.createAdminSub": "Aún no se ha creado una cuenta de administración — créela ahora para poner en marcha el centro",
@@ -340,7 +340,7 @@ export const es: Record<string, string> = {
 
   /* Ventana «Momento de serenidad» */
   "re.title": "Momento de serenidad",
-  "re.sub": "Centro Ait Tegrine — con usted paso a paso",
+  "re.sub": "Centro Aitigrine — con usted paso a paso",
   "err.conn": "No se pudo conectar con el servidor — verifique su conexión",
   "err.required": "Por favor, complete los campos obligatorios",
 
@@ -761,7 +761,7 @@ export const es: Record<string, string> = {
   "art.readTime": "{n} min de lectura",
   "art.publishedOn": "Publicado el {date}",
   "art.editorNote": "La publicación está disponible solo para especialistas y administración del centro — el artículo aparece para todos en la página de Artículos en cuanto se guarda",
-  "art.publishedByCenter": "Artículo científico del Centro Ait Tegrine",
+  "art.publishedByCenter": "Artículo científico del Centro Aitigrine",
   "toast.articleSaved": "Artículo publicado — ya está disponible para todos",
   "toast.articleUpdated": "Artículo actualizado correctamente",
   "toast.articleDeleted": "Artículo eliminado permanentemente",

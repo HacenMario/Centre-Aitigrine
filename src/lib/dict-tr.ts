@@ -1,8 +1,8 @@
 /** Türkçe — tam sözlük (v3.7 — beş dil: AR/FR/EN/TR/ES) */
 export const tr: Record<string, string> = {
-  "app.name": "Ait Tegrine Merkezi",
-  "app.full": "Ait Tegrine Psikolojik Bakım, Dil ve Konuşma Terapisi ve Eğitim Merkezi",
-  "app.nameLine": "Ait Tegrine Merkezi",
+  "app.name": "Aitigrine Merkezi",
+  "app.full": "Aitigrine Psikolojik Bakım, Dil ve Konuşma Terapisi ve Eğitim Merkezi",
+  "app.nameLine": "Aitigrine Merkezi",
   "app.subLine": "Psikolojik bakım, dil ve konuşma terapisi ve eğitim",
   "app.tagline": "Psikolojik Bakım · Dil ve Konuşma Terapisi · Eğitim",
 
@@ -103,7 +103,7 @@ export const tr: Record<string, string> = {
   "landing.trust1": "Akredite uzmanlar",
   "landing.trust2": "Tam gizlilik",
   "landing.trust3": "Dinar cinsinden net ücretler",
-  "landing.featuresTitle": "Neden Ait Tegrine Merkezi?",
+  "landing.featuresTitle": "Neden Aitigrine Merkezi?",
   "landing.featuresSub": "Psikolojik takip, dil ve konuşma terapisi ve profesyonel eğitimi bir araya getiren eksiksiz bir bakım sistemi",
   "landing.feat1Title": "Psikolojik bakım",
   "landing.feat1Desc": "Yeterli uzmanlarla bireysel görüşme, değerlendirme ve takip seansları — güvenli bir ortamda, yargısız.",
@@ -144,7 +144,7 @@ export const tr: Record<string, string> = {
   "landing.noCourses": "Eğitimler yakında burada görünecek",
   "landing.sessions": "seans",
 
-  "login.welcome": "Ait Tegrine Merkezi'ne hoş geldiniz",
+  "login.welcome": "Aitigrine Merkezi'ne hoş geldiniz",
   "login.sub": "Randevularınıza ve hizmetlerinize erişmek için telefon numaranızla giriş yapın",
   "login.createAdmin": "Yönetim hesabı oluşturun (ilk kez)",
   "login.createAdminSub": "Henüz bir yönetim hesabı oluşturulmadı — merkezi şimdi başlatmak için oluşturun",
@@ -340,7 +340,7 @@ export const tr: Record<string, string> = {
 
   /* «Huzur anı» penceresi */
   "re.title": "Huzur anı",
-  "re.sub": "Ait Tegrine Merkezi — adım adım yanınızda",
+  "re.sub": "Aitigrine Merkezi — adım adım yanınızda",
   "err.conn": "Sunucuya bağlanılamadı — bağlantınızı kontrol edin",
   "err.required": "Lütfen zorunlu alanları doldurun",
 
@@ -761,7 +761,7 @@ export const tr: Record<string, string> = {
   "art.readTime": "{n} dk okuma",
   "art.publishedOn": "{date} tarihinde yayınlandı",
   "art.editorNote": "Yayınlama yalnızca uzmanlar ve merkez yönetimi içindir — makale kaydedilir kaydetmez Makaleler sayfasında herkese görünür",
-  "art.publishedByCenter": "Ait Tegrine Merkezi'nden bilimsel makale",
+  "art.publishedByCenter": "Aitigrine Merkezi'nden bilimsel makale",
   "toast.articleSaved": "Makale yayınlandı — herkese açıldı",
   "toast.articleUpdated": "Makale başarıyla güncellendi",
   "toast.articleDeleted": "Makale kalıcı olarak silindi",
