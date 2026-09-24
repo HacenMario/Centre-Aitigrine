@@ -5,15 +5,15 @@
  * الاستضافة السحابية (Serverless) للقراءة فقط ولا تحتفظ بها.
  * بعد الترقية تُحفظ الوسائط في MongoDB (GridFS) — هذا السكربت ينقل
  * الملفات الموجودة مسبقاً حتى تبقى روابطها /api/media/... تعمل.
- * 
+ *
  * التشغيل (من مجلد المشروع، مع تشغيل MongoDB):
  *   MONGODB_URI="mongodb://127.0.0.1:27017/ait_tegrine" node scripts/migrate-uploads-to-gridfs.js
- * 
+ *
  * آمن للتكرار (idempotent): يتخطى أي ملف موجود مسبقاً في GridFS.
  */
 const fs = require("fs");
 const path = require("path");
-const { MongoClient } = require("mongodb");
+const { MongoClient, GridFSBucket } = require("mongodb");
 
 const URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/ait_tegrine";
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
@@ -48,7 +48,7 @@ function human(n) {
   const client = new MongoClient(URI, { serverSelectionTimeoutMS: 6000 });
   await client.connect();
   const db = client.db();
-  const bucket = new (require("mongodb").GridFSBucket)(db, { bucketName: BUCKET });
+  const bucket = new GridFSBucket(db, { bucketName: BUCKET });
 
   const existing = new Set(
     (await db.collection(`${BUCKET}.files`).find({}, { projection: { filename: 1 } }).toArray())

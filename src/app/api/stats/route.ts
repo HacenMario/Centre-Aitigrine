@@ -58,7 +58,88 @@ export async function GET() {
 
     /* ── لوحة القيادة (إدارة/مساعد) ── */
     if (me && isStaff(me.role)) {
-      /* v3.6: المبالغ الشاملة — حجوزات + تكوينات + خدمات */
+      /* v3.8: بيانات الرسوم البيانية — حجوزات آخر 6 أشهر، الخدمات الأكثر طلباً، نمو العملاء */
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+      sixMonthsAgo.setDate(1);
+      const y = sixMonthsAgo.getFullYear();
+      const m = String(sixMonthsAgo.getMonth() + 1).padStart(2, "0");
+      const datePrefix = `${y}-${m}`;
+
+      const [monthlyRows, topServiceRows, growthRows] = await Promise.all([
+        /* الحجوزات الشهرية (بالحالة) — date بصيغة YYYY-MM-DD نصية */
+        Appointment.aggregate([
+          { $match: { date: { $gte: datePrefix }, status: { $ne: "cancelled" } } },
+          {
+            $group: {
+              _id: { month: { $substr: ["$date", 0, 7] }, status: "$status" },
+              count: { $sum: 1 },
+            },
+          },
+        ]),
+        /* الخدمات الأكثر طلباً (أعلى 6) */
+        Appointment.aggregate([
+          { $match: { status: { $ne: "cancelled" }, serviceId: { $ne: null } } },
+          { $group: { _id: "$serviceTitle", count: { $sum: 1 }, sum: { $sum: "$price" } } },
+          { $sort: { count: -1 } },
+          { $limit: 6 },
+        ]),
+        /* نمو العملاء: تسجيلات جديدة شهرياً — createdAt تاريخ حقيقي */
+        User.aggregate([
+          { $match: { role: "client", createdAt: { $gte: sixMonthsAgo } } },
+          {
+            $group: {
+              _id: { y: { $year: "$createdAt" }, m: { $month: "$createdAt" } },
+              count: { $sum: 1 },
+            },
+          },
+          { $sort: { "_id.y": 1, "_id.m": 1 } },
+        ]),
+      ]);
+
+      /* تجميع الحجوزات الشهرية: { month: "2025-05", pending, confirmed, completed } */
+      const monthMap = new Map<string, { pending: number; confirmed: number; completed: number }>();
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() - i);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        monthMap.set(key, { pending: 0, confirmed: 0, completed: 0 });
+      }
+      for (const r of monthlyRows) {
+        const entry = monthMap.get(String(r._id?.month || ""));
+        if (!entry) continue;
+        const st = String(r._id?.status || "");
+        if (st === "pending") entry.pending += r.count;
+        else if (st === "confirmed") entry.confirmed += r.count;
+        else if (st === "completed") entry.completed += r.count;
+      }
+      const monthly = [...monthMap.entries()].map(([month, v]) => ({ month, ...v }));
+
+      /* نمو العملاء تجميعاً على نفس الأشهر (تراكمي) */
+      const growthMap = new Map<string, number>();
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() - i);
+        growthMap.set(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, 0);
+      }
+      for (const r of growthRows) {
+        const key = `${r._id?.y}-${String(r._id?.m).padStart(2, "0")}`;
+        if (growthMap.has(key)) growthMap.set(key, (growthMap.get(key) || 0) + r.count);
+      }
+      let acc = Math.max(0, stats.clients - [...growthMap.values()].reduce((a, b) => a + b, 0));
+      const growth = [...growthMap.entries()].map(([month, count]) => {
+        acc += count;
+        return { month, count, total: acc };
+      });
+
+      const topServices = topServiceRows.map((r) => ({
+        name: String(r._id || "—"),
+        count: r.count,
+        sum: r.sum,
+      }));
+
       const [coursesRows, servicesAgg, servicesCount] = await Promise.all([
         Course.find({ active: true }).select("price enrolledIds").lean<{ price?: number; enrolledIds?: unknown[] }[]>(),
         Appointment.aggregate([
@@ -123,6 +204,10 @@ export async function GET() {
           servicesUnpaid: svcUnpaid,
           servicesCount,
           grandTotal,
+          /* v3.8 — الرسوم البيانية */
+          monthly,
+          topServices,
+          growth,
         },
       });
     }

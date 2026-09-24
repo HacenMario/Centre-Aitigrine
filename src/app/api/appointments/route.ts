@@ -3,14 +3,16 @@
  * GET ?mode=taken&specialistId&date → الأوقات المحجوزة
  * GET → مواعيد حسب الدور (العميل: مواعيده — الأخصائي: جلساته — الإدارة: الكل)
  * POST: حجز (عميل لنفسه أو إدارة لعميل) مع فحص التصادم + إشعارات لكل الأطراف
+ * ★ v3.8: تطبيق كوبون الخصم عند الحجز + سجل تدقيق
  */
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
-import { Appointment, User } from "@/lib/models";
+import { Appointment, Coupon, User } from "@/lib/models";
 import { currentUser, requireUser } from "@/lib/auth";
 import { notifyStaff, notifyUser } from "@/lib/push";
 import { mapToObj } from "@/lib/map";
 import { bookingCreatedText } from "@/lib/notify-text";
+import { logAudit } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   return handle(async () => {
@@ -117,6 +119,25 @@ export async function POST(req: NextRequest) {
     }).lean();
     if (clash) return fail(409, "هذا الوقت محجوز — اختر وقتاً آخر");
 
+    /* ★ v3.8: الكوبون والخصم — تحقق خادمي كامل قبل الحفظ */
+    let couponCode = String(b.couponCode || "").trim().toUpperCase().slice(0, 24);
+    let discount = 0;
+    if (couponCode) {
+      const c = await Coupon.findOne({ code: couponCode }).lean<Record<string, unknown> | null>();
+      if (!c || c.active === false) return fail(404, "الكوبون غير موجود أو معطل");
+      const exp = c.expiresAt ? new Date(c.expiresAt as Date).getTime() : 0;
+      if (exp && exp < Date.now()) return fail(410, "انتهت صلاحية هذا الكوبون");
+      if (Number(c.maxUses) > 0 && Number(c.usedCount) >= Number(c.maxUses))
+        return fail(409, "استُنفدت عدد استخدامات هذا الكوبون");
+      /* السعر المطبق عليه الكوبون: سعر الجلسة المرسل من الواجهة (0 → لا خصم) */
+      const basePrice = Math.max(0, Number(b.price) || 0);
+      if (Number(c.minPrice) > 0 && basePrice < Number(c.minPrice))
+        return fail(422, `هذا الكوبون يتطلب سعراً لا يقل عن ${Number(c.minPrice)} دج`);
+      const raw = c.kind === "percent" ? Math.round((basePrice * Number(c.value)) / 100) : Number(c.value);
+      discount = Math.max(0, Math.min(raw, basePrice));
+      await Coupon.findByIdAndUpdate(c._id, { $inc: { usedCount: 1 } });
+    }
+
     let clientName = "";
     if (me.role !== "client") {
       const c = await User.findById(clientId).lean<{ name: string } | null>();
@@ -132,12 +153,16 @@ export async function POST(req: NextRequest) {
       serviceTitleEn: String(b.serviceTitleEn || ""),
       kind: ["psychological", "art_therapy"].includes(b.kind) ? b.kind : "psychological",
       mode: ["onsite", "remote"].includes(b.mode) ? b.mode : "onsite",
+      price: Math.max(0, Number(b.price) || 0),
       date,
       time,
       status: "pending",
+      couponCode,
+      discount,
       notes: String(b.notes || ""),
       createdBy: me._id,
     });
+    await logAudit({ _id: me._id, name: me.name, role: me.role }, "appointment.create", `موعد: ${date} ${time}`, `${couponCode ? `كوبون=${couponCode} خصم=${discount}` : "بلا كوبون"}`, String(a._id));
 
     /* إشعارات ثلاثية اللغة — لكل طرف نصه الخاص فقط:
      * العميل يرى حجزه، الأخصائي يرى موعده الجديد، والإدارة توقّع ملخصاً إدارياً

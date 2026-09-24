@@ -43,6 +43,9 @@ const UserSchema = new Schema(
      *  العميل يستعيد حسابه فورياً بها دون انتظار الإدارة */
     recoveryHash: { type: String, default: null },
     recoverySalt: { type: String, default: null },
+    /* v3.8: دخول Google — مرتبط بالحساب بعد أول دخول ناجح */
+    googleId: { type: String, default: "", index: true },
+    googleEmail: { type: String, default: "" },
     active: { type: Boolean, default: true },
   },
   { timestamps: true }
@@ -298,6 +301,12 @@ const AppointmentSchema = new Schema(
     /** سعر الجلسة (يحدده المركز) وحالة الأداء */
     price: { type: Number, default: 0 },
     paymentStatus: { type: String, enum: ["unpaid", "paid"], default: "unpaid" },
+    /* v3.8: الكوبون والخصم والفاتورة */
+    couponCode: { type: String, default: "", uppercase: true, trim: true },
+    discount: { type: Number, default: 0 }, // مبلغ الخصم المطبّق (بدينار)
+    invoiceNumber: { type: String, default: "", index: true },
+    invoiceFile: { type: String, default: "" }, // اسم ملف PDF في GridFS
+    invoiceAt: { type: Date, default: null },
     date: { type: String, required: true, index: true }, // YYYY-MM-DD
     time: { type: String, required: true }, // HH:mm
     status: {
@@ -559,6 +568,78 @@ export type WelcomeQuoteDoc = InferSchemaType<typeof WelcomeQuoteSchema> & { _id
 export const WelcomeQuote: Model<WelcomeQuoteDoc> =
   (mongoose.models.WelcomeQuote as Model<WelcomeQuoteDoc>) ||
   mongoose.model<WelcomeQuoteDoc>("WelcomeQuote", WelcomeQuoteSchema);
+
+/* ─────────────── سجل التدقيق (v3.8) ───────────────
+ * توثيق كل عملية حساسة: من فعل ماذا ومتى ومن أي جهاز
+ * يُكتب من logAudit() — لا يُحذف تلقائياً أبداً، والعرض للإدارة فقط
+ */
+const AuditLogSchema = new Schema(
+  {
+    actorId: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
+    actorName: { type: String, default: "" },
+    actorRole: { type: String, default: "" },
+    action: { type: String, required: true, index: true }, // auth.login | appointment.status | ...
+    target: { type: String, default: "" }, // وصف الهدف: "مستخدم: اسم" / "موعد: 2025-01-01 10:00"
+    targetId: { type: String, default: "" },
+    meta: { type: String, default: "" }, // تفاصيل إضافية نصية
+    ip: { type: String, default: "" },
+    userAgent: { type: String, default: "" },
+  },
+  { timestamps: true, collection: "auditlogs" }
+);
+AuditLogSchema.index({ createdAt: -1 });
+export const AuditLog =
+  (mongoose.models.AuditLog as Model<InferSchemaType<typeof AuditLogSchema>>) ||
+  mongoose.model("AuditLog", AuditLogSchema);
+
+/* ─────────────── كوبونات الخصم (v3.8) ───────────────
+ * الإدارة تنشئ كوبونات نسبة مئوية أو مبلغ ثابت مع سقف وتاريخ انتهاء
+ * ويُطبّقها العميل عند الحجز فيخصم من سعر الجلسة
+ */
+const CouponSchema = new Schema(
+  {
+    code: { type: String, required: true, unique: true, uppercase: true, trim: true, maxlength: 24 },
+    kind: { type: String, enum: ["percent", "fixed"], default: "percent" },
+    value: { type: Number, required: true, min: 1 }, // نسبة % أو مبلغ بالدينار
+    description: { type: String, default: "", maxlength: 300 },
+    descriptionFr: { type: String, default: "", maxlength: 300 },
+    descriptionEn: { type: String, default: "", maxlength: 300 },
+    maxUses: { type: Number, default: 0, min: 0 }, // 0 = بلا حد
+    usedCount: { type: Number, default: 0, min: 0 },
+    expiresAt: { type: Date, default: null },
+    minPrice: { type: Number, default: 0, min: 0 }, // أدنى سعر جلسة لتطبيق الكوبون
+    active: { type: Boolean, default: true, index: true },
+  },
+  { timestamps: true }
+);
+export type CouponDoc = InferSchemaType<typeof CouponSchema> & { _id: mongoose.Types.ObjectId };
+export const Coupon: Model<CouponDoc> =
+  (mongoose.models.Coupon as Model<CouponDoc>) || mongoose.model<CouponDoc>("Coupon", CouponSchema);
+
+/* ─────────────── شهادات وقصص نجاح (v3.8) ───────────────
+ * الإدارة تكتب/توافق على الشهادات — تُنشر بدون أسماء كاملة (الاسم الأول + الحرف الأول)
+ * العرض عام في صفحة الشهادات، والكتابة والتحرير للإدارة فقط
+ */
+const TestimonialSchema = new Schema(
+  {
+    /** الاسم الحقيقي يبقى سرياً في الإدارة — المنشور يُحتسب تلقائياً بلا أسماء كاملة */
+    authorReal: { type: String, default: "", maxlength: 120 },
+    authorPublic: { type: String, default: "", maxlength: 40 }, // إن أرادت الإدارة صيغة خاصة مثل "أم ي.", وإلا يُحتسب
+    text: { type: String, required: true, maxlength: 2000 },
+    textFr: { type: String, default: "", maxlength: 2000 },
+    textEn: { type: String, default: "", maxlength: 2000 },
+    rating: { type: Number, default: 5, min: 1, max: 5 },
+    /** نوع القصة: شهادة قصيرة أو قصة نجاح مفصلة */
+    kind: { type: String, enum: ["testimonial", "story"], default: "testimonial" },
+    approved: { type: Boolean, default: false, index: true },
+    submittedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+  },
+  { timestamps: true }
+);
+export type TestimonialDoc = InferSchemaType<typeof TestimonialSchema> & { _id: mongoose.Types.ObjectId };
+export const Testimonial: Model<TestimonialDoc> =
+  (mongoose.models.Testimonial as Model<TestimonialDoc>) ||
+  mongoose.model<TestimonialDoc>("Testimonial", TestimonialSchema);
 
 /* ─────────────── اشتراكات Web Push ─────────────── */
 const PushSubSchema = new Schema(

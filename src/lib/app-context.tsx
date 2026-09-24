@@ -208,11 +208,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /* تركيب غلاف fetch الموحّد + استرجاع الجلسة واللغة من التخزين المحلي */
   useEffect(() => {
     installAuthFetch();
+    /* ★ v3.8: تسجيل Service Worker عند الإقلاع مباشرة — وضع عدم الاتصال يعمل من أول زيارة
+       (التسجيل وحده لا يطلب أي إذن — إشعارات Push تبقى اختيارية كما كانت) */
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
     try {
       const l = localStorage.getItem("ait_lang") as Lang | null;
       if (l && ["ar", "fr", "en"].includes(l)) setLangState(l);
       const f = parseFloat(localStorage.getItem("ait_font") || "1");
       if (f >= 0.8 && f <= 1.4) setFontScale(f);
+    } catch {}
+    /* ★ v3.8: دخول Google — العودة من الموافقة تحمل التوكن في الرابط ?gtoken=...
+       نحفظه فوراً وننظف الرابط، ثم مزامنة الجلسة الاعتيادية تدخل الحساب تلقائياً */
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const gt = sp.get("gtoken");
+      const gauth = sp.get("gauth");
+      if (gt && gt.includes(".")) {
+        setToken(gt);
+        sessionStorage.setItem("ait_gauth_welcome", "1");
+        sp.delete("gtoken");
+        sp.delete("gauth");
+        const clean = window.location.pathname + (sp.toString() ? `?${sp}` : "");
+        window.history.replaceState({}, "", clean);
+      } else if (gauth) {
+        sessionStorage.setItem("ait_gauth_error", gauth);
+        sp.delete("gauth");
+        const clean = window.location.pathname + (sp.toString() ? `?${sp}` : "");
+        window.history.replaceState({}, "", clean);
+      }
     } catch {}
     const saved = getStoredUser<Me>();
     if (saved && getToken()) setMeState(saved);

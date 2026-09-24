@@ -17,6 +17,7 @@ import QuickHide from "@/components/quick-hide";
 import ReassurancePopup from "@/components/reassurance-popup";
 import BackToTop from "@/components/back-to-top";
 import FloatingAd from "@/components/floating-ad";
+import ChatbotWidget from "@/components/chatbot-widget";
 import Landing from "@/components/views/landing";
 import Login from "@/components/views/login";
 import Appointments from "@/components/views/appointments";
@@ -36,6 +37,7 @@ import Dashboard from "@/components/views/dashboard";
 import Patients from "@/components/views/patients";
 import Documents from "@/components/views/documents";
 import Record from "@/components/views/record";
+import Testimonials from "@/components/views/testimonials";
 import BrandSkeleton from "@/components/brand-skeleton";
 
 const STAFF_ONLY: ViewKey[] = ["accounts", "settings", "dashboard", "patients", "record"];
@@ -100,6 +102,8 @@ function Shell() {
             {view === "ebook" && <Ebooks navigate={navigate} />}
             {/* v3.6.0: المقالات العلمية — للجميع، النشر للأخصائيين والإدارة */}
             {view === "articles" && <Articles navigate={navigate} />}
+            {/* v3.8.0: شهادات وقصص النجاح */}
+            {view === "testimonials" && <Testimonials navigate={navigate} />}
             {view === "accounts" && <Accounts navigate={navigate} />}
             {view === "dashboard" && <Dashboard navigate={navigate} />}
             {view === "patients" && <Patients navigate={navigate} />}
@@ -122,6 +126,8 @@ function Shell() {
       <ReassurancePopup />
       {/* الإعلان العائم — للعملاء والأخصائيين (نمط طمأنينة) */}
       <FloatingAd />
+      {/* ★ v3.8: المساعد الذكي — ودجت أسئلة وأجوبة فورية */}
+      <ChatbotWidget />
       {/* زر العودة إلى الأعلى — في كل الصفحات */}
       <BackToTop />
     </div>

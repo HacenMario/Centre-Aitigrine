@@ -27,6 +27,7 @@ export type ViewKey =
   | "about"
   | "privacy"
   | "terms"
+  | "testimonials"
   | "profile";
 
 export type NavState = { view: ViewKey; id?: string };
@@ -67,6 +68,8 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "ebooks", label: "nav.ebooks", icon: "BookOpenText", roles: ["guest", "admin", "assistant", "specialist", "client"] },
   /* v3.6.0: المقالات العلمية — القراءة للجميع والنشر للأخصائيين والإدارة */
   { key: "articles", label: "nav.articles", icon: "Newspaper", roles: ["guest", "admin", "assistant", "specialist", "client"] },
+  /* v3.8.0: شهادات وقصص النجاح — عامة، والتحرير للإدارة */
+  { key: "testimonials", label: "nav.testimonials", icon: "Quote", roles: ["guest", "admin", "assistant", "specialist", "client"] },
   { key: "ads", label: "nav.ads", icon: "Megaphone", roles: ["guest", "admin", "assistant", "specialist", "client"], divider: true },
   { key: "contact", label: "nav.contact", icon: "Mail", roles: ["guest", "admin", "assistant", "specialist", "client"] },
   { key: "feedback", label: "nav.feedback", icon: "MessageSquareHeart", roles: ["guest", "admin", "assistant", "specialist", "client"] },

@@ -10,6 +10,7 @@ import { ok, fail, handle } from "@/lib/api-helpers";
 import { User } from "@/lib/models";
 import { createSession, destroySession, hashPassword, toSafeUser } from "@/lib/auth";
 import { ensureVapidKeys } from "@/lib/push";
+import { logAudit } from "@/lib/audit";
 
 function safeEqual(a: string, b: string): boolean {
   const ba = crypto.createHash("sha256").update(String(a)).digest();
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!safeEqual(phone, envPhone) || !safeEqual(password, envPass)) {
+      await logAudit(null, "auth.adminLoginFail", `هاتف: ${phone}`, "بوابة الإدارة — بيانات خاطئة");
       return fail(401, "بيانات الدخول غير صحيحة — تحقّق من ملف .env");
     }
 
@@ -60,6 +62,7 @@ export async function POST(req: NextRequest) {
 
     await destroySession().catch(() => {});
     const token = await createSession(String(user._id));
+    await logAudit({ _id: user._id, name: user.name, role: user.role }, "auth.login", `هاتف: ${envPhone}`, "دخول بوابة الإدارة", String(user._id));
     return ok({ user: toSafeUser(user), token });
   });
 }

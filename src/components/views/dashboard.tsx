@@ -5,6 +5,7 @@
  * ★ v3.6: بطاقة المبالغ الشاملة — كل المبالغ في مكان واحد:
  *   الحجوزات (مدفوع/غير مدفوع/الإجمالي) + التكوينات المتوقعة + الخدمات المحجوزة
  *   + الإجمالي العام — تحديث تلقائي كل 45 ثانية وعند العودة للصفحة
+ * ★ v3.8: رسوم بيانية حية — الحجوزات الشهرية، الخدمات الأكثر طلباً، نمو العملاء
  */
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/lib/app-context";
@@ -17,8 +18,13 @@ import {
   LayoutDashboard, UsersRound, Stethoscope, CalendarClock, Hourglass, CheckCircle2,
   CircleCheckBig, XCircle, Wallet, PiggyBank, FolderHeart, MessageSquareHeart, KeyRound,
   ArrowLeft, ArrowRight, Wifi, MapPinned, RefreshCw, Coins, GraduationCap, Sparkles, Banknote,
+  BarChart3, TrendingUp, LineChart as LineChartIcon, Download, FileSpreadsheet, DatabaseBackup,
 } from "lucide-react";
 import type { Navigate } from "@/lib/nav";
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
+  AreaChart, Area,
+} from "recharts";
 
 type Stats = { clients: number; specialists: number; remote: number; onsite: number; centerDays: number; languages: number };
 type Dash = {
@@ -27,6 +33,10 @@ type Dash = {
   /* v3.6 — بطاقة المبالغ الشاملة */
   coursesExpected?: number; coursesEnrolled?: number;
   servicesPaid?: number; servicesUnpaid?: number; servicesCount?: number; grandTotal?: number;
+  /* v3.8 — الرسوم البيانية */
+  monthly?: { month: string; pending: number; confirmed: number; completed: number }[];
+  topServices?: { name: string; count: number; sum: number }[];
+  growth?: { month: string; count: number; total: number }[];
 };
 
 export default function Dashboard({ navigate }: { navigate: Navigate }) {
@@ -69,6 +79,17 @@ export default function Dashboard({ navigate }: { navigate: Navigate }) {
   }, [load]);
 
   const money = (n: number) => `${(n || 0).toLocaleString(lang === "ar" ? "ar-DZ" : "fr-DZ")} ${lang === "ar" ? "دج" : "DA"}`;
+
+  /* اسم الشهر بلغة الواجهة — "2025-05" → "ماي" */
+  const monthName = (ym: string) => {
+    try {
+      const [y, m] = ym.split("-").map(Number);
+      const d = new Date(y, (m || 1) - 1, 1);
+      return d.toLocaleDateString(lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB", { month: "short" });
+    } catch {
+      return ym;
+    }
+  };
 
   /* بطاقة المبالغ الشاملة (v3.6) — صف: أيقونة، تسمية، قيمة */
   const amountRows: { icon: typeof PiggyBank; label: string; value: string; cls?: string }[] = [
@@ -194,6 +215,96 @@ export default function Dashboard({ navigate }: { navigate: Navigate }) {
             <q.icon className="h-4.5 w-4.5 text-primary" /> {q.label}
           </Button>
         ))}
+      </div>
+
+      {/* ═══════ v3.8: الرسوم البيانية الحية ═══════ */}
+      {dash?.monthly && dash.monthly.length > 0 && (
+        <Card className="ait-card overflow-hidden rounded-3xl shadow-sm">
+          <CardContent className="p-5 sm:p-6 space-y-4">
+            <h2 className="font-black flex items-center gap-2 text-base sm:text-lg">
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <BarChart3 className="h-5 w-5" />
+              </span>
+              {t("dash.chartMonthly")}
+            </h2>
+            <div className="h-64 w-full" dir="ltr">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dash.monthly.map((m) => ({ ...m, label: monthName(m.month) }))} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#94a3b844" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="completed" name={t("dash.completed")} fill="#0f766e" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="confirmed" name={t("dash.confirmed")} fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="pending" name={t("dash.pending")} fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        {/* نمو العملاء */}
+        {dash?.growth && dash.growth.length > 0 && (
+          <Card className="ait-card overflow-hidden rounded-3xl shadow-sm">
+            <CardContent className="p-5 sm:p-6 space-y-4">
+              <h2 className="font-black flex items-center gap-2 text-base sm:text-lg">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-600">
+                  <TrendingUp className="h-5 w-5" />
+                </span>
+                {t("dash.chartGrowth")}
+              </h2>
+              <div className="h-60 w-full" dir="ltr">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={dash.growth.map((g) => ({ ...g, label: monthName(g.month) }))} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gGrowth" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.55} />
+                        <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.04} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#94a3b844" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12 }} />
+                    <Area type="monotone" dataKey="total" name={t("dash.chartTotalClients")} stroke="#0ea5e9" strokeWidth={2.5} fill="url(#gGrowth)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* الخدمات الأكثر طلباً */}
+        {dash?.topServices && dash.topServices.length > 0 && (
+          <Card className="ait-card overflow-hidden rounded-3xl shadow-sm">
+            <CardContent className="p-5 sm:p-6 space-y-4">
+              <h2 className="font-black flex items-center gap-2 text-base sm:text-lg">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
+                  <LineChartIcon className="h-5 w-5" />
+                </span>
+                {t("dash.chartTopServices")}
+              </h2>
+              <div className="h-60 w-full" dir="ltr">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={dash.topServices.map((s) => ({ name: s.name.length > 14 ? s.name.slice(0, 14) + "…" : s.name, fullName: s.name, count: s.count }))}
+                    layout="vertical"
+                    margin={{ top: 0, right: 12, left: 8, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#94a3b844" />
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                    <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12 }} />
+                    <Bar dataKey="count" name={t("dash.chartBookingsCount")} fill="#10b981" radius={[0, 6, 6, 0]} barSize={18} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -26,7 +26,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarClock, Plus, Trash2, CheckCircle2, XCircle, CircleCheckBig, Info, UserRound, Star, Banknote, Coins } from "lucide-react";
+import { CalendarClock, Plus, Trash2, CheckCircle2, XCircle, CircleCheckBig, Info, UserRound, Star, Banknote, Coins, CalendarPlus, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import RatingsDialog from "@/components/ratings-dialog";
 import Pagination from "@/components/pagination";
@@ -43,7 +43,7 @@ type Appt = {
   price?: number; paymentStatus?: string;
 };
 type Account = { _id: string; name: string; role: string; specialty?: string; title?: string; titleFr?: string; titleEn?: string; photoBase64?: string; weeklyHours?: Record<string, string[]>; active: boolean };
-type ServiceItem = { _id: string; title: string; titleFr?: string; titleEn?: string; kind?: string };
+type ServiceItem = { _id: string; title: string; titleFr?: string; titleEn?: string; kind?: string; price?: number };
 
 /* أسماء الأيام حسب اللغة — الحجز والتواريخ تظهر دائماً بلغة المستخدم */
 const DAYS_BY_LANG: Record<string, string[]> = {
@@ -55,6 +55,73 @@ const DAYS_BY_LANG: Record<string, string[]> = {
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/* ★ v3.8: إضافة الموعد للتقويم — قائمة: Google Calendar + ملف iCal */
+function AddToCalendar({ label, title, date, time, apptId }: {
+  label: string; title: string; date: string; time: string; apptId: string;
+}) {
+  const { t } = useApp();
+  const [busy, setBusy] = useState(false);
+
+  const gcalUrl = () => {
+    const [y, m, d] = date.split("-");
+    const [hh, mm] = time.split(":");
+    const pad = (n: string | number) => String(n).padStart(2, "0");
+    let endH = Number(hh) + 1;
+    let endD = Number(d);
+    if (endH >= 24) { endH -= 24; endD += 1; }
+    const start = `${y}${pad(m)}${pad(d)}T${pad(hh)}${pad(mm)}00`;
+    const end = `${y}${pad(m)}${pad(endD)}T${pad(endH)}${pad(mm)}00`;
+    const url = new URL("https://calendar.google.com/calendar/render");
+    url.searchParams.set("action", "TEMPLATE");
+    url.searchParams.set("text", title);
+    url.searchParams.set("dates", `${start}/${end}`);
+    url.searchParams.set("details", "Centre Aitigrine — مركز آيت تقرين");
+    return url.toString();
+  };
+
+  const downloadIcs = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/calendar?id=${apptId}`);
+      if (!r.ok) { toast.error(t("common.error")); return; }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      el.href = url;
+      el.download = `appointment-${date}-${time.replace(":", "-")}.ics`;
+      el.click();
+      URL.revokeObjectURL(url);
+    } catch { toast.error(t("err.conn")); }
+    setBusy(false);
+  };
+
+  return (
+    <div className="relative group">
+      <Button size="sm" variant="outline" className="gap-1.5">
+        <CalendarPlus className="h-4 w-4" /> {label}
+      </Button>
+      <div className="absolute top-full mt-1 end-0 z-30 hidden group-hover:flex group-focus-within:flex flex-col bg-card border rounded-2xl shadow-lg overflow-hidden min-w-44">
+        <a
+          href={gcalUrl()}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold hover:bg-primary/8 transition-colors"
+        >
+          <CalendarPlus className="h-3.5 w-3.5 text-primary" /> Google Calendar
+        </a>
+        <button
+          type="button"
+          onClick={downloadIcs}
+          disabled={busy}
+          className="flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold hover:bg-primary/8 transition-colors text-start border-t"
+        >
+          <FileDown className="h-3.5 w-3.5 text-primary" /> Apple / Outlook (.ics)
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function nowHM() {
@@ -285,6 +352,37 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
                       <Star className="h-4 w-4 fill-amber-400 text-amber-400" /> {t("rate.button")}
                     </Button>
                   )}
+                  {/* ★ v3.8: إضافة الموعد للتقويم — Google Calendar أو ملف iCal */}
+                  {["confirmed", "completed"].includes(a.status) && (me.role === "client" || isStaff) && (
+                    <AddToCalendar
+                      label={t("appt.addToCalendar")}
+                      title={pickTri(a as unknown as Record<string, unknown>, "serviceTitle", lang) || t("nav.appointments")}
+                      date={a.date}
+                      time={a.time}
+                      apptId={a._id}
+                    />
+                  )}
+                  {/* ★ v3.8: فاتورة PDF — للجلسات المنتهية أو المدفوعة */}
+                  {(a.status === "completed" || a.paymentStatus === "paid") && (
+                    <Button size="sm" variant="outline" className="gap-1.5"
+                      onClick={async () => {
+                        try {
+                          toast.info(t("invoice.preparing"));
+                          const r = await fetch(`/api/invoices?id=${a._id}`);
+                          if (!r.ok) { toast.error(t("common.error")); return; }
+                          const blob = await r.blob();
+                          const url = URL.createObjectURL(blob);
+                          const el = document.createElement("a");
+                          el.href = url;
+                          el.download = `invoice-${a.date}.pdf`;
+                          el.click();
+                          URL.revokeObjectURL(url);
+                          toast.success(t("invoice.downloaded"));
+                        } catch { toast.error(t("err.conn")); }
+                      }}>
+                      <FileDown className="h-4 w-4" /> {t("invoice.button")}
+                    </Button>
+                  )}
                   {isStaff && (
                     <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" aria-label={t("common.delete")}
                       onClick={() => setDelId(a._id)}>
@@ -352,6 +450,11 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
   const [notes, setNotes] = useState("");
   const [taken, setTaken] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  /* ★ v3.8: الكوبون — إدخال + تحقق + خصم معروض فورياً */
+  const [couponInput, setCouponInput] = useState("");
+  const [couponInfo, setCouponInfo] = useState<{ code: string; discount: number } | null>(null);
+  const [couponErr, setCouponErr] = useState("");
+  const [couponBusy, setCouponBusy] = useState(false);
 
   const o = settings?.options;
 
@@ -359,6 +462,7 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
     setStep(1);
     setSpecId(""); setClientId(""); setServiceId(""); setDate(""); setTime(""); setNotes("");
     setTaken([]);
+    setCouponInput(""); setCouponInfo(null); setCouponErr("");
   };
 
   useEffect(() => {
@@ -426,6 +530,31 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
 
   const canNext = step === 1 ? !!specId && (!isStaff || !!clientId) : step === 2 ? !!date && !!time : true;
 
+  /* ★ v3.8: السعر الأساس للخصم = سعر الخدمة المختارة (أو 0) */
+  const basePrice = Math.max(0, Number(services.find((s) => s._id === serviceId)?.price) || 0);
+  const finalPrice = Math.max(0, basePrice - (couponInfo?.discount || 0));
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    setCouponBusy(true);
+    setCouponErr("");
+    try {
+      const r = await fetch(`/api/coupons?validate=${encodeURIComponent(code)}&price=${basePrice}`);
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.coupon) {
+        setCouponInfo({ code: j.coupon.code, discount: j.coupon.discount || 0 });
+        toast.success(`${t("appt.couponOk")} — ${t("appt.discount")}: ${j.coupon.discount} ${lang === "ar" ? "دج" : "DA"}`);
+      } else {
+        setCouponInfo(null);
+        setCouponErr(j.error || t("appt.couponBad"));
+      }
+    } catch {
+      setCouponErr(t("err.conn"));
+    }
+    setCouponBusy(false);
+  };
+
   const submit = async () => {
     if (!specId || !date || !time || (!me?.role || (isStaff && !clientId))) {
       toast.error(t("err.required"));
@@ -444,6 +573,9 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
           serviceTitleFr: services.find((s) => s._id === serviceId)?.titleFr || "",
           serviceTitleEn: services.find((s) => s._id === serviceId)?.titleEn || "",
           kind: spec?.specialty === "art_therapy" ? "art_therapy" : "psychological",
+          mode: "onsite",
+          price: basePrice,
+          couponCode: couponInfo?.code || "",
           date, time, notes,
         }),
       });
@@ -668,6 +800,45 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
                   <span className="text-muted-foreground">{t("appt.chooseTime")}</span>
                   <span className="font-bold tabular-nums" dir="ltr">{time}</span>
                 </p>
+                {/* ★ v3.8: المبالغ والخصم */}
+                {basePrice > 0 && (
+                  <>
+                    <p className="flex justify-between gap-2 text-sm">
+                      <span className="text-muted-foreground">{t("appt.price")}</span>
+                      <span className="font-bold tabular-nums">{basePrice.toLocaleString(lang === "ar" ? "ar-DZ" : "fr-DZ")} {lang === "ar" ? "دج" : "DA"}</span>
+                    </p>
+                    {couponInfo && couponInfo.discount > 0 && (
+                      <p className="flex justify-between gap-2 text-sm text-emerald-700 dark:text-emerald-400">
+                        <span>{t("appt.discount")} ({couponInfo.code})</span>
+                        <span className="font-bold tabular-nums">− {couponInfo.discount.toLocaleString(lang === "ar" ? "ar-DZ" : "fr-DZ")} {lang === "ar" ? "دج" : "DA"}</span>
+                      </p>
+                    )}
+                    <p className="flex justify-between gap-2 text-sm border-t border-primary/15 pt-2">
+                      <span className="font-black">{t("appt.total")}</span>
+                      <span className="font-black tabular-nums text-primary">{finalPrice.toLocaleString(lang === "ar" ? "ar-DZ" : "fr-DZ")} {lang === "ar" ? "دج" : "DA"}</span>
+                    </p>
+                  </>
+                )}
+              </div>
+              {/* ★ v3.8: كود الخصم */}
+              <div className="space-y-1.5">
+                <Label>{t("appt.coupon")}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={couponInput}
+                    onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponInfo(null); setCouponErr(""); }}
+                    placeholder={t("appt.couponPh")}
+                    className="h-11 font-black tracking-widest ltr:font-mono rtl:font-sans"
+                    dir="ltr"
+                  />
+                  <Button type="button" variant="outline" onClick={applyCoupon} disabled={!couponInput.trim() || couponBusy} className="h-11 shrink-0 rounded-xl">
+                    {t("appt.couponApply")}
+                  </Button>
+                </div>
+                {couponInfo && couponInfo.discount > 0 && (
+                  <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">✓ {t("appt.couponOk")}</p>
+                )}
+                {couponErr && <p className="text-xs font-semibold text-red-600">{couponErr}</p>}
               </div>
               <div className="space-y-2">
                 <Label>{t("common.notes")}</Label>

@@ -1,8 +1,11 @@
-/** تعديل/حذف/تفعيل حساب — الإدارة فقط (المساعد يفعّل/يعطّل فقط) */
+/** تعديل/حذف/تفعيل حساب — الإدارة فقط (المساعد يفعّل/يعطّل فقط)
+ * ★ v3.8: سجل تدقيق لكل تعديل أو حذف حساب
+ */
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
 import { Specialty, User } from "@/lib/models";
 import { hashPassword, requireUser, toSafeUser } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -57,6 +60,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 
     const update: Record<string, unknown> = Object.keys($unset).length ? { $set, $unset } : { $set };
     const u = await User.findByIdAndUpdate(id, update, { new: true }).lean();
+    await logAudit({ _id: me._id, name: me.name, role: me.role }, "accounts.update", `حساب: ${String(b.name || target.phone || id)}`, Object.keys($set).concat(Object.keys($unset).map((k) => `-${k}`)).join(", ") || "تعديل", id);
     return ok({ user: u ? toSafeUser(u) : null });
   });
 }
@@ -68,6 +72,7 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     if (String(me._id) === id) return fail(400, "لا يمكنك حذف حسابك");
     const u = await User.findByIdAndDelete(id);
     if (!u) return fail(404, "الحساب غير موجود");
+    await logAudit({ _id: me._id, name: me.name, role: me.role }, "accounts.delete", `حساب: ${u.name || id}`, "حذف نهائي", id);
     return ok();
   });
 }

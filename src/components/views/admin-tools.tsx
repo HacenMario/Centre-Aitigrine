@@ -1,0 +1,440 @@
+"use client";
+/**
+ * أدوات الإدارة (v3.8) — تبويب في إعدادات المركز
+ * 1) تصدير البيانات Excel/CSV: الحجوزات، العملاء، الفواتير
+ * 2) نسخة احتياطية كاملة بضغطة (ZIP: قاعدة البيانات + الوسائط)
+ * 3) إدارة كوبونات الخصم والعروض
+ * 4) سجل التدقيق — من فعل ماذا ومتى
+ */
+import { useCallback, useEffect, useState } from "react";
+import { useApp } from "@/lib/app-context";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import {
+  FileSpreadsheet, DatabaseBackup, Ticket, ScrollText, Download, Plus, Trash2,
+  Loader2, RefreshCw, Search, ShieldCheck, Percent, Coins, UsersRound, CalendarClock, ReceiptText,
+} from "lucide-react";
+import { toast } from "sonner";
+
+/* ═══════════ 1+2: التصدير والنسخ الاحتياطي ═══════════ */
+function DataTools() {
+  const { t, lang } = useApp();
+  const [busyKey, setBusyKey] = useState("");
+
+  const download = async (key: string, url: string, filename: string) => {
+    setBusyKey(key);
+    try {
+      const r = await fetch(url);
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        toast.error(j.error || t("common.error"));
+        return;
+      }
+      const blob = await r.blob();
+      const u = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      el.href = u;
+      el.download = filename;
+      el.click();
+      URL.revokeObjectURL(u);
+      toast.success(t("tools.exportDone"));
+    } catch {
+      toast.error(t("err.conn"));
+    }
+    setBusyKey("");
+  };
+
+  const rows = [
+    {
+      key: "appointments", icon: CalendarClock, label: t("tools.exportAppointments"),
+      sub: t("tools.exportAppointmentsSub"), url: "/api/export?type=appointments", file: "appointments.csv", cls: "text-sky-600 bg-sky-500/10",
+    },
+    {
+      key: "clients", icon: UsersRound, label: t("tools.exportClients"),
+      sub: t("tools.exportClientsSub"), url: "/api/export?type=clients", file: "clients.csv", cls: "text-emerald-600 bg-emerald-500/10",
+    },
+    {
+      key: "invoices", icon: ReceiptText, label: t("tools.exportInvoices"),
+      sub: t("tools.exportInvoicesSub"), url: "/api/export?type=invoices", file: "invoices.csv", cls: "text-amber-600 bg-amber-500/10",
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* النسخة الاحتياطية */}
+      <Card className="ait-card rounded-3xl border-primary/25">
+        <CardContent className="p-5 flex flex-wrap items-center gap-4">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary shrink-0">
+            <DatabaseBackup className="h-6 w-6" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-black">{t("tools.backup")}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{t("tools.backupSub")}</p>
+          </div>
+          <Button
+            onClick={() => download("backup", "/api/backup", `aitigrine-backup-${new Date().toISOString().slice(0, 10)}.zip`)}
+            disabled={busyKey === "backup"}
+            className="rounded-xl gap-1.5"
+          >
+            {busyKey === "backup" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {t("tools.backupBtn")}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* التصدير */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        {rows.map((r) => (
+          <Card key={r.key} className="ait-card rounded-3xl">
+            <CardContent className="p-4 space-y-3">
+              <span className={cn("flex h-10 w-10 items-center justify-center rounded-2xl", r.cls)}>
+                <r.icon className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="font-bold text-sm">{r.label}</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">{r.sub}</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full rounded-xl gap-1.5"
+                onClick={() => download(r.key, r.url, r.file)}
+                disabled={busyKey === r.key}
+              >
+                {busyKey === r.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSpreadsheet className="h-3.5 w-3.5" />}
+                {t("tools.exportBtn")} (Excel/CSV)
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════ 3: الكوبونات ═══════════ */
+type Coupon = {
+  _id: string; code: string; kind: "percent" | "fixed"; value: number;
+  description: string; maxUses: number; usedCount: number;
+  expiresAt: string | null; minPrice: number; active: boolean; expired?: boolean;
+};
+
+function CouponsManager() {
+  const { t, lang } = useApp();
+  const [items, setItems] = useState<Coupon[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ code: "", kind: "percent", value: "", description: "", maxUses: "", expiresAt: "", minPrice: "" });
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch("/api/coupons", { cache: "no-store" });
+      if (r.ok) setItems((await r.json()).items || []);
+    } catch {}
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const create = async () => {
+    if (!draft.code.trim() || !draft.value) {
+      toast.error(t("err.required"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch("/api/coupons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: draft.code.trim().toUpperCase(),
+          kind: draft.kind,
+          value: Number(draft.value),
+          description: draft.description,
+          maxUses: Number(draft.maxUses) || 0,
+          minPrice: Number(draft.minPrice) || 0,
+          expiresAt: draft.expiresAt || null,
+        }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) {
+        toast.success(t("tools.couponCreated"));
+        setAdding(false);
+        setDraft({ code: "", kind: "percent", value: "", description: "", maxUses: "", expiresAt: "", minPrice: "" });
+        load();
+      } else {
+        toast.error(j.error || t("common.error"));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggle = async (c: Coupon) => {
+    setBusy(true);
+    try {
+      await fetch(`/api/coupons?id=${c._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !c.active }),
+      });
+      load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm(t("testi.confirmDelete"))) return;
+    setBusy(true);
+    try {
+      await fetch(`/api/coupons?id=${id}`, { method: "DELETE" });
+      load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const fmtValue = (c: Coupon) =>
+    c.kind === "percent" ? `${c.value}%` : `${c.value.toLocaleString(lang === "ar" ? "ar-DZ" : "fr-DZ")} ${lang === "ar" ? "دج" : "DA"}`;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground font-semibold">{t("tools.couponsSub")}</p>
+        <Button size="sm" onClick={() => setAdding(true)} className="rounded-full gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> {t("tools.couponAdd")}
+        </Button>
+      </div>
+
+      {!items ? (
+        <Skeleton className="h-24 rounded-3xl" />
+      ) : items.length === 0 ? (
+        <Card className="rounded-3xl border-dashed">
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">{t("tools.couponsEmpty")}</CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-2.5">
+          {items.map((c) => (
+            <Card key={c._id} className={cn("ait-card rounded-2xl", (!c.active || c.expired) && "opacity-60 border-dashed")}>
+              <CardContent className="flex flex-wrap items-center gap-3 p-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  {c.kind === "percent" ? <Percent className="h-5 w-5" /> : <Coins className="h-5 w-5" />}
+                </span>
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="font-black tracking-widest ltr:font-mono" dir="ltr">{c.code}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {fmtValue(c)}
+                    {c.description ? ` — ${c.description}` : ""}
+                    {c.maxUses > 0 ? ` · ${t("tools.uses")}: ${c.usedCount}/${c.maxUses}` : c.usedCount > 0 ? ` · ${t("tools.uses")}: ${c.usedCount}` : ""}
+                    {c.expiresAt ? ` · ${t("tools.until")} ${new Date(c.expiresAt).toLocaleDateString(lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB")}` : ""}
+                  </p>
+                </div>
+                {c.expired ? (
+                  <Badge variant="outline" className="rounded-full border-red-300 text-red-600 text-[10px]">{t("tools.expired")}</Badge>
+                ) : null}
+                <div className="flex items-center gap-2">
+                  <Switch checked={c.active} onCheckedChange={() => toggle(c)} disabled={busy} aria-label={t("common.active")} />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-red-600" onClick={() => remove(c._id)} disabled={busy}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* نافذة إنشاء كوبون */}
+      <Dialog open={adding} onOpenChange={setAdding}>
+        <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ticket className="h-5 w-5 text-primary" /> {t("tools.couponAdd")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div className="space-y-1.5">
+              <Label>{t("tools.couponCode")}</Label>
+              <Input
+                value={draft.code}
+                onChange={(e) => setDraft((d) => ({ ...d, code: e.target.value.toUpperCase() }))}
+                placeholder="WELCOME10"
+                dir="ltr"
+                className="font-mono font-black tracking-widest"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>{t("tools.couponKind")}</Label>
+                <div className="flex gap-1.5">
+                  <Button type="button" size="sm" variant={draft.kind === "percent" ? "default" : "outline"} className="flex-1 rounded-xl" onClick={() => setDraft((d) => ({ ...d, kind: "percent" }))}>
+                    {t("tools.percent")} %
+                  </Button>
+                  <Button type="button" size="sm" variant={draft.kind === "fixed" ? "default" : "outline"} className="flex-1 rounded-xl" onClick={() => setDraft((d) => ({ ...d, kind: "fixed" }))}>
+                    {t("tools.fixed")} {lang === "ar" ? "دج" : "DA"}
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("tools.couponValue")}</Label>
+                <Input type="number" min={1} value={draft.value} onChange={(e) => setDraft((d) => ({ ...d, value: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("tools.couponDesc")}</Label>
+              <Input value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))} placeholder={t("common.optional")} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label>{t("tools.maxUses")}</Label>
+                <Input type="number" min={0} value={draft.maxUses} onChange={(e) => setDraft((d) => ({ ...d, maxUses: e.target.value }))} placeholder="0" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("tools.minPrice")}</Label>
+                <Input type="number" min={0} value={draft.minPrice} onChange={(e) => setDraft((d) => ({ ...d, minPrice: e.target.value }))} placeholder="0" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("tools.expiry")}</Label>
+                <Input type="date" value={draft.expiresAt} onChange={(e) => setDraft((d) => ({ ...d, expiresAt: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setAdding(false)}>{t("common.cancel")}</Button>
+            <Button onClick={create} disabled={busy} className="gap-1.5">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/* ═══════════ 4: سجل التدقيق ═══════════ */
+type AuditRow = {
+  _id: string; actorName: string; actorRole: string; action: string;
+  target: string; meta: string; ip: string; at: string;
+};
+
+function AuditViewer() {
+  const { t, lang } = useApp();
+  const [rows, setRows] = useState<AuditRow[] | null>(null);
+  const [q, setQ] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async (query = "") => {
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/audit?limit=150${query ? `&q=${encodeURIComponent(query)}` : ""}`, { cache: "no-store" });
+      if (r.ok) setRows((await r.json()).items || []);
+    } catch {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const fmtAction = (a: string) => {
+    const map: Record<string, string> = {
+      "auth.login": t("audit.login"), "auth.loginFail": t("audit.loginFail"), "auth.blocked": t("audit.blocked"),
+      "auth.bootstrap": t("audit.bootstrap"), "auth.google": t("audit.google"), "auth.googleCreate": t("audit.googleCreate"),
+      "appointment.create": t("audit.apptCreate"), "appointment.update": t("audit.apptUpdate"),
+      "appointment.cancel": t("audit.apptCancel"), "appointment.delete": t("audit.apptDelete"),
+      "coupon.create": t("audit.couponCreate"), "coupon.update": t("audit.couponUpdate"), "coupon.delete": t("audit.couponDelete"),
+      "testimonial.create": t("audit.testiCreate"), "testimonial.update": t("audit.testiUpdate"), "testimonial.delete": t("audit.testiDelete"),
+      "invoice.download": t("audit.invoiceDl"), "backup.create": t("audit.backup"),
+      "export.appointments": t("audit.exportAppts"), "export.clients": t("audit.exportClients"), "export.invoices": t("audit.exportInvoices"),
+      "settings.update": t("audit.settings"), "accounts.create": t("audit.accCreate"), "accounts.update": t("audit.accUpdate"), "accounts.delete": t("audit.accDelete"),
+      "audit.clear": t("audit.clear"),
+    };
+    return map[a] || a;
+  };
+
+  const roleCls = (r: string) =>
+    r === "admin" ? "bg-primary/10 text-primary" :
+    r === "assistant" ? "bg-sky-500/10 text-sky-600" :
+    r === "specialist" ? "bg-emerald-500/10 text-emerald-600" : "bg-muted text-muted-foreground";
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && load(q.trim())}
+            placeholder={t("audit.search")}
+            className="ps-10 h-11 rounded-xl"
+          />
+        </div>
+        <Button variant="outline" onClick={() => load(q.trim())} disabled={loading} className="h-11 rounded-xl gap-1.5">
+          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> {t("dash.refresh")}
+        </Button>
+      </div>
+
+      {!rows ? (
+        <div className="space-y-2">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}</div>
+      ) : rows.length === 0 ? (
+        <Card className="rounded-3xl border-dashed">
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">{t("audit.empty")}</CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-1.5">
+          {rows.map((r) => (
+            <div key={r._id} className="flex items-center gap-3 rounded-2xl border bg-card p-3">
+              <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", roleCls(r.actorRole))}>
+                <ShieldCheck className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold truncate">
+                  {r.actorName}
+                  <span className="font-normal text-muted-foreground"> — {fmtAction(r.action)}</span>
+                  {r.target ? <span className="font-semibold"> · {r.target}</span> : null}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {r.meta ? `${r.meta} · ` : ""}
+                  {new Date(r.at).toLocaleString(lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB")}
+                  {r.ip && r.ip !== "local" ? ` · IP ${r.ip}` : ""}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function AdminTools() {
+  const { t } = useApp();
+  return (
+    <div className="space-y-8">
+      <section className="space-y-3">
+        <h3 className="font-black flex items-center gap-2 text-base">
+          <DatabaseBackup className="h-4.5 w-4.5 text-primary" /> {t("tools.dataTitle")}
+        </h3>
+        <DataTools />
+      </section>
+      <section className="space-y-3">
+        <h3 className="font-black flex items-center gap-2 text-base">
+          <Ticket className="h-4.5 w-4.5 text-primary" /> {t("tools.couponsTitle")}
+        </h3>
+        <CouponsManager />
+      </section>
+      <section className="space-y-3">
+        <h3 className="font-black flex items-center gap-2 text-base">
+          <ScrollText className="h-4.5 w-4.5 text-primary" /> {t("audit.title")}
+        </h3>
+        <AuditViewer />
+      </section>
+    </div>
+  );
+}

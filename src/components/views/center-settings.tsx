@@ -20,7 +20,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Plus, Trash2, X, Building2, Save, Images, MapPin, Share2, Languages, SlidersHorizontal, FileStack, Lock, Stethoscope, Sparkles, Pencil, Quote as QuoteIcon, Clock, Copy } from "lucide-react";
+import AdminTools from "@/components/views/admin-tools";
+import { Plus, Trash2, X, Building2, Save, Images, MapPin, Share2, Languages, SlidersHorizontal, FileStack, Lock, Stethoscope, Sparkles, Pencil, Quote as QuoteIcon, Clock, Copy, DatabaseBackup } from "lucide-react";
 import { toast } from "sonner";
 import type { Navigate } from "@/lib/nav";
 
@@ -116,6 +117,8 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
           <TabsTrigger value="langs" className="gap-1.5"><Languages className="h-4 w-4" />{t("set.languages")}</TabsTrigger>
           <TabsTrigger value="options" className="gap-1.5"><SlidersHorizontal className="h-4 w-4" />{t("set.options")}</TabsTrigger>
           <TabsTrigger value="pages" className="gap-1.5"><FileStack className="h-4 w-4" />{t("set.legal")}</TabsTrigger>
+          {/* v3.8: أدوات الإدارة — تصدير + نسخ احتياطي + كوبونات + سجل تدقيق */}
+          <TabsTrigger value="tools" className="gap-1.5"><DatabaseBackup className="h-4 w-4" />{t("tools.tab")}</TabsTrigger>
         </TabsList>
 
         {/* ── معلومات عامة (ثلاثية اللغة) ── */}
@@ -371,6 +374,11 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
               </AccordionItem>
             ))}
           </Accordion>
+        </TabsContent>
+
+        {/* ── v3.8: أدوات الإدارة — تصدير، نسخ احتياطي، كوبونات، سجل تدقيق ── */}
+        <TabsContent value="tools" className="mt-4">
+          <AdminTools />
         </TabsContent>
       </Tabs>
     </div>

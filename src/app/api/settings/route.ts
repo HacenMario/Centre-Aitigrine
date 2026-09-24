@@ -7,6 +7,7 @@ import { ok, handle } from "@/lib/api-helpers";
 import { Settings } from "@/lib/models";
 import { requireUser } from "@/lib/auth";
 import { ensureVapidKeys } from "@/lib/push";
+import { logAudit } from "@/lib/audit";
 
 /** v3.5: تطبيع التصنيفات ثلاثية اللغة — النصوص القديمة تصبح { ar } */
 type TriCat = { ar: string; fr: string; en: string };
@@ -63,7 +64,7 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   return handle(async () => {
-    await requireUser(["admin"]);
+    const me = await requireUser(["admin"]);
     let s = await Settings.findOne({ key: "center" });
     if (!s) s = await Settings.create({ key: "center" });
     const b = await req.json().catch(() => ({}));
@@ -128,6 +129,7 @@ export async function PUT(req: NextRequest) {
         }));
     }
     await s.save();
+    await logAudit({ _id: me._id, name: me.name, role: me.role }, "settings.update", "إعدادات المركز", "حفظ الإعدادات");
     return ok({ settings: publicSettings(s) });
   });
 }
