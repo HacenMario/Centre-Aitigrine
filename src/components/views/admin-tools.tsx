@@ -22,6 +22,7 @@ import {
   Loader2, RefreshCw, Search, ShieldCheck, Percent, Coins, UsersRound, CalendarClock, ReceiptText,
 } from "lucide-react";
 import { toast } from "sonner";
+import { localeOf } from "@/components/tri-input";
 
 /* ═══════════ 1+2: التصدير والنسخ الاحتياطي ═══════════ */
 function DataTools() {
@@ -54,15 +55,15 @@ function DataTools() {
   const rows = [
     {
       key: "appointments", icon: CalendarClock, label: t("tools.exportAppointments"),
-      sub: t("tools.exportAppointmentsSub"), url: "/api/export?type=appointments", file: "appointments.csv", cls: "text-sky-600 bg-sky-500/10",
+      sub: t("tools.exportAppointmentsSub"), url: `/api/export?type=appointments&lang=${lang}`, file: "appointments.csv", cls: "text-sky-600 bg-sky-500/10",
     },
     {
       key: "clients", icon: UsersRound, label: t("tools.exportClients"),
-      sub: t("tools.exportClientsSub"), url: "/api/export?type=clients", file: "clients.csv", cls: "text-emerald-600 bg-emerald-500/10",
+      sub: t("tools.exportClientsSub"), url: `/api/export?type=clients&lang=${lang}`, file: "clients.csv", cls: "text-emerald-600 bg-emerald-500/10",
     },
     {
       key: "invoices", icon: ReceiptText, label: t("tools.exportInvoices"),
-      sub: t("tools.exportInvoicesSub"), url: "/api/export?type=invoices", file: "invoices.csv", cls: "text-amber-600 bg-amber-500/10",
+      sub: t("tools.exportInvoicesSub"), url: `/api/export?type=invoices&lang=${lang}`, file: "invoices.csv", cls: "text-amber-600 bg-amber-500/10",
     },
   ];
 
@@ -232,7 +233,7 @@ function CouponsManager() {
                     {fmtValue(c)}
                     {c.description ? ` — ${c.description}` : ""}
                     {c.maxUses > 0 ? ` · ${t("tools.uses")}: ${c.usedCount}/${c.maxUses}` : c.usedCount > 0 ? ` · ${t("tools.uses")}: ${c.usedCount}` : ""}
-                    {c.expiresAt ? ` · ${t("tools.until")} ${new Date(c.expiresAt).toLocaleDateString(lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB")}` : ""}
+                    {c.expiresAt ? ` · ${t("tools.until")} ${new Date(c.expiresAt).toLocaleDateString(localeOf(lang))}` : ""}
                   </p>
                 </div>
                 {c.expired ? (
@@ -329,6 +330,8 @@ function AuditViewer() {
   const [rows, setRows] = useState<AuditRow[] | null>(null);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const VISIBLE = 10;
 
   const load = useCallback(async (query = "") => {
     setLoading(true);
@@ -388,7 +391,8 @@ function AuditViewer() {
         </Card>
       ) : (
         <div className="space-y-1.5">
-          {rows.map((r) => (
+          {/* ★ v3.8.1: 10 أسطر فقط هنا — والبقية في نافذة خاصة بزر «إظهار المزيد» */}
+          {rows.slice(0, VISIBLE).map((r) => (
             <div key={r._id} className="flex items-center gap-3 rounded-2xl border bg-card p-3">
               <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", roleCls(r.actorRole))}>
                 <ShieldCheck className="h-4 w-4" />
@@ -401,15 +405,119 @@ function AuditViewer() {
                 </p>
                 <p className="text-[11px] text-muted-foreground truncate">
                   {r.meta ? `${r.meta} · ` : ""}
-                  {new Date(r.at).toLocaleString(lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB")}
+                  {new Date(r.at).toLocaleString(localeOf(lang))}
                   {r.ip && r.ip !== "local" ? ` · IP ${r.ip}` : ""}
                 </p>
               </div>
             </div>
           ))}
+
+          {/* زر إظهار المزيد */}
+          {rows.length > VISIBLE && (
+            <Button
+              variant="outline"
+              onClick={() => setShowAll(true)}
+              className="w-full h-11 rounded-2xl gap-2"
+            >
+              <ScrollText className="h-4 w-4" />
+              {t("audit.showMore")}
+              <Badge variant="secondary" className="rounded-full">{rows.length - VISIBLE}</Badge>
+            </Button>
+          )}
+
+          {/* نافذة السجل الكامل */}
+          <Dialog open={showAll} onOpenChange={setShowAll}>
+            <DialogContent className="max-w-2xl max-h-[85dvh] overflow-hidden flex flex-col">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-base">
+                  <ScrollText className="h-4.5 w-4.5 text-primary" /> {t("audit.fullTitle")}
+                  <Badge variant="secondary" className="rounded-full">{rows.length}</Badge>
+                </DialogTitle>
+              </DialogHeader>
+              <div className="overflow-y-auto -mx-1 px-1 space-y-1.5 pb-1" dir="ltr">
+                {[...rows].reverse().map((r) => (
+                  <div key={r._id} className="flex items-center gap-3 rounded-2xl border bg-card p-3" dir="auto">
+                    <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", roleCls(r.actorRole))}>
+                      <ShieldCheck className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold truncate">
+                        {r.actorName}
+                        <span className="font-normal text-muted-foreground"> — {fmtAction(r.action)}</span>
+                        {r.target ? <span className="font-semibold"> · {r.target}</span> : null}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {r.meta ? `${r.meta} · ` : ""}
+                        {new Date(r.at).toLocaleString(localeOf(lang))}
+                        {r.ip && r.ip !== "local" ? ` · IP ${r.ip}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowAll(false)} className="rounded-xl">
+                  {t("common.close")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </div>
+  );
+}
+
+/* ═══════════ 5: بطاقة دخول Google — تُظهر رابط redirect الدقيق المطلوب في Google Console ═══════════ */
+function GoogleAuthCard() {
+  const { t } = useApp();
+  const [info, setInfo] = useState<{ configured: boolean; clientId: string; redirectUri: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/google?config=1", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => setInfo({ configured: !!j.configured, clientId: j.clientId || "", redirectUri: j.redirectUri || "" }))
+      .catch(() => setInfo({ configured: false, clientId: "", redirectUri: "" }));
+  }, []);
+
+  if (!info) return null;
+  return (
+    <Card className="ait-card rounded-3xl border-primary/25">
+      <CardContent className="p-5 space-y-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary shrink-0">
+            <ShieldCheck className="h-6 w-6" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-black">{t("google.cardTitle")}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{t("google.cardSub")}</p>
+          </div>
+          <Badge variant="secondary" className={cn("rounded-full shrink-0", info.configured && "bg-emerald-500/10 text-emerald-600")}>
+            {info.configured ? t("google.configured") : t("google.notConfigured")}
+          </Badge>
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-xs font-bold text-muted-foreground">{t("google.redirectLabel")}</p>
+          <div className="flex items-center gap-2 rounded-xl border bg-muted/40 p-2.5" dir="ltr">
+            <code className="flex-1 text-xs break-all leading-relaxed">{info.redirectUri}</code>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 shrink-0 rounded-lg gap-1"
+              onClick={() => {
+                try {
+                  navigator.clipboard.writeText(info.redirectUri);
+                  toast.success(t("google.copied"));
+                } catch {}
+              }}
+            >
+              <Download className="h-3.5 w-3.5" /> {t("google.copy")}
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">{t("google.hint")}</p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -434,6 +542,12 @@ export default function AdminTools() {
           <ScrollText className="h-4.5 w-4.5 text-primary" /> {t("audit.title")}
         </h3>
         <AuditViewer />
+      </section>
+      <section className="space-y-3">
+        <h3 className="font-black flex items-center gap-2 text-base">
+          <ShieldCheck className="h-4.5 w-4.5 text-primary" /> {t("google.cardTitle")}
+        </h3>
+        <GoogleAuthCard />
       </section>
     </div>
   );

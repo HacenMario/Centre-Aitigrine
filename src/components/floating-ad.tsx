@@ -90,7 +90,7 @@ export default function FloatingAd() {
   const prev = () => setSlide((i) => (media.length ? (i - 1 + media.length) % media.length : 0));
 
   return (
-    <div className="fixed inset-x-3 bottom-3 z-[90] sm:inset-x-auto sm:end-5 sm:bottom-5 sm:w-[26rem]">
+    <div className="fixed inset-x-3 top-3 z-[90] sm:inset-x-auto sm:top-auto sm:start-5 sm:bottom-5 sm:w-[26rem]">
       <div className="ait-float-ad overflow-hidden rounded-3xl border bg-popover shadow-2xl shadow-black/20">
         <div className="flex items-center justify-between gap-2 border-b bg-primary/8 px-4 py-2.5">
           <span className="inline-flex items-center gap-1.5 text-xs font-black text-primary">

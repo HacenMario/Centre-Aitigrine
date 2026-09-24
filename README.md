@@ -30,6 +30,17 @@ npm run dev          # الموقع على http://localhost:3000
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | دخول Google (اختياري — v3.8) |
 | `PUBLIC_BASE_URL` | عنوان الموقع العام (للـ OAuth redirect) |
 
+### ★ إصلاح خطأ `redirect_uri_mismatch` (دخول Google)
+هذا الخطأ يعني أن **رابط العودة المسجّل في Google Console لا يطابق حرفياً** الرابط الذي يستعمله الخادم. الحل الدقيق:
+
+1. ادخل بحساب الإدارة → **إعدادات المركز → تبويب «الأدوات» → بطاقة «دخول Google»**
+2. **انسخ** رابط العودة المعروض (نمطه: `https://<your-domain>/api/auth/google/callback`)
+3. في [Google Cloud Console](https://console.cloud.google.com) → **APIs & Services → Credentials → OAuth 2.0 Client ID** → خانة **«Authorized redirect URIs»** أضف الرابط **حرفياً** (بدون شرطة مائلة في النهاية، بدون فراغات، نفس `http/https` ونفس النطاق والمنفذ)
+4. احفظ في Google ثم أعد المحاولة — يستغرق التغيير أحياناً دقائق معدودة للتفعيل
+5. إن كان الموقع خلف نطاق عام فعّل أيضاً `PUBLIC_BASE_URL=https://<your-domain>` في `.env` لضمان ثبات الرابط
+
+> ملاحظة: أي اختلاف (حتى منفذ تجريبي مثل `:3100` أو `localhost` مقابل نطاق عام) يسبب نفس الخطأ — سجّل كل رابط تستعمله فعلياً (التجريبي والإنتاجي معاً).
+
 ---
 
 ## ميزات الإصدار 3.8.0

@@ -93,6 +93,8 @@ export async function PUT(req: NextRequest) {
     if (typeof b.logoBase64 === "string") s.logoBase64 = b.logoBase64;
     if (typeof b.langFr === "boolean") s.langFr = b.langFr;
     if (typeof b.langEn === "boolean") s.langEn = b.langEn;
+    if (typeof b.langTr === "boolean") s.langTr = b.langTr;
+    if (typeof b.langEs === "boolean") s.langEs = b.langEs;
     if (b.options) {
       const o = b.options;
       s.options = {

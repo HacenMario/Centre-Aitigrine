@@ -19,7 +19,9 @@ export const runtime = "nodejs";
 type Ctx = { params: Promise<{}> };
 
 export async function GET(req: NextRequest, _ctx?: Ctx) {
-  const base = process.env.PUBLIC_BASE_URL || req.nextUrl.origin;
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || req.nextUrl.host;
+  const proto = req.headers.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
+  const base = (process.env.PUBLIC_BASE_URL || `${proto}://${host}`).replace(/\/+$/, "");
   const finish = (msgKey: string) =>
     NextResponse.redirect(`${base}/?gauth=${encodeURIComponent(msgKey)}`);
 

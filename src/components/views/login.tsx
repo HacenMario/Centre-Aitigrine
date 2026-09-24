@@ -20,9 +20,11 @@ import { cn } from "@/lib/utils";
 type Tab = "login" | "register" | "forgot";
 type Portal = "client" | "specialist" | "admin";
 
-/* ★ v3.8: زر دخول Google — يفحص الإعداد ويحول لصفحة الموافقة أو يوضح أن غير مُعد */
+/* ★ v3.8.1: زر دخول Google — يفحص الإعداد ويحول لصفحة الموافقة
+ *   + للإدارة: تذكير قبل التحويل بالرابط الدقيق الواجب تسجيله في Google Console
+ *     (يمنع خطأ Erreur 400: redirect_uri_mismatch) */
 function GoogleButton() {
-  const { t } = useApp();
+  const { t, me } = useApp();
   const [configured, setConfigured] = useState<boolean | null>(null);
 
   const check = async () => {
@@ -31,9 +33,15 @@ function GoogleButton() {
       const j = await r.json();
       setConfigured(!!j.configured);
       if (j.configured) {
+        const isAdmin = me?.role === "admin";
+        const uri = String(j.redirectUri || "");
+        if (isAdmin && uri) {
+          /* إشعار طويل للإدارة مع الرابط الدقيق — لا يعيق التحويل */
+          toast.info(t("login.googleAdminHint"), { description: uri, duration: 12000 });
+        }
         window.location.href = "/api/auth/google";
       } else {
-        toast.info(t("login.googleNotConfigured"));
+        toast.info(t("login.googleNotConfigured"), { duration: 8000 });
       }
     } catch {
       toast.error(t("err.conn"));

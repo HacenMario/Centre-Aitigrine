@@ -64,6 +64,8 @@ const SpecialtySchema = new Schema(
       ar: { type: String, required: true },
       fr: { type: String, default: "" },
       en: { type: String, default: "" },
+      tr: { type: String, default: "" },
+      es: { type: String, default: "" },
     },
     builtin: { type: Boolean, default: false, index: true },
     order: { type: Number, default: 0 },
@@ -113,9 +115,11 @@ const SettingsSchema = new Schema(
     /** رابط الموقع على خرائط Google — يوجّه الزوار للمركز مباشرة */
     mapsUrl: { type: String, default: "" },
     logoBase64: { type: String, default: "" },
-    /** تفعيل اللغات FR/EN (العربية دائماً) */
+    /** تفعيل اللغات FR/EN/TR/ES (العربية دائماً) */
     langFr: { type: Boolean, default: true },
     langEn: { type: Boolean, default: true },
+    langTr: { type: Boolean, default: true },
+    langEs: { type: Boolean, default: true },
     /** خيارات الحقول تُدار من الإدارة */
     options: {
       specialties: { type: [String], default: [] },
@@ -420,9 +424,11 @@ const PageContentSchema = new Schema(
     key: { type: String, enum: ["faq", "about", "privacy", "terms"], unique: true },
     /** faq: [{q,a}] — البقية: [{title, text}] */
     items: { type: [], default: [] },
-    /** النسخ الفرنسية/الإنجليزية — بنفس بنية items، وإن فارغتُ استُخدمت العربية */
+    /** النسخ المترجمة — بنفس بنية items، وإن فارغتُ استُخدمت العربية */
     itemsFr: { type: [], default: [] },
     itemsEn: { type: [], default: [] },
+    itemsTr: { type: [], default: [] },
+    itemsEs: { type: [], default: [] },
     updatedAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
@@ -474,11 +480,15 @@ const NotificationSchema = new Schema(
       ar: { type: String, default: "" },
       fr: { type: String, default: "" },
       en: { type: String, default: "" },
+      tr: { type: String, default: "" },
+      es: { type: String, default: "" },
     },
     bodies: {
       ar: { type: String, default: "" },
       fr: { type: String, default: "" },
       en: { type: String, default: "" },
+      tr: { type: String, default: "" },
+      es: { type: String, default: "" },
     },
     kind: { type: String, default: "general" }, // reminder_day | reminder_hour | booking | status | general
     /* ★ وجهة الإشعار: الضغط عليه ينقل المستخدم للموضع المناسب (نمط طمأنينة)

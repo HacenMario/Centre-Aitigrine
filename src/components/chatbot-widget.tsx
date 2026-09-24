@@ -1,9 +1,12 @@
 "use client";
 /**
- * المساعد الذكي (v3.8) — ودجت عائم بأسئلة وأجوبة فورية
- * — ردود آلية على الأسئلة الشائعة (ثلاثي اللغة) + توجيه مباشر لصفحة الحجز/الخدمات
- * — يُخفى تلقائياً في وضع الإخفاء السريع ولا يظهر أبداً فوق النوافذ المنبثقة الحرجة
- * — بلا ذكاء خارجي: يعمل دائماً، حتى بلا إنترنت (وضع عدم الاتصال)
+ * المساعد الذكي (v3.8.1) — ودجت عائم بأسئلة وأجوبة فورية
+ * ★ v3.8.1:
+ *  - زر إغلاق (×) بجانب زر البوت عند فتح النافذة — نفس نمط زر واتساب
+ *  - لا يتراكب مع زر واتساب أو «العودة للأعلى»: يُرتكز داخل حزمة الأزرار العائمة (app-shell)
+ *  - إجابات بخمس لغات + أسئلة سريعة أكثر (6) + إرسال لغة الواجهة للخادم
+ *  - لوحة المحادثة تُفتح إلى الأعلى بعرض آمن لا يتجاوز إطار الشاشة في الجوال
+ * — يُخفى تلقائياً في وضع الإخفاء السريع — يعمل دائماً، حتى بلا إنترنت (وضع عدم الاتصال)
  */
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
@@ -19,6 +22,36 @@ type Msg = {
   linkLabel?: string;
 };
 
+/** اختيار نص الخادم حسب لغة الواجهة مع سقوط تلقائي */
+function pickReply(r: Record<string, unknown>, lang: string): string {
+  const chain =
+    lang === "tr" ? ["textTr", "textFr", "textEn", "text"]
+    : lang === "es" ? ["textEs", "textFr", "textEn", "text"]
+    : lang === "fr" ? ["textFr", "textEn", "text"]
+    : lang === "en" ? ["textEn", "textFr", "text"]
+    : ["text", "textFr", "textEn"];
+  for (const k of chain) {
+    const v = String(r[k] ?? "").trim();
+    if (v) return v;
+  }
+  return "";
+}
+function pickLabel(r: Record<string, unknown>, lang: string): string {
+  const chain =
+    lang === "tr" ? ["linkLabelTr", "linkLabelFr", "linkLabelEn", "linkLabel"]
+    : lang === "es" ? ["linkLabelEs", "linkLabelFr", "linkLabelEn", "linkLabel"]
+    : lang === "fr" ? ["linkLabelFr", "linkLabelEn", "linkLabel"]
+    : lang === "en" ? ["linkLabelEn", "linkLabelFr", "linkLabel"]
+    : ["linkLabel", "linkLabelFr", "linkLabelEn"];
+  for (const k of chain) {
+    const v = String(r[k] ?? "").trim();
+    if (v) return v;
+  }
+  return "";
+}
+
+const QUICK_KEYS = ["bot.q1", "bot.q2", "bot.q3", "bot.q4", "bot.q5", "bot.q6"];
+
 export default function ChatbotWidget() {
   const { t, lang, navigate, hidden } = useApp();
   const [open, setOpen] = useState(false);
@@ -27,7 +60,6 @@ export default function ChatbotWidget() {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  /* لغة النص — الردود تأتي من الخادم ثلاثية اللغة */
   const greet = t("bot.welcome");
 
   useEffect(() => {
@@ -51,18 +83,18 @@ export default function ChatbotWidget() {
       const r = await fetch("/api/chatbot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg }),
+        body: JSON.stringify({ message: msg, lang }),
       });
       const j = await r.json().catch(() => null);
-      const reply = j?.reply;
+      const reply = j?.reply as Record<string, unknown> | null;
       setMsgs((m) => [
         ...m,
         reply
           ? {
               from: "bot",
-              text: (lang === "fr" ? reply.textFr || reply.text : lang === "en" ? reply.textEn || reply.text : reply.text) || "…",
-              link: reply.link,
-              linkLabel: lang === "fr" ? reply.linkLabelFr || reply.linkLabel : lang === "en" ? reply.linkLabelEn || reply.linkLabel : reply.linkLabel,
+              text: pickReply(reply, lang) || "…",
+              link: typeof reply.link === "string" ? reply.link : undefined,
+              linkLabel: pickLabel(reply, lang),
             }
           : { from: "bot", text: t("bot.noReply") },
       ]);
@@ -76,15 +108,15 @@ export default function ChatbotWidget() {
   if (hidden) return null;
 
   return (
-    <>
-      {/* الزر العائم — أسفل يسار/يمين حسب الاتجاه فوق زر واتساب */}
+    <div className="relative flex items-center gap-1.5">
+      {/* زر البوت */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={t("bot.title")}
+        title={t("bot.title")}
         className={cn(
-          "fixed z-40 bottom-24 md:bottom-6 ltr:right-4 rtl:left-4 md:ltr:right-6 md:rtl:left-6",
-          "h-13 w-13 md:h-14 md:w-14 rounded-full shadow-xl shadow-primary/25",
+          "flex h-13 w-13 md:h-14 md:w-14 rounded-full shadow-xl shadow-primary/25",
           "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground",
           "flex items-center justify-center transition-transform active:scale-95 hover:scale-105"
         )}
@@ -93,8 +125,21 @@ export default function ChatbotWidget() {
         {!open && <span className="absolute -top-0.5 -end-0.5 h-3 w-3 rounded-full bg-emerald-400 border-2 border-background" />}
       </button>
 
+      {/* زر الإغلاق (×) بجانب البوت — نفس نمط زر واتساب */}
       {open && (
-        <Card className="fixed z-50 bottom-36 md:bottom-24 ltr:right-3 rtl:left-3 md:ltr:right-6 md:rtl:left-6 w-[min(22rem,calc(100vw-1.5rem))] rounded-3xl shadow-2xl border overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          aria-label={t("common.close")}
+          title={t("common.close")}
+          className="flex h-6 w-6 items-center justify-center rounded-full bg-background text-muted-foreground shadow-md ring-1 ring-border transition-all hover:bg-destructive hover:text-white hover:rotate-90 active:scale-90"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+
+      {open && (
+        <Card className="absolute z-50 bottom-full mb-3 end-0 w-[min(22rem,calc(100vw-2rem))] rounded-3xl shadow-2xl border overflow-hidden">
           {/* رأس */}
           <div className="bg-gradient-to-r from-primary to-primary/85 text-primary-foreground p-4 flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15">
@@ -110,7 +155,7 @@ export default function ChatbotWidget() {
           </div>
 
           {/* الرسائل */}
-          <div ref={scrollRef} className="p-3 space-y-2.5 max-h-[55dvh] overflow-y-auto bg-muted/30">
+          <div ref={scrollRef} className="p-3 space-y-2.5 max-h-[45dvh] md:max-h-[55dvh] overflow-y-auto bg-muted/30">
             {msgs.map((m, i) => (
               <div key={i} className={cn("flex", m.from === "me" ? "justify-end" : "justify-start")}>
                 <div className={cn(
@@ -146,7 +191,7 @@ export default function ChatbotWidget() {
 
           {/* أسئلة سريعة */}
           <div className="px-3 pt-2 flex gap-1.5 flex-wrap bg-background">
-            {["bot.q1", "bot.q2", "bot.q3"].map((k) => (
+            {QUICK_KEYS.map((k) => (
               <button
                 key={k}
                 type="button"
@@ -165,7 +210,7 @@ export default function ChatbotWidget() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()}
               placeholder={t("bot.placeholder")}
-              className="flex-1 h-10 rounded-full border bg-card px-4 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+              className="flex-1 h-10 rounded-full border bg-card px-4 text-sm outline-none focus:ring-2 focus:ring-primary/40 min-w-0"
             />
             <Button size="icon" className="h-10 w-10 rounded-full shrink-0" onClick={() => send()} disabled={!input.trim() || typing}>
               <SendHorizonal className="h-4 w-4 rtl:-scale-x-100" />
@@ -173,6 +218,6 @@ export default function ChatbotWidget() {
           </div>
         </Card>
       )}
-    </>
+    </div>
   );
 }

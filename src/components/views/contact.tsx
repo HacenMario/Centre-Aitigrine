@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { gmapsEmbed, gmapsLink } from "@/components/map-picker";
 import { toast } from "sonner";
+import { localeOf } from "@/components/tri-input";
 
 export default function Contact({ navigate }: { navigate?: (v: "feedback" | "home") => void }) {
   const { t, settings, lang } = useApp();
@@ -69,7 +70,7 @@ export default function Contact({ navigate }: { navigate?: (v: "feedback" | "hom
       : lang === "fr"
         ? ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
         : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const locale = lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB";
+  const locale = localeOf(lang);
 
   return (
     <div className="space-y-6">

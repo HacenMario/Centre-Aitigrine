@@ -7,7 +7,7 @@ import webpush from "web-push";
 import crypto from "crypto";
 import { connectDB } from "./mongo";
 import { Settings, Notification, PushSub, User } from "./models";
-import type { TriNotification } from "./notify-text";
+import type { PentaNotification } from "./notify-text";
 
 /** توليد مفاتيح VAPID مرة واحدة وحفظها في الإعدادات */
 export async function ensureVapidKeys(): Promise<{ publicKey: string; privateKey: string }> {
@@ -38,15 +38,15 @@ async function configuredPush() {
  *    الصيغة: "view" أو "view:id" — مثال: "appointments" / "accounts" / "login:client" */
 export async function notifyUser(
   userId: string,
-  titleOrTri: string | TriNotification,
+  titleOrTri: string | PentaNotification,
   kind = "general",
   link = ""
 ): Promise<void> {
   try {
     await connectDB();
     /* وضع ثلاثي اللغة: notifyUser(id, {titles, bodies}, kind, link) */
-    let titles = { ar: "", fr: "", en: "" };
-    let bodies = { ar: "", fr: "", en: "" };
+    let titles = { ar: "", fr: "", en: "", tr: "", es: "" };
+    let bodies = { ar: "", fr: "", en: "", tr: "", es: "" };
     if (typeof titleOrTri === "string") {
       titles.ar = titleOrTri;
     } else {
@@ -54,19 +54,23 @@ export async function notifyUser(
         ar: titleOrTri.titles?.ar || "",
         fr: titleOrTri.titles?.fr || titles.ar,
         en: titleOrTri.titles?.en || titles.ar,
+        tr: titleOrTri.titles?.tr || titles.fr || titles.ar,
+        es: titleOrTri.titles?.es || titles.fr || titles.ar,
       };
       bodies = {
         ar: titleOrTri.bodies?.ar || "",
         fr: titleOrTri.bodies?.fr || bodies.ar,
         en: titleOrTri.bodies?.en || bodies.ar,
+        tr: titleOrTri.bodies?.tr || bodies.fr || bodies.ar,
+        es: titleOrTri.bodies?.es || bodies.fr || bodies.ar,
       };
     }
-    const title = titles.ar || titles.fr || titles.en || "إشعار";
+    const title = titles.ar || titles.fr || titles.en || titles.tr || titles.es || "إشعار";
     await Notification.create({ userId, title, body: bodies.ar, titles, bodies, kind, link });
     const subs = await PushSub.find({ userId }).lean();
     if (!subs.length) return;
     const wp = await configuredPush();
-    /* الحمولة تحمل اللغات الثلاث — Service Worker يختار لغة الجهاز */
+    /* الحمولة تحمل اللغات الخمس — Service Worker يختار لغة الجهاز */
     const payload = JSON.stringify({ titles, bodies, title, body: bodies.ar, kind, link });
     await Promise.allSettled(
       subs.map((sub) =>
@@ -93,7 +97,7 @@ export async function notifyUser(
 
 /** إشعار كل فريق الإدارة (أدمين + مساعدون) — ثلاثي اللغة */
 export async function notifyStaff(
-  titleOrTri: string | TriNotification,
+  titleOrTri: string | PentaNotification,
   kind = "general",
   link = ""
 ): Promise<void> {

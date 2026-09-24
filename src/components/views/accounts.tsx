@@ -30,7 +30,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Pencil, Trash2, Power, Search, UsersRound, Phone, KeyRound, BellRing, X } from "lucide-react";
 import { toast } from "sonner";
-import { TriInput, TriTextarea, triFrom, flattenTri } from "@/components/tri-input";
+import { TriInput, TriTextarea, flattenTri, triFrom, triName } from "@/components/tri-input";
 import { FullAvatar } from "@/components/full-image";
 import Pagination from "@/components/pagination";
 import { cn } from "@/lib/utils";
@@ -453,7 +453,7 @@ function AccountForm({
               <div className="flex flex-wrap gap-2 rounded-xl border bg-card/40 p-3">
                 {specialtyRows.map((sp) => {
                   const checked = (value?.specialties || []).includes(sp._id);
-                  const name = lang === "fr" ? (sp.fr || sp.ar) : lang === "en" ? (sp.en || sp.ar) : sp.ar;
+                  const name = triName(sp, lang);
                   return (
                     <label
                       key={sp._id}

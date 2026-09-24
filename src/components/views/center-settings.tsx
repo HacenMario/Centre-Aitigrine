@@ -9,7 +9,7 @@ import BackButton from "@/components/back-button";
 import MapPicker from "@/components/map-picker";
 import ImageInput from "@/components/image-input";
 import MediaInput from "@/components/media-input";
-import { TriInput, TriTextarea, triFrom, flattenTri, LANG_FLAGS, LANG_NAMES } from "@/components/tri-input";
+import { LANG_FLAGS, LANG_NAMES, TriInput, TriTextarea, flattenTri, triFrom, triName } from "@/components/tri-input";
 import type { Tri } from "@/components/tri-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,7 +36,7 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
   const [form, setForm] = useState<CenterSettings | null>(null);
   const [busy, setBusy] = useState(false);
   const [pages, setPages] = useState<Record<string, PageItem[]>>({});
-  const [pageLang, setPageLang] = useState<"ar" | "fr" | "en">("ar");
+  const [pageLang, setPageLang] = useState<"ar" | "fr" | "en" | "tr" | "es">("ar");
 
   useEffect(() => {
     if (settings) setForm({ ...settings });
@@ -300,6 +300,14 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
               <span className="font-bold">{t("set.langEn")}</span>
               <Switch checked={form.langEn} onCheckedChange={(v) => upd({ langEn: v })} />
             </label>
+            <label className="flex items-center justify-between rounded-2xl border p-4">
+              <span className="font-bold">{LANG_NAMES.tr}</span>
+              <Switch checked={form.langTr} onCheckedChange={(v) => upd({ langTr: v })} />
+            </label>
+            <label className="flex items-center justify-between rounded-2xl border p-4">
+              <span className="font-bold">{LANG_NAMES.es}</span>
+              <Switch checked={form.langEs} onCheckedChange={(v) => upd({ langEs: v })} />
+            </label>
           </div>
           <Button onClick={save} disabled={busy} className="w-full sm:w-auto h-12 rounded-xl gap-2 px-8 text-base">
             <Save className="h-4.5 w-4.5" /> {busy ? t("common.saving") : t("common.save")}
@@ -348,7 +356,7 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-bold">{t("header.language")}:</span>
             <div className="flex items-center gap-1 rounded-full border bg-muted/50 p-1">
-              {(["ar", "fr", "en"] as const).map((lg) => (
+              {(["ar", "fr", "en", "tr", "es"] as const).map((lg) => (
                 <button key={lg} type="button" onClick={() => setPageLang(lg)}
                   className={"min-w-11 h-8 rounded-full text-xs font-bold transition-all " +
                     (pageLang === lg ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:bg-accent")}>
@@ -426,7 +434,7 @@ function SpecialtiesManager() {
   };
 
   const nameOf = (sp: SpecialtyRow) =>
-    lang === "fr" ? (sp.fr || sp.ar) : lang === "en" ? (sp.en || sp.ar) : sp.ar;
+    triName(sp, lang);
 
   return (
     <div className="space-y-5">
@@ -655,7 +663,7 @@ function TriCatList({ label, values, onChange }: { label: string; values: TriCat
   const { t, lang } = useApp();
   const [nv, setNv] = useState<Tri>(emptyTri);
   const list = values || [];
-  const nameOf = (c: TriCat) => (lang === "fr" ? c.fr || c.ar : lang === "en" ? c.en || c.ar : c.ar);
+  const nameOf = (c: TriCat) => triName(c, lang);
 
   return (
     <div className="space-y-2">

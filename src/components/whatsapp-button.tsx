@@ -32,7 +32,7 @@ export default function WhatsappButton() {
   if (!num || dismissed) return null;
 
   return (
-    <div className="fixed bottom-20 sm:bottom-6 z-40 start-4 sm:start-auto sm:end-6 flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5">
       <a
         href={`https://wa.me/${num}`}
         target="_blank"
@@ -41,7 +41,7 @@ export default function WhatsappButton() {
         aria-label={t("wa.chat")}
       >
         <WhatsAppGlyph className="h-6 w-6" />
-        <span className="text-sm font-bold whitespace-nowrap">{t("wa.chat")}</span>
+        <span className="text-sm font-bold whitespace-nowrap hidden min-[420px]:inline">{t("wa.chat")}</span>
       </a>
       {/* زر الإغلاق — تجاهل الزر لبقية الجلسة */}
       <button

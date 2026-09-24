@@ -21,6 +21,7 @@ import {
   BarChart3, TrendingUp, LineChart as LineChartIcon, Download, FileSpreadsheet, DatabaseBackup,
 } from "lucide-react";
 import type { Navigate } from "@/lib/nav";
+import { localeOf } from "@/components/tri-input";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
   AreaChart, Area,
@@ -85,7 +86,7 @@ export default function Dashboard({ navigate }: { navigate: Navigate }) {
     try {
       const [y, m] = ym.split("-").map(Number);
       const d = new Date(y, (m || 1) - 1, 1);
-      return d.toLocaleDateString(lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB", { month: "short" });
+      return d.toLocaleDateString(localeOf(lang), { month: "short" });
     } catch {
       return ym;
     }

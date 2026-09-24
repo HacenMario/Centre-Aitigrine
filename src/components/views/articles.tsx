@@ -34,7 +34,7 @@ import {
   Newspaper, Plus, Pencil, Trash2, Power, X, ArrowRight, ArrowLeft, ShieldCheck, PenLine, Clock,
 } from "lucide-react";
 import { toast } from "sonner";
-import { TriInput, TriTextarea, triFrom, flattenTri, pickTri } from "@/components/tri-input";
+import { TriInput, TriTextarea, flattenTri, localeOf, pickTri, triFrom } from "@/components/tri-input";
 import FullImage from "@/components/full-image";
 import Pagination from "@/components/pagination";
 import { cn } from "@/lib/utils";
@@ -72,7 +72,7 @@ function dirOf(text: string): "rtl" | "ltr" {
 function fmtDate(iso: string, lang: "ar" | "fr" | "en"): string {
   try {
     return new Date(iso).toLocaleDateString(
-      lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB",
+      localeOf(lang),
       { year: "numeric", month: "long", day: "numeric" }
     );
   } catch {

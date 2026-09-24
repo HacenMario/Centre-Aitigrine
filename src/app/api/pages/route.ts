@@ -14,18 +14,24 @@ const KEYS = ["faq", "about", "privacy", "terms"];
 type Item = Record<string, unknown>;
 
 function byLang(
-  doc: { items?: Item[]; itemsFr?: Item[]; itemsEn?: Item[] } | null,
+  doc: { items?: Item[]; itemsFr?: Item[]; itemsEn?: Item[]; itemsTr?: Item[]; itemsEs?: Item[] } | null,
   key: string,
   lang: string
 ): Item[] {
   const pick = (v?: Item[]) => (Array.isArray(v) && v.length ? v : null);
   if (doc) {
     const custom =
-      (lang === "fr" ? pick(doc.itemsFr) : lang === "en" ? pick(doc.itemsEn) : pick(doc.items)) ||
+      (lang === "fr" ? pick(doc.itemsFr)
+      : lang === "en" ? pick(doc.itemsEn)
+      : lang === "tr" ? pick(doc.itemsTr)
+      : lang === "es" ? pick(doc.itemsEs)
+      : pick(doc.items)) ||
+      /* تركي/إسباني بلا نسخة محفوظة → إنجليزي ثم عربي */
+      (lang === "tr" || lang === "es" ? pick(doc.itemsEn) || pick(doc.itemsFr) : null) ||
       pick(doc.items);
     if (custom) return custom;
   }
-  const d = PAGE_DEFAULTS[lang === "fr" ? "fr" : lang === "en" ? "en" : "ar"][key as "faq"];
+  const d = PAGE_DEFAULTS[lang === "fr" ? "fr" : lang === "en" ? "en" : lang === "tr" ? "tr" : lang === "es" ? "es" : "ar"][key as "faq"];
   return d as unknown as Item[];
 }
 
@@ -65,7 +71,7 @@ export async function PUT(req: NextRequest) {
     const lang = String(b.lang || "ar");
     if (!KEYS.includes(key)) return fail(400, "صفحة غير معروفة");
     if (!Array.isArray(b.items)) return fail(400, "عناصر غير صحيحة");
-    const field = lang === "fr" ? "itemsFr" : lang === "en" ? "itemsEn" : "items";
+    const field = lang === "fr" ? "itemsFr" : lang === "en" ? "itemsEn" : lang === "tr" ? "itemsTr" : lang === "es" ? "itemsEs" : "items";
     await PageContent.findOneAndUpdate(
       { key },
       {

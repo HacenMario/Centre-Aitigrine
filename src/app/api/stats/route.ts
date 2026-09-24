@@ -44,8 +44,13 @@ export async function GET() {
 
     /* اللغات المتاحة في الموقع (العربية دائماً) */
     const { Settings } = await import("@/lib/models");
-    const st = await Settings.findOne({ key: "center" }).lean<{ langFr?: boolean; langEn?: boolean } | null>();
-    const languages = 1 + (st?.langFr !== false ? 1 : 0) + (st?.langEn !== false ? 1 : 0);
+    const st = await Settings.findOne({ key: "center" }).lean<{ langFr?: boolean; langEn?: boolean; langTr?: boolean; langEs?: boolean } | null>();
+    const languages =
+      1 +
+      (st?.langFr !== false ? 1 : 0) +
+      (st?.langEn !== false ? 1 : 0) +
+      (st?.langTr !== false ? 1 : 0) +
+      (st?.langEs !== false ? 1 : 0);
 
     const stats = {
       clients,

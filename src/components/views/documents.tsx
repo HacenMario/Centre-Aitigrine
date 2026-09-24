@@ -21,7 +21,7 @@ import {
 import { FileBadge2, Printer, FileDown, RefreshCw, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import type { Navigate } from "@/lib/nav";
-import { pickTri } from "@/components/tri-input";
+import { localeOf, pickTri } from "@/components/tri-input";
 
 type DocType = "compte_rendu" | "certificat_presence" | "absence_scolaire" | "attestation_suivi";
 type PatientRow = { user: { _id: string; name: string; phone: string } };
@@ -59,7 +59,7 @@ export default function Documents({ navigate }: { navigate: Navigate }) {
   const s = settings;
   /* التاريخ بلغة الواجهة الحالية (الإنجليزية كانت تُعرض بتاريخ فرنسي — أُصلح) */
   const today = new Date().toLocaleDateString(
-    lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-DZ" : "en-GB",
+    localeOf(lang),
     { year: "numeric", month: "long", day: "numeric" }
   );
 
@@ -111,7 +111,7 @@ export default function Documents({ navigate }: { navigate: Navigate }) {
 
   /* الأخصائي المعالج بلغة الوثيقة — يظهر في الوثائق السريرية المناسبة */
   const specTitle = specialist
-    ? lang === "fr" ? (specialist.titleFr || specialist.title) : lang === "en" ? (specialist.titleEn || specialist.title) : specialist.title
+    ? pickTri(specialist as unknown as Record<string, unknown>, "title", lang) || specialist.title
     : "";
 
   /* توليد النص التلقائي حسب نوع الوثيقة — الحقول مترجمة بالكامل حسب لغة الواجهة */

@@ -1,7 +1,8 @@
 /**
- * التخصصات — قائمة دائمة + إضافات الإدارة (ثلاثية اللغة)
+ * التخصصات — قائمة دائمة + إضافات الإدارة (خمس لغات)
  * GET: للجميع — POST/PATCH/DELETE: الإدارة
  * الافتراضية (builtin) لا تُحذف ولا تُعدّل أسماؤها
+ * ★ v3.8.1: تركي/إسباني + الشفاء التلقائي للتكرارات عند الإقلاع (في seed.ts)
  */
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
@@ -15,7 +16,7 @@ export async function GET() {
       .lean<
         {
           _id: unknown;
-          name: { ar?: string; fr?: string; en?: string };
+          name: { ar?: string; fr?: string; en?: string; tr?: string; es?: string };
           builtin?: boolean;
           order?: number;
         }[]
@@ -26,6 +27,8 @@ export async function GET() {
         ar: s.name?.ar || "",
         fr: s.name?.fr || "",
         en: s.name?.en || "",
+        tr: s.name?.tr || "",
+        es: s.name?.es || "",
         builtin: !!s.builtin,
         order: s.order ?? 0,
       })),
@@ -40,17 +43,19 @@ export async function POST(req: NextRequest) {
     const ar = String(b.ar || "").trim();
     const fr = String(b.fr || "").trim();
     const en = String(b.en || "").trim();
+    const tr = String(b.tr || "").trim();
+    const es = String(b.es || "").trim();
     if (!ar) return fail(400, "الاسم بالعربية مطلوب");
     const dup = await Specialty.findOne({ "name.ar": ar }).lean();
     if (dup) return fail(409, "هذا التخصص موجود مسبقاً");
     const last = await Specialty.findOne().sort({ order: -1 }).lean<{ order?: number } | null>();
     const doc = await Specialty.create({
-      name: { ar, fr, en },
+      name: { ar, fr, en, tr, es },
       builtin: false,
       order: (last?.order ?? 0) + 1,
       active: true,
     });
-    return ok({ specialty: { _id: String(doc._id), ar, fr, en, builtin: false, order: doc.order } });
+    return ok({ specialty: { _id: String(doc._id), ar, fr, en, tr, es, builtin: false, order: doc.order } });
   });
 }
 

@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { localeOf } from "@/components/tri-input";
 
 const STARS = [1, 2, 3, 4, 5];
 
@@ -104,7 +105,7 @@ export default function RatingsDialog({
     setBusy(false);
   };
 
-  const locale = lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB";
+  const locale = localeOf(lang);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

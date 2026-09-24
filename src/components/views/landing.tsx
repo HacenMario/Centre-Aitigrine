@@ -10,7 +10,7 @@ import MediaSlider from "@/components/media-slider";
 import StatsBand from "@/components/stats-band";
 import AdBanner from "@/components/ad-banner";
 import { StarsRow } from "@/components/ratings-dialog";
-import { pickTri } from "@/components/tri-input";
+import { pickTri, triName } from "@/components/tri-input";
 import { CardsSkeleton } from "@/components/brand-skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -90,7 +90,7 @@ export default function Landing({ navigate }: { navigate: Navigate }) {
   const heroSub = s ? pickTri(s as unknown as Record<string, unknown>, "aboutShort", lang) : "";
   const specTitle = (sp: Specialist) => pickTri(sp as unknown as Record<string, unknown>, "title", lang);
   const specBio = (sp: Specialist) => pickTri(sp as unknown as Record<string, unknown>, "bio", lang);
-  const specName2 = (x: SpecSpecialty) => (lang === "fr" ? x.fr || x.ar : lang === "en" ? x.en || x.ar : x.ar);
+  const specName2 = (x: SpecSpecialty) => triName(x, lang);
 
   /* v3.5: أوقات العمل لكل يوم من الأسبوع — من الإعدادات الجديدة */
   const dayNames =

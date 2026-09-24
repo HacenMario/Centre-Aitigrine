@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Power, CalendarDays, Clock, UserRound, Images, X, MoveHorizontal, UsersRound, CircleCheckBig } from "lucide-react";
 import { toast } from "sonner";
-import { TriInput, TriTextarea, triFrom, flattenTri } from "@/components/tri-input";
+import { TriInput, TriTextarea, flattenTri, pickTri, triFrom, triName } from "@/components/tri-input";
 import FullImage from "@/components/full-image";
 import ScrollRow from "@/components/scroll-row";
 import Pagination from "@/components/pagination";
@@ -66,9 +66,9 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
   const [specList, setSpecList] = useState<SpecOption[]>([]);
 
   const titleOf = (c: Course) =>
-    (lang === "fr" ? c.titleFr || c.title : lang === "en" ? c.titleEn || c.title : c.title) || c.title;
+    (pickTri(c as unknown as Record<string, unknown>, "title", lang) || c.title);
   const descOf = (c: Course) =>
-    (lang === "fr" ? c.descriptionFr || c.description : lang === "en" ? c.descriptionEn || c.description : c.description) || c.description;
+    (pickTri(c as unknown as Record<string, unknown>, "description", lang) || c.description);
 
   const load = useCallback(async () => {
     try {
@@ -144,7 +144,7 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
     if (!value) return "";
     const hit = cats.find((c) => c.ar === value);
     if (!hit) return value;
-    return lang === "fr" ? (hit.fr || hit.ar) : lang === "en" ? (hit.en || hit.ar) : hit.ar;
+    return triName(hit, lang);
   };
   const fmtPrice = (n: number) => `${n.toLocaleString(lang === "ar" ? "ar-DZ" : "fr-DZ")} ${lang === "ar" ? "دج" : "DA"}`;
 
@@ -358,7 +358,7 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
                 {cats.length ? (
                   <Select value={editing?.category || ""} onValueChange={(v) => setEditing({ ...editing, category: v })}>
                     <SelectTrigger className="h-11"><SelectValue placeholder="—" /></SelectTrigger>
-                    <SelectContent>{cats.map((c) => <SelectItem key={c.ar} value={c.ar}>{lang === "fr" ? (c.fr || c.ar) : lang === "en" ? (c.en || c.ar) : c.ar}</SelectItem>)}</SelectContent>
+                    <SelectContent>{cats.map((c) => <SelectItem key={c.ar} value={c.ar}>{triName(c, lang)}</SelectItem>)}</SelectContent>
                   </Select>
                 ) : (
                   <Input value={editing?.category || ""} onChange={(e) => setEditing({ ...editing, category: e.target.value })} className="h-11" />

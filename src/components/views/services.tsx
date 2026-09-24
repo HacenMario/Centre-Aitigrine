@@ -29,7 +29,7 @@ import { Plus, Pencil, Trash2, Power, Eye, ChevronDown, ChevronUp, Sparkles, Smi
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { Navigate } from "@/lib/nav";
-import { TriInput, TriTextarea, triFrom, flattenTri, type Tri } from "@/components/tri-input";
+import { TriInput, TriTextarea, flattenTri, triFrom, triName, type Tri } from "@/components/tri-input";
 import FullImage from "@/components/full-image";
 import Pagination from "@/components/pagination";
 import { pickByLang } from "@/lib/pick-lang";
@@ -106,7 +106,7 @@ export default function Services({ navigate }: { navigate: Navigate }) {
     if (!value) return "";
     const hit = cats.find((c) => c.ar === value);
     if (!hit) return value;
-    return lang === "fr" ? (hit.fr || hit.ar) : lang === "en" ? (hit.en || hit.ar) : hit.ar;
+    return triName(hit, lang);
   };
 
   /* ترقيم الصفحات الاحترافي */
@@ -245,7 +245,7 @@ export default function Services({ navigate }: { navigate: Navigate }) {
                   <Select value={editing?.category || ""} onValueChange={(v) => setEditing({ ...editing, category: v })}>
                     <SelectTrigger className="h-11 w-40"><SelectValue placeholder="—" /></SelectTrigger>
                     <SelectContent>
-                      {cats.map((c) => <SelectItem key={c.ar} value={c.ar}>{lang === "fr" ? (c.fr || c.ar) : lang === "en" ? (c.en || c.ar) : c.ar}</SelectItem>)}
+                      {cats.map((c) => <SelectItem key={c.ar} value={c.ar}>{triName(c, lang)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 ) : (

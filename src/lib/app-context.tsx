@@ -15,7 +15,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { ar, fr, en } from "./dicts";
+import { ar, fr, en, tr, es } from "./dicts";
 import type { ViewKey, Navigate } from "./nav";
 import { isHidden as qhIsHidden, setHidden as qhSetHidden } from "./quick-hide";
 import {
@@ -27,7 +27,7 @@ import {
   setToken,
 } from "./client-api";
 
-export type Lang = "ar" | "fr" | "en";
+export type Lang = "ar" | "fr" | "en" | "tr" | "es";
 export type Me = {
   _id: string;
   name: string;
@@ -75,6 +75,9 @@ export type CenterSettings = {
   logoBase64: string;
   langFr: boolean;
   langEn: boolean;
+  /** v3.8.1: التركية والإسبانية */
+  langTr: boolean;
+  langEs: boolean;
   options: {
     specialties: string[];
     /** v3.5: التصنيفات ثلاثية اللغة — { ar, fr, en } */
@@ -96,7 +99,7 @@ export type CenterSettings = {
   sliderMedia: { type: "image" | "video"; url?: string; data?: string; title: string }[];
 };
 
-const dicts: Record<Lang, Record<string, string>> = { ar, fr, en };
+const dicts: Record<Lang, Record<string, string>> = { ar, fr, en, tr, es };
 /** الوصول للقواميس من الخارج (enable-push ومكوّنات خارج مزوّد السياق) */
 export { dicts };
 
@@ -151,6 +154,8 @@ const DEFAULT_SETTINGS: CenterSettings = {
   logoBase64: "",
   langFr: true,
   langEn: true,
+  langTr: true,
+  langEs: true,
   options: {
     specialties: [],
     serviceCategories: [],
@@ -215,7 +220,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       const l = localStorage.getItem("ait_lang") as Lang | null;
-      if (l && ["ar", "fr", "en"].includes(l)) setLangState(l);
+      if (l && ["ar", "fr", "en", "tr", "es"].includes(l)) setLangState(l);
       const f = parseFloat(localStorage.getItem("ait_font") || "1");
       if (f >= 0.8 && f <= 1.4) setFontScale(f);
     } catch {}

@@ -21,8 +21,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { localeOf } from "@/components/tri-input";
 
-type TriMap = { ar?: string; fr?: string; en?: string };
+type TriMap = { ar?: string; fr?: string; en?: string; tr?: string; es?: string };
 type Notif = {
   _id: string;
   title: string;
@@ -151,9 +152,9 @@ export default function NotificationsBell() {
 
   /* النص بلغة المستخدم — سقوط تلقائي إلى العربية */
   const pick = (map: TriMap | undefined, fallback: string) =>
-    (map && (map[lang] || map.ar || map.fr || map.en)) || fallback;
+    (map && (map[lang] || map.ar || map.fr || map.en || map.tr || map.es)) || fallback;
 
-  const locale = lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB";
+  const locale = localeOf(lang);
 
   return (
     <DropdownMenu open={open} onOpenChange={(v) => { setOpen(v); setConfirmDelete(false); if (v) load(); }}>

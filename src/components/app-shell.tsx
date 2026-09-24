@@ -121,15 +121,17 @@ function Shell() {
       </div>
 
       <Footer navigate={navigate} />
-      <WhatsappButton />
+      {/* ★ v3.8.1: حزمة الأزرار العائمة — عمود واحد في الزاوية يمنع أي تراكب
+          (البوت فوق، ثم واتساب، ثم العودة للأعلى) — على الحاسوب والجوال */}
+      <div className="fixed z-40 bottom-4 end-4 sm:bottom-6 sm:end-6 flex flex-col items-center gap-2.5 pointer-events-none">
+        <div className="pointer-events-auto"><ChatbotWidget /></div>
+        <div className="pointer-events-auto"><WhatsappButton /></div>
+        <div className="pointer-events-auto"><BackToTop /></div>
+      </div>
       {/* نافذة لحظة اطمئنان — تظهر مرة واحدة في الجلسة عند ولوج الرئيسية */}
       <ReassurancePopup />
       {/* الإعلان العائم — للعملاء والأخصائيين (نمط طمأنينة) */}
       <FloatingAd />
-      {/* ★ v3.8: المساعد الذكي — ودجت أسئلة وأجوبة فورية */}
-      <ChatbotWidget />
-      {/* زر العودة إلى الأعلى — في كل الصفحات */}
-      <BackToTop />
     </div>
   );
 }

@@ -8,7 +8,7 @@ type FaqItem = { q: string; a: string };
 type SectionItem = { title: string; text: string };
 type PagePack = { faq: FaqItem[]; about: SectionItem[]; privacy: SectionItem[]; terms: SectionItem[] };
 
-export const PAGE_DEFAULTS: Record<"ar" | "fr" | "en", PagePack> = {
+export const PAGE_DEFAULTS: Record<"ar" | "fr" | "en" | "tr" | "es", PagePack> = {
   ar: {
     faq: [
       {
@@ -374,6 +374,82 @@ export const PAGE_DEFAULTS: Record<"ar" | "fr" | "en", PagePack> = {
         title: "Governing law",
         text: "These terms are governed by Algerian law; any dispute is referred to the competent courts of Algiers.",
       },
+    ],
+  },
+  tr: {
+    faq: [
+      { q: "Merkezde nasıl randevu alabilirim?", a: "Danışan hesabı oluşturun veya giriş yapın, ardından «Randevularım» sayfasına gidin ve «Yeni Randevu»ya dokunun: uzmanı, hizmeti, tarihi ve uygun saati seçin. Onay ve hatırlatma bildirimleri otomatik olarak size ulaşır." },
+      { q: "Seanslar tamamen gizli mi?", a: "Evet. Tam gizlilik çalışmalarımızın temel ilkesidir; seansta söylenen her şey merkezin çerçevesi içinde kalır ve yalnızca tedavi eden uzman ile idare, meslek etiği sınırları içinde erişebilir." },
+      { q: "Psikolojik bakım ile dil ve konuşma terapisi arasındaki fark nedir?", a: "Psikolojik bakım; bir psikologla sohbet, değerlendirme ve takip seanslarına dayanır. Dil ve konuşma terapisi ise konuşma, dil ve iletişim bozukluklarının (konuşma gecikmesi, sesletim, kekemelik vb.) teşhis ve tedavisidir; çocuklara ve yetişkinlere uygundur, tek başına veya psikolojik seanslara ek olarak uygulanabilir." },
+      { q: "Hizmetlerden yararlanmak için reçete veya yönlendirme gerekir mi?", a: "Hayır, yönlendirme olmadan doğrudan randevu alabilirsiniz. Uzman bir tıbbi değerlendirme gerektiğini düşünürse sizi ilgili kuruma yönlendirir." },
+      { q: "Seans ne kadar sürer ve ücreti ne kadar?", a: "Seans genellikle hizmet türüne göre 45-60 dakika sürer. Fiyatlar Cezayir Dinarı cinsinden her hizmetin yanında açıkça yazılıdır ve merkezde ödenir." },
+      { q: "Sertifikalı eğitim programlarınız var mı?", a: "Evet, merkez psikolojik bakım ve dil-konuşma terapisi alanlarında profesyonel eğitimler düzenler; net bir ders programı (tarih, başlangıç, bitiş) ve programa göre katılım veya tamamlama sertifikası verilir." },
+      { q: "Randevumu değiştirebilir veya iptal edebilir miyim?", a: "Evet, «Randevularım» sayfasından. Saat başkasına yarar sağlasın diye en az 24 saat öncesinden yapmanızı öneririz. Gerektiğinde uzman veya idare de alternatif bir saat önerebilir." },
+      { q: "Dil ve konuşma terapisinde hangi yaştan itibaren çocuk kabul ediyorsunuz?", a: "Dil ve konuşma terapisi seanslarında 4 yaşından itibaren çocukları kabul ediyoruz; gerektiğinde ebeveyn de hazır bulunur. İlk değerlendirme, her çocuk için en uygun programı belirler." },
+    ],
+    about: [
+      { title: "Biz kimiz", text: "Ait Tegrine Psikolojik Bakım, Dil-Konuşma Terapisi ve Eğitim Merkezi; Cezayir'in kalbinde (Bir Khadem) uzmanlaşmış bir alandır. Uzmanların profesyonelliğini mekanın sıcaklığıyla birleştirerek bireylere, çocuklara ve ailelere bütüncül psikolojik destek ile sertifikalı mesleki eğitimler sunar." },
+      { title: "Misyonumuz", text: "Herkese, kendini dinleyebileceği ve profesyonel bir eşlikle dengesini yeniden kurabileceği güvenli bir alan sunmak; teori ve pratiği birleştiren eğitimlerle yetkin uzmanların yetişmesine katkıda bulunmak." },
+      { title: "Vizyonumuz", text: "Psikolojik bakım ve dil-konuşma terapisinde ulusal düzeyde güvenilir bir referans olmak; psikolojik destek istemenin güçsüzlük değil güç olduğunu yaymak." },
+      { title: "Değerlerimiz", text: "Tam gizlilik, yargılayıcı olmayan saygı, profesyonellik ve sürekli öğrenme, insanı sıcaklık ve önceden ilan edilen, gizli ücreti olmayan adil fiyatlar." },
+      { title: "Ekibimiz", text: "Ekibimizde sertifikalı psikologlar ve dil-konuşma terapistleri, asistanlar ve organizasyona hızlı yaklaşan bir idari kadro bulunur. Her uzmanın sayfasında unvanı ve özgeçmişi görünür; randevular çakışma yaşamayan bir sistemle yönetilir." },
+      { title: "Neden Ait Tegrine?", text: "Çünkü zihinsel sağlığın güven üzerine kurulu bir yolculuk olduğuna inanıyoruz: saygılı karşılama, otomatik hatırlatmalarla dakik randevular, gerektiğinde seanslar arası takip ve sohbet ile sanatsal ifadeyi birleştiren çeşitli terapi araçları." },
+    ],
+    privacy: [
+      { title: "Topladığımız veriler", text: "Yalnızca hizmet için gereken asgari veriyi toplarız: hesap oluştururken ad-soyad, telefon numarası ve şifrelenmiş şifre; randevu ve rezervasyon verileri; ve gönüllü olarak paylaştığınız içerikler (öneriler, e-kitap yanıtları, profil fotoğrafı)." },
+      { title: "Mesleki gizlilik", text: "Seanslara veya psikolojik dosyaya ilişkin her şey mutlak gizlilikle korunur; yalnızca tedavi eden uzman ve idare, görev kapsamında erişebilir. Verilerinizi asla satmayız veya ticari taraflarla paylaşmayız." },
+      { title: "Fotoğraflar ve medya", text: "Yüklediğiniz fotoğraflar hesabınızın iç kullanımında kalır. Ana sayfada yayınlanan merkez fotoğraf ve videoları, yalnızca idarenin onayıyla paylaşılan genel içeriklerdir." },
+      { title: "Bildirimler", text: "Randevu hatırlatmaları (bir gün önce ve bir saat önce) site içinde gönderilir; cihaz bildirimleri isteğe bağlıdır, yalnızca onayınızla etkinleşir ve dilediğiniz an kapatılabilir." },
+      { title: "Veri güvenliği", text: "Şifreler şifrelenmiş olarak saklanır (bcrypt), oturumlar güvenli belirteçlerle korunur ve her veri yolunda yetki denetimi yapılır. Güçlü bir şifre seçmenizi ve kimseyle paylaşmamanızı öneririz." },
+      { title: "Haklarınız", text: "Verilerinize erişme, düzeltme veya hesabınızı silme talebinde bulunabilirsiniz; idareyle iletişime geçin veya «Öneriler ve Bildirimler» sayfasını kullanın. Talebinize en kısa sürede yanıt veririz." },
+    ],
+    terms: [
+      { title: "Koşulların kabulü", text: "Ait Tegrine Merkezi web sitesini ve hizmetlerini kullanarak bu koşulları kabul etmiş olursunuz. Kabul etmiyorsanız lütfen siteyi kullanmayın." },
+      { title: "Hesaplar ve uygun kullanım", text: "Uzman ve asistan hesapları yalnızca idare tarafından oluşturulur; danışan hesabı doğru bilgilerle kendi kendine oluşturulur. Kimliğe bülme veya yasa dışı kullanım yasaktır." },
+      { title: "Randevular ve iptal", text: "Rezervasyon sistemdeki uygun saatlere göre yapılır. Lütfen randevuya uyun; olmazsa en az 24 saat öncesinden iptal edin veya haber verin. Zorunlu hallerde merkez randevuyu sizi bilgilendirerek yeniden planlayabilir." },
+      { title: "Fiyatlar ve ödeme", text: "Gösterilen fiyatlar Cezayir Dinarı'dır ve merkezde ödenir. Fiyatlar zaman zaman güncellenebilir; rezervasyon anında ilan edilen fiyat geçerlidir." },
+      { title: "Hizmetin niteliği", text: "Psikolojik ve dil-konuşma terapisi hizmetleri profesyonel bir destektir; gerektiğinde tıbbi değerlendirmenin yerini almaz ve belirli sonuçlar garanti etmez; ilerleme kişinin katılımına ve koşullara göre değişir." },
+      { title: "Fikri mülkiyet", text: "Sitedeki tüm içerik (metinler, logo, görseller, e-kitaplar) merkeze aittir. E-kitaplar yalnızca site içinde okunur; indirme, kopyalama ve yeniden paylaşım yasaktır." },
+      { title: "Koşullarda değişiklik", text: "Merkez gerektiğinde bu koşulları güncelleyebilir; sitede yayınlanan sürüm geçerlidir. Önemli değişiklikler ana sayfada duyurulur." },
+      { title: "Uygulanacak hukuk", text: "Bu koşullar Cezayir hukukuna tabidir; uyuşmazlıklar Cezayir'in yetkili mahkemelerine götürülür." },
+    ],
+  },
+  es: {
+    faq: [
+      { q: "¿Cómo reservo una cita en el centro?", a: "Cree una cuenta de cliente o inicie sesión, vaya a «Mis citas» y pulse «Nueva cita»: elija el especialista, el servicio, la fecha y la hora disponible. Recibirá automáticamente las notificaciones de confirmación y recordatorio." },
+      { q: "¿Las sesiones son totalmente confidenciales?", a: "Sí. La confidencialidad total es un principio fundamental de nuestro trabajo; todo lo que se dice en la sesión queda dentro del marco del centro, y solo el especialista tratante y la administración tienen acceso dentro de los límites éticos profesionales." },
+      { q: "¿Cuál es la diferencia entre la atención psicológica y la logopedia?", a: "La atención psicológica se basa en sesiones de diálogo, evaluación y seguimiento con un psicólogo. La logopedia diagnostica y trata trastornos del habla, el lenguaje y la comunicación (retraso del habla, pronunciación, tartamudez, etc.); es adecuada para niños y adultos y puede aplicarse sola o junto a las sesiones psicológicas." },
+      { q: "¿Necesito una receta o una derivación para usar los servicios?", a: "No. Puede reservar directamente sin derivación. Si se requiere una evaluación médica especializada, el especialista le orientará hacia el lugar adecuado." },
+      { q: "¿Cuánto dura una sesión y cuánto cuesta?", a: "La sesión suele durar entre 45 y 60 minutos según el servicio. Los precios son claros y se muestran junto a cada servicio en dinares argelinos, y se pagan en el centro." },
+      { q: "¿Ofrecen formaciones con certificado?", a: "Sí, el centro imparte formaciones profesionales en atención psicológica y logopedia con un programa claro de sesiones (fecha, inicio, fin) y un certificado de participación o finalización según el programa." },
+      { q: "¿Puedo cambiar o cancelar mi cita?", a: "Sí, desde «Mis citas». Recomendamos hacerlo con al menos 24 horas de antelación para que el horario pueda aprovecharlo otra persona. El especialista o la administración también pueden proponerle un horario alternativo si es necesario." },
+      { q: "¿Desde qué edad atienden niños en logopedia?", a: "Recibimos niños a partir de los 4 años en sesiones de logopedia, con la presencia de un progenitor cuando es necesario. La evaluación inicial define el programa más adecuado para cada niño." },
+    ],
+    about: [
+      { title: "Quiénes somos", text: "El Centro Ait Tegrine de atención psicológica, logopedia y formación es un espacio especializado en el corazón de Argel (Bir Khadem), que une la profesionalidad de sus especialistas con la calidez del lugar. Ofrece atención psicológica integral a personas, niños y familias, además de formaciones profesionales certificadas." },
+      { title: "Nuestra misión", text: "Ofrecer a cada persona un espacio seguro para escucharse y recuperar su equilibrio con un acompañamiento profesional de calidad, y contribuir a la formación de especialistas competentes mediante programas que combinan teoría y práctica." },
+      { title: "Nuestra visión", text: "Ser una referencia nacional confiable en atención psicológica y logopedia, y difundir que pedir ayuda psicológica es una muestra de fuerza, no de debilidad." },
+      { title: "Nuestros valores", text: "Confidencialidad absoluta, respeto sin juicios, profesionalidad y actualización constante, cercanía humana y precios justos anunciados de antemano, sin costes ocultos." },
+      { title: "Nuestro equipo", text: "Nuestro equipo reúne psicólogos y logopedas certificados, asistentes y un equipo administrativo atento a la organización y la rapidez de respuesta. Cada especialista muestra su título y biografía en su página, y un sistema sin conflictos gestiona las citas." },
+      { title: "¿Por qué Ait Tegrine?", text: "Porque creemos que cuidar la mente es un viaje que se construye sobre la confianza: una acogida respetuosa, citas puntuales con recordatorios automáticos, seguimiento entre sesiones cuando hace falta y herramientas terapéuticas variadas que combinan el diálogo y la expresión artística." },
+    ],
+    privacy: [
+      { title: "Los datos que recopilamos", text: "Recopilamos lo mínimo necesario para prestar el servicio: nombre completo, teléfono y contraseña cifrada al crear la cuenta; los datos de citas y servicios reservados; y cualquier contenido que comparta voluntariamente (sugerencias, respuestas de los e-books, foto de perfil)." },
+      { title: "Confidencialidad profesional", text: "Todo lo registrado en las sesiones o en el historial psicológico se trata con total confidencialidad; solo el especialista tratante y la administración acceden dentro del alcance de su función. Nunca vendemos ni compartimos sus datos con terceros comerciales." },
+      { title: "Fotos y medios", text: "Las fotos que sube quedan para el uso interno de su cuenta. Las fotos y vídeos del centro publicados en la página principal son contenidos públicos difundidos solo con la aprobación de la administración." },
+      { title: "Notificaciones", text: "Los recordatorios de citas (el día anterior y una hora antes) se envían dentro del sitio; las notificaciones del dispositivo son opcionales, se activan solo con su consentimiento y pueden desactivarse en cualquier momento." },
+      { title: "Protección de datos", text: "Las contraseñas se almacenan cifradas (bcrypt), las sesiones están protegidas con tokens seguros y todas las rutas de datos verifican permisos. Le recomendamos una contraseña fuerte que no comparta con nadie." },
+      { title: "Sus derechos", text: "Puede solicitar acceder a sus datos, corregirlos o eliminar su cuenta contactando con la administración o desde la página «Sugerencias e informes»; responderemos lo antes posible." },
+    ],
+    terms: [
+      { title: "Aceptación de las condiciones", text: "Al usar el sitio del Centro Ait Tegrine y sus servicios, acepta estas condiciones. Si no está de acuerdo, por favor no utilice el sitio." },
+      { title: "Cuentas y uso adecuado", text: "Las cuentas de especialistas y asistentes las crea únicamente la administración; la cuenta de cliente se crea libremente con datos verídicos. Se prohíbe la suplantación de identidad o cualquier uso ilícito." },
+      { title: "Citas y cancelaciones", text: "La reserva se realiza según los horarios disponibles del sistema. Se pide puntualidad; si no puede asistir, cancele o avise con al menos 24 horas. En casos de fuerza mayor, el centro puede reprogramar la cita avisándole." },
+      { title: "Precios y pago", text: "Los precios mostrados están en dinares argelinos y se pagan en el centro. Pueden actualizarse ocasionalmente; rige el precio anunciado al momento de la reserva." },
+      { title: "Naturaleza del servicio", text: "Los servicios psicológicos y de logopedia son un apoyo profesional; no sustituyen la evaluación médica cuando esta es necesaria ni garantizan resultados concretos; el progreso varía según la persona y su constancia." },
+      { title: "Propiedad intelectual", text: "Todo el contenido del sitio (textos, logotipo, imágenes, e-books) pertenece al centro. Los e-books se leen únicamente dentro del sitio, sin descargas, copias ni redistribución." },
+      { title: "Modificación de las condiciones", text: "El centro puede actualizar estas condiciones cuando sea necesario; rige la versión publicada en el sitio. Todo cambio importante se anunciará en la página principal." },
+      { title: "Legislación aplicable", text: "Estas condiciones se rigen por la ley argelina; cualquier disputa se somete a los tribunales competentes de Argel." },
     ],
   },
 };

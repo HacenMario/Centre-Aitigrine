@@ -197,6 +197,8 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
   }
 
   const isStaff = me.role === "admin" || me.role === "assistant";
+  /* ★ v3.8.1: الفاتورة للإدارة والأخصائي فقط (دون المساعد ولا العميل) */
+  const isStaffSpecialist = me.role === "admin" || me.role === "specialist";
 
   /* ★ v3.5: تحديد سعر الجلسة وحالة الأداء — المبالغ تُحدّث لوحة القيادة */
   const patchPayment = async (id: string, patch: { price?: number; paymentStatus?: string }) => {
@@ -362,8 +364,8 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
                       apptId={a._id}
                     />
                   )}
-                  {/* ★ v3.8: فاتورة PDF — للجلسات المنتهية أو المدفوعة */}
-                  {(a.status === "completed" || a.paymentStatus === "paid") && (
+                  {/* ★ v3.8: فاتورة PDF — للجلسات المنتهية أو المدفوعة · v3.8.1: للإدارة والأخصائي فقط */}
+                  {isStaffSpecialist && (a.status === "completed" || a.paymentStatus === "paid") && (
                     <Button size="sm" variant="outline" className="gap-1.5"
                       onClick={async () => {
                         try {
