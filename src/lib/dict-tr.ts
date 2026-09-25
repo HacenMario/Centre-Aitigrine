@@ -908,4 +908,13 @@ export const tr: Record<string, string> = {
   "install.desktop2": "Site masaüstünde bağımsız bir uygulama olarak görünecek",
   "install.notifsTitle": "Cihaz bildirimleri",
   "install.notifsSub": "Site kapalıyken bile randevu hatırlatmaları almak için etkinleştirin",
+  "bot.dismiss": "Asistanı gizle",
+  "gauth.welcome": "Google ile giriş başarılı — hoş geldiniz",
+  "gauth.denied": "Google onayı iptal edildi — dilediğiniz zaman telefonla giriş yapabilirsiniz",
+  "gauth.invalid": "Giriş bağlantısı geçersiz veya süresi dolmuş — tekrar deneyin",
+  "gauth.notconfigured": "Google girişi sunucuda henüz yapılandırılmadı — yönetimle iletişime geçin",
+  "gauth.tokenfail": "Google girişi tamamlanamadı — sunucu ayarlarını kontrol edip tekrar deneyin",
+  "gauth.proffail": "Google hesap bilgileri alınamadı — tekrar deneyin",
+  "gauth.disabled": "Bu hesap devre dışı — merkez yönetimiyle iletişime geçin",
+  "gauth.error": "Google girişi sırasında beklenmeyen bir hata oluştu — tekrar deneyin",
 };

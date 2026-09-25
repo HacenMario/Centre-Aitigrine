@@ -5,7 +5,7 @@
  * GET /api/invoices?mine=1 → قائمة فواتير العميل الحالي (ملف العميل)
  */
 import { NextRequest, NextResponse } from "next/server";
-import { fail, handle } from "@/lib/api-helpers";
+import { ok, fail, handle } from "@/lib/api-helpers";
 import { Appointment } from "@/lib/models";
 import { requireUser, isStaff } from "@/lib/auth";
 import { ensureInvoice } from "@/lib/invoice";

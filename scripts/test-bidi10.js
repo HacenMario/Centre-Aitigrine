@@ -1,0 +1,17 @@
+const fs = require("fs");
+const path = require("path");
+const PDFDocument = require("pdfkit");
+const doc = new PDFDocument({ size: "A4", margin: 50 });
+const chunks = [];
+doc.on("data", c => chunks.push(c));
+doc.on("end", () => { fs.writeFileSync("/tmp/bidi10.pdf", Buffer.concat(chunks)); console.log("✓"); });
+doc.registerFont("b", path.join(process.cwd(), "/public/fonts/DejaVuSans.ttf"));
+doc.registerFont("bb", path.join(process.cwd(), "/public/fonts/DejaVuSans-Bold.ttf"));
+const S = "مركز أيت تقرين";
+const N = S.replace(/ /g, "\u00A0");
+doc.font("bb").fontSize(16).fillColor("#111");
+doc.text("bold16 + NBSP:", 50, 40); doc.text(N, 50, 66, { align: "right", width: 495 });
+doc.text("bold16 + space:", 50, 110); doc.text(S, 50, 136, { align: "right", width: 495 });
+doc.font("b").fontSize(13).fillColor("#111");
+doc.text("reg13 + NBSP:", 50, 180); doc.text(N, 50, 202, { align: "right", width: 495 });
+doc.end();

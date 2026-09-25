@@ -114,14 +114,14 @@ export default function Header() {
                     {me.name?.charAt(0) || "؟"}
                   </span>
                   <span className="hidden md:flex flex-col items-start leading-tight">
-                    <span className="text-sm font-semibold max-w-28 truncate">{me.name}</span>
+                    <span className="text-sm font-semibold max-w-28 break-words leading-tight">{me.name}</span>
                     <span className="text-[11px] text-muted-foreground">{t(`roles.${me.role}`)}</span>
                   </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 rounded-2xl">
                 <DropdownMenuLabel>
-                  <span className="block truncate font-bold">{me.name}</span>
+                  <span className="block break-words font-bold">{me.name}</span>
                   <span className="text-xs text-muted-foreground font-normal" dir="ltr">{me.phone}</span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />

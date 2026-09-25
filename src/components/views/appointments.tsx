@@ -23,6 +23,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -98,29 +101,33 @@ function AddToCalendar({ label, title, date, time, apptId }: {
   };
 
   return (
-    <div className="relative group">
-      <Button size="sm" variant="outline" className="gap-1.5">
-        <CalendarPlus className="h-4 w-4" /> {label}
-      </Button>
-      <div className="absolute top-full mt-1 end-0 z-30 hidden group-hover:flex group-focus-within:flex flex-col bg-card border rounded-2xl shadow-lg overflow-hidden min-w-44">
-        <a
-          href={gcalUrl()}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold hover:bg-primary/8 transition-colors"
-        >
-          <CalendarPlus className="h-3.5 w-3.5 text-primary" /> Google Calendar
-        </a>
-        <button
-          type="button"
-          onClick={downloadIcs}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="outline" className="gap-1.5">
+          <CalendarPlus className="h-4 w-4" /> {label}
+        </Button>
+      </DropdownMenuTrigger>
+      {/* ★ v3.9.0: قائمة منبثقة بالنقر تعمل باللمس على الهاتف — تعبر الحواف تلقائياً (Radix) */}
+      <DropdownMenuContent align="end" sideOffset={6} className="rounded-2xl min-w-48">
+        <DropdownMenuItem asChild>
+          <a
+            href={gcalUrl()}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 text-xs font-semibold cursor-pointer"
+          >
+            <CalendarPlus className="h-3.5 w-3.5 text-primary" /> Google Calendar
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => downloadIcs()}
           disabled={busy}
-          className="flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold hover:bg-primary/8 transition-colors text-start border-t"
+          className="flex items-center gap-2 text-xs font-semibold cursor-pointer"
         >
           <FileDown className="h-3.5 w-3.5 text-primary" /> Apple / Outlook (.ics)
-        </button>
-      </div>
-    </div>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -217,7 +224,7 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           <BackButton onBack={() => navigate("home")} />
-          <h1 className="text-xl sm:text-2xl font-black truncate">
+          <h1 className="text-xl sm:text-2xl font-black break-words">
             {isStaff ? t("appt.centerAppointments") : t("appt.myAppointments")}
           </h1>
         </div>
@@ -251,7 +258,10 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
                 viewId === a._id && "ring-2 ring-primary bg-primary/[0.04] shadow-lg shadow-primary/10"
               )}
             >
-              <CardContent className="flex flex-wrap items-center gap-3 sm:gap-4 p-4 sm:p-5">
+              {/* ★ v3.9.0: بطاقة عمودية — صف المعلومات ثم شريط أزرار بعرض كامل
+                  يلتف على سطر أو سطرين بشكل منظم دون نصوص عمودية أو ضغط */}
+              <CardContent className="flex flex-col gap-3 p-4 sm:p-5">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                 <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-primary/8 text-primary">
                   <span className="text-[11px] font-bold">{DAYS[new Date(a.date + "T00:00:00").getDay()]}</span>
                   <span className="text-lg font-black tabular-nums leading-none">{a.date.slice(8, 10)}/{a.date.slice(5, 7)}</span>
@@ -297,7 +307,9 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
+                </div>
+                {/* شريط الحالة والأزرار — بعرض كامل تحت المعلومات، يلتف بشكل منظم */}
+                <div className="flex items-center gap-2 flex-wrap w-full">
                   {statusBadge(a.status, t)}
                   {/* أزرار الحالة */}
                   {me.role === "client" && a.status === "pending" && (
@@ -631,7 +643,7 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
                 )}>
                   {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : n}
                 </span>
-                <span className="truncate">{label}</span>
+                <span className="break-words">{label}</span>
               </button>
             );
           })}
@@ -684,8 +696,8 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
                           )}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-bold">{s.name}</span>
-                          <span className="block truncate text-xs text-muted-foreground">
+                          <span className="block break-words text-sm font-bold">{s.name}</span>
+                          <span className="block break-words text-xs text-muted-foreground">
                             {specTitle(s)}
                           </span>
                         </span>

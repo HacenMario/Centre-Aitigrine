@@ -149,7 +149,7 @@ export default function FloatingAd() {
 
         <div className="space-y-2 p-4">
           <h3 className="font-black leading-snug">{ad.title}</h3>
-          <p className="line-clamp-4 whitespace-pre-line text-[13px] leading-relaxed text-muted-foreground">{ad.body}</p>
+          <p className="whitespace-pre-line text-[13px] leading-relaxed text-muted-foreground">{ad.body}</p>
           <div className="flex items-center gap-2 pt-1">
             <Button size="sm" onClick={() => { dismissSession(); navigate("ads"); }} className="h-9 gap-1.5 rounded-full">
               <Volume2 className="h-3.5 w-3.5" />

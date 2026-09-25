@@ -1,0 +1,15 @@
+const fs = require("fs");
+const path = require("path");
+const PDFDocument = require("pdfkit");
+const doc = new PDFDocument({ size: "A4", margin: 50 });
+const chunks = [];
+doc.on("data", (c) => chunks.push(c));
+doc.on("end", () => { fs.writeFileSync("/tmp/bidi7.pdf", Buffer.concat(chunks)); console.log("✓"); });
+doc.registerFont("b", path.join(process.cwd(), "/public/fonts/DejaVuSans.ttf"));
+doc.fontSize(28).fillColor("#111");
+doc.text("2026-09-24", 50, 60, { align: "right", width: 495 });
+doc.text("2026-90-62", 50, 110, { align: "right", width: 495 });
+doc.fontSize(20);
+doc.text("رقم الفاتورة: INV-202609-C7E773", 50, 170, { align: "right", width: 495 });
+doc.text("رقم الفاتورة: INV-773E7C-906202", 50, 210, { align: "right", width: 495 });
+doc.end();

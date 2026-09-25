@@ -210,7 +210,7 @@ export default function RatingsDialog({
                   {data!.items.map((it) => (
                     <div key={it._id} className="rounded-xl border bg-card p-3">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-bold truncate">{it.clientName}</p>
+                        <p className="text-sm font-bold break-words">{it.clientName}</p>
                         <StarsRow value={it.stars} size="h-3.5 w-3.5" />
                       </div>
                       {it.comment && (

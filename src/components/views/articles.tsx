@@ -252,9 +252,9 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
                     )}
                   </div>
                   <CardContent className="flex-1 space-y-2 p-5">
-                    <h3 className="font-black leading-snug break-words whitespace-normal line-clamp-2">{titleOf(a)}</h3>
+                    <h3 className="font-black leading-snug break-words whitespace-normal">{titleOf(a)}</h3>
                     {summaryOf(a) && (
-                      <p className="text-sm text-muted-foreground leading-relaxed break-words whitespace-pre-line line-clamp-3">
+                      <p className="text-sm text-muted-foreground leading-relaxed break-words whitespace-pre-line">
                         {summaryOf(a)}
                       </p>
                     )}

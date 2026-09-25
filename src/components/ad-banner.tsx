@@ -73,7 +73,7 @@ export default function AdBanner({ navigate }: { navigate: Navigate }) {
         <img src={thumb} alt="" className="hidden h-9 w-12 shrink-0 rounded-lg object-cover ring-1 ring-border sm:block" />
       )}
       <button type="button" onClick={() => navigate("ads")} className="min-w-0 flex-1 text-start">
-        <span className="block truncate text-sm font-bold text-foreground">{ad.title}</span>
+        <span className="block break-words text-sm font-bold text-foreground">{ad.title}</span>
         <span className="block text-[11px] text-muted-foreground">{t("ads.openAll")}</span>
       </button>
       {ads.length > 1 && (

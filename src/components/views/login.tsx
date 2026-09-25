@@ -236,7 +236,7 @@ export default function Login({ onDone }: { onDone: () => void }) {
             )}
           >
             {p.icon}
-            <span className="truncate">{p.label}</span>
+            <span className="break-words">{p.label}</span>
           </button>
         ))}
       </div>
@@ -268,7 +268,7 @@ export default function Login({ onDone }: { onDone: () => void }) {
                 )}
               >
                 {tb.icon}
-                <span className="truncate">{tb.label}</span>
+                <span className="break-words">{tb.label}</span>
               </button>
             ))}
           </div>

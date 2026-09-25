@@ -908,4 +908,13 @@ export const es: Record<string, string> = {
   "install.desktop2": "El sitio aparecerá como aplicación independiente en el escritorio",
   "install.notifsTitle": "Notificaciones del dispositivo",
   "install.notifsSub": "Actívelas para recibir recordatorios de citas incluso con el sitio cerrado",
+  "bot.dismiss": "Ocultar asistente",
+  "gauth.welcome": "Sesión iniciada con Google correctamente — bienvenido",
+  "gauth.denied": "Consentimiento de Google cancelado — puede iniciar sesión por teléfono en cualquier momento",
+  "gauth.invalid": "Enlace de acceso no válido o caducado — inténtelo de nuevo",
+  "gauth.notconfigured": "El acceso con Google aún no está configurado en el servidor — contacte con la administración",
+  "gauth.tokenfail": "Falló el inicio de sesión con Google — verifique la configuración del servidor e inténtelo de nuevo",
+  "gauth.proffail": "No se pudo obtener la información de su cuenta de Google — inténtelo de nuevo",
+  "gauth.disabled": "Esta cuenta está desactivada — contacte con la administración del centro",
+  "gauth.error": "Error inesperado durante el acceso con Google — inténtelo de nuevo",
 };

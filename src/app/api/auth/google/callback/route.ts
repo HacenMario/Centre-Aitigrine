@@ -11,8 +11,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { handle } from "@/lib/api-helpers";
 import { User } from "@/lib/models";
 import { issueToken } from "@/lib/auth";
-import { GOOGLE_TOKEN_URL, GOOGLE_USERINFO_URL } from "@/lib/google-config";
+import { GOOGLE_TOKEN_URL, GOOGLE_USERINFO_URL, verifyState } from "@/lib/google-config";
 import { logAudit } from "@/lib/audit";
+import crypto from "crypto";
 
 export const runtime = "nodejs";
 
@@ -32,8 +33,7 @@ export async function GET(req: NextRequest, _ctx?: Ctx) {
     if (err) return finish("denied");
     if (!code || !state) return finish("invalid");
 
-    /* تحقق state */
-    const { verifyState } = await import("./route");
+    /* تحقق state — v3.9.0: استيراد ساكن من google-config (الديناميكي يفشل في الإنتاج) */
     if (!verifyState(state)) return finish("invalid");
 
     const clientId = process.env.GOOGLE_CLIENT_ID || "";
@@ -97,5 +97,5 @@ export async function GET(req: NextRequest, _ctx?: Ctx) {
 }
 
 function cryptoRandom(): string {
-  return require("crypto").randomBytes(24).toString("hex");
+  return crypto.randomBytes(24).toString("hex");
 }

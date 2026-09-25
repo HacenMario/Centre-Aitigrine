@@ -908,4 +908,13 @@ export const fr: Record<string, string> = {
   "install.desktop2": "Le site apparaîtra comme une application autonome sur le bureau",
   "install.notifsTitle": "Notifications de l'appareil",
   "install.notifsSub": "Activez-les pour recevoir les rappels de rendez-vous même site fermé",
+  "bot.dismiss": "Masquer l'assistant",
+  "gauth.welcome": "Connexion via Google réussie — bienvenue",
+  "gauth.denied": "Consentement Google annulé — vous pouvez vous connecter par téléphone à tout moment",
+  "gauth.invalid": "Lien de connexion invalide ou expiré — réessayez",
+  "gauth.notconfigured": "La connexion Google n'est pas encore configurée sur le serveur — contactez l'administration",
+  "gauth.tokenfail": "Échec de la connexion Google — vérifiez la configuration du serveur et réessayez",
+  "gauth.proffail": "Impossible de récupérer les informations du compte Google — réessayez",
+  "gauth.disabled": "Ce compte est désactivé — contactez l'administration du centre",
+  "gauth.error": "Erreur inattendue lors de la connexion Google — réessayez",
 };

@@ -161,7 +161,7 @@ export default function Testimonials({ navigate }: { navigate: Navigate }) {
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <p className="font-black text-sm truncate">{it.author}</p>
+                    <p className="font-black text-sm break-words">{it.author}</p>
                     <div className="flex gap-0.5">
                       {STARS.map((s) => (
                         <Star key={s} className={cn("h-3 w-3", s <= (it.rating || 5) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30")} />

@@ -28,7 +28,9 @@ export default function WhatsappButton() {
     } catch {}
   }, []);
 
-  const num = (settings?.whatsapp || settings?.phone || "").replace(/[^\d]/g, "");
+  /* ★ v3.9.0: سلسلة احتياطية — إعدادات المركز ثم متغير البيئة، كي لا يختفي الزر أبداً
+     بعد نشر نسخة جديدة بقاعدة بيانات جديدة */
+  const num = (settings?.whatsapp || settings?.phone || process.env.NEXT_PUBLIC_CENTER_WHATSAPP || "").replace(/[^\d]/g, "");
   if (!num || dismissed) return null;
 
   return (

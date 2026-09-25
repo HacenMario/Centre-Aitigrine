@@ -76,7 +76,7 @@ export default function Contact({ navigate }: { navigate?: (v: "feedback" | "hom
     <div className="space-y-6">
       <div className="flex items-center gap-2 min-w-0">
         <BackButton onBack={() => navigate?.("home")} />
-        <h1 className="truncate text-xl font-black sm:text-2xl">{t("contact.title")}</h1>
+        <h1 className="break-words text-xl font-black sm:text-2xl">{t("contact.title")}</h1>
       </div>
       <p className="leading-relaxed text-muted-foreground">{t("contact.sub")}</p>
 
@@ -91,7 +91,7 @@ export default function Contact({ navigate }: { navigate?: (v: "feedback" | "hom
                 </span>
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{t("contact.phone")}</p>
-                  <p className="truncate text-sm font-black" dir="ltr">{s.phone}</p>
+                  <p className="break-words text-sm font-black" dir="ltr">{s.phone}</p>
                 </div>
               </CardContent>
             </Card>
@@ -111,7 +111,7 @@ export default function Contact({ navigate }: { navigate?: (v: "feedback" | "hom
                 </span>
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">WhatsApp</p>
-                  <p className="truncate text-sm font-black" dir="ltr">{s.whatsapp}</p>
+                  <p className="break-words text-sm font-black" dir="ltr">{s.whatsapp}</p>
                 </div>
               </CardContent>
             </Card>
@@ -126,7 +126,7 @@ export default function Contact({ navigate }: { navigate?: (v: "feedback" | "hom
                 </span>
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{t("contact.email")}</p>
-                  <p className="truncate text-sm font-black" dir="ltr">{s.email}</p>
+                  <p className="break-words text-sm font-black" dir="ltr">{s.email}</p>
                 </div>
               </CardContent>
             </Card>

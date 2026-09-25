@@ -398,12 +398,12 @@ function AuditViewer() {
                 <ShieldCheck className="h-4 w-4" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold truncate">
+                <p className="text-sm font-bold break-words">
                   {r.actorName}
                   <span className="font-normal text-muted-foreground"> — {fmtAction(r.action)}</span>
                   {r.target ? <span className="font-semibold"> · {r.target}</span> : null}
                 </p>
-                <p className="text-[11px] text-muted-foreground truncate">
+                <p className="text-[11px] text-muted-foreground break-words">
                   {r.meta ? `${r.meta} · ` : ""}
                   {new Date(r.at).toLocaleString(localeOf(lang))}
                   {r.ip && r.ip !== "local" ? ` · IP ${r.ip}` : ""}
@@ -441,12 +441,12 @@ function AuditViewer() {
                       <ShieldCheck className="h-4 w-4" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold truncate">
+                      <p className="text-sm font-bold break-words">
                         {r.actorName}
                         <span className="font-normal text-muted-foreground"> — {fmtAction(r.action)}</span>
                         {r.target ? <span className="font-semibold"> · {r.target}</span> : null}
                       </p>
-                      <p className="text-[11px] text-muted-foreground truncate">
+                      <p className="text-[11px] text-muted-foreground break-words">
                         {r.meta ? `${r.meta} · ` : ""}
                         {new Date(r.at).toLocaleString(localeOf(lang))}
                         {r.ip && r.ip !== "local" ? ` · IP ${r.ip}` : ""}

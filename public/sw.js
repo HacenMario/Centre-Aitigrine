@@ -6,7 +6,7 @@
  *   - صفحة offline أنيقة داخلية بلا ملف خارجي (تعمل حتى إن لم تُخزن مسبقاً)
  * Push — يظهر الإشعار حتى والموقع مغلق — ثلاثي اللغة حسب لغة الجهاز (كما هو)
  */
-const CACHE = "ait-tegrine-v3.8.1";
+const CACHE = "ait-tegrine-v3.9.0";
 const ASSETS = ["/", "/manifest.webmanifest", "/logo.png", "/logo.svg"];
 
 self.addEventListener("install", (e) => {
@@ -33,8 +33,9 @@ self.addEventListener("fetch", (e) => {
 
   /* نداءات API: قراءة network-first مع نسخة احتياطية؛ الحجوزات الحساسة بلا كاش */
   if (url.pathname.startsWith("/api/")) {
-    /* الوسائط والفواتير: cache-first بعد أول جلب (الفيديو الكبير يُخزن مرة) */
-    if (url.pathname.startsWith("/api/media/") || url.pathname.startsWith("/api/invoices")) {
+    /* الوسائط الكبيرة فقط: cache-first بعد أول جلب (الفيديو يُخزن مرة)
+       ★ v3.9.0: الفواتير لم تعد cache-first — كانت تُخدم PDF قديماً من الكاش */
+    if (url.pathname.startsWith("/api/media/")) {
       e.respondWith(
         caches.match(req).then(
           (hit) =>

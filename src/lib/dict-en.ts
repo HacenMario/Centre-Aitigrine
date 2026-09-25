@@ -908,4 +908,13 @@ export const en: Record<string, string> = {
   "install.desktop2": "The site will appear as a standalone app on your desktop",
   "install.notifsTitle": "Device notifications",
   "install.notifsSub": "Enable them to receive appointment reminders even when the site is closed",
+  "bot.dismiss": "Hide assistant",
+  "gauth.welcome": "Signed in with Google successfully — welcome",
+  "gauth.denied": "Google consent cancelled — you can sign in by phone anytime",
+  "gauth.invalid": "Sign-in link is invalid or expired — please try again",
+  "gauth.notconfigured": "Google sign-in is not configured on the server yet — contact the administration",
+  "gauth.tokenfail": "Google sign-in failed — check server settings and try again",
+  "gauth.proffail": "Could not fetch your Google account info — please try again",
+  "gauth.disabled": "This account is disabled — contact the center administration",
+  "gauth.error": "Unexpected error during Google sign-in — please try again",
 };

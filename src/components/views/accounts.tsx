@@ -175,7 +175,7 @@ export default function Accounts({ navigate }: { navigate: Navigate }) {
                     <KeyRound className="h-4 w-4" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold truncate">{rq.name}</p>
+                    <p className="text-sm font-bold break-words">{rq.name}</p>
                     <p className="text-xs text-muted-foreground" dir="ltr">{rq.phone}</p>
                   </div>
                   <Button size="sm" onClick={() => { setResetTarget(rq); setResetPass(""); }} className="gap-1.5 rounded-lg">

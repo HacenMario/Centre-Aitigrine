@@ -93,7 +93,7 @@ export default function Specialists({ navigate }: { navigate?: (v: "appointments
     <div className="space-y-5">
       <div className="flex items-center gap-2 min-w-0">
         <BackButton onBack={() => navigate?.("home")} />
-        <h1 className="truncate text-xl font-black sm:text-2xl">{t("spec.title")}</h1>
+        <h1 className="break-words text-xl font-black sm:text-2xl">{t("spec.title")}</h1>
       </div>
       <p className="leading-relaxed text-muted-foreground">{t("spec.sub")}</p>
 

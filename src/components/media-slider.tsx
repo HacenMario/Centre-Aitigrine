@@ -108,7 +108,7 @@ export default function MediaSlider() {
                 <PlayCircle className="pointer-events-none absolute top-3 end-3 h-7 w-7 text-white/85 drop-shadow" />
               )}
               {m.title ? (
-                <figcaption className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/70 to-transparent px-4 py-3 text-sm font-semibold text-white">
+                <figcaption className="absolute inset-x-0 bottom-0 break-words bg-gradient-to-t from-black/70 to-transparent px-4 py-3 text-sm font-semibold text-white">
                   {m.title}
                 </figcaption>
               ) : null}

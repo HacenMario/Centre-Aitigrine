@@ -306,7 +306,7 @@ export default function Ads({ navigate }: { navigate: Navigate }) {
                 {staffAds.map((a) => (
                   <div key={a._id} className="rounded-2xl border bg-muted/20 p-3.5 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate text-sm font-bold">{a.title}</span>
+                      <span className="min-w-0 flex-1 break-words text-sm font-bold">{a.title}</span>
                       <Badge variant={a.status === "PUBLISHED" ? "default" : a.status === "DRAFT" ? "secondary" : "outline"} className="text-[10px]">
                         {t(a.status === "PUBLISHED" ? "ads.published" : a.status === "DRAFT" ? "ads.draft" : "ads.archived")}
                       </Badge>

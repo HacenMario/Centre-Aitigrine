@@ -1,12 +1,13 @@
 "use client";
 /**
- * المساعد الذكي (v3.8.1) — ودجت عائم بأسئلة وأجوبة فورية
- * ★ v3.8.1:
- *  - زر إغلاق (×) بجانب زر البوت عند فتح النافذة — نفس نمط زر واتساب
- *  - لا يتراكب مع زر واتساب أو «العودة للأعلى»: يُرتكز داخل حزمة الأزرار العائمة (app-shell)
- *  - إجابات بخمس لغات + أسئلة سريعة أكثر (6) + إرسال لغة الواجهة للخادم
- *  - لوحة المحادثة تُفتح إلى الأعلى بعرض آمن لا يتجاوز إطار الشاشة في الجوال
- * — يُخفى تلقائياً في وضع الإخفاء السريع — يعمل دائماً، حتى بلا إنترنت (وضع عدم الاتصال)
+ * المساعد الذكي (v3.9.0) — ودجت عائم بأسئلة وأجوبة فورية
+ * ★ v3.9.0:
+ *  - زر إغلاق (×) دائم بجانب البوت — يُخفي الودجت كلياً من الواجهة لبقية الجلسة
+ *    (نفس نمط زر واتساب تماماً) — ويعود في زيارة قادمة
+ *  - النافذة بارتفاع كامل مرن: الأجوبة تأخذ كل المساحة المتاحة (flex-1) مع تمرير،
+ *    والأسئلة السريعة في شريط مضغوط — لا تضيق مساحة الأجوبة أبداً
+ *  - متجاوبة تماماً: عرض/ارتفاع آمنان لا يتجاوزان إطار الشاشة على الحاسوب والجوال
+ *  - إجابات بخمس لغات + إرسال لغة الواجهة للخادم — يعمل حتى بلا إنترنت (وضع عدم الاتصال)
  */
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
@@ -51,14 +52,23 @@ function pickLabel(r: Record<string, unknown>, lang: string): string {
 }
 
 const QUICK_KEYS = ["bot.q1", "bot.q2", "bot.q3", "bot.q4", "bot.q5", "bot.q6"];
+const BOT_DISMISS_KEY = "ait_bot_dismissed";
 
 export default function ChatbotWidget() {
   const { t, lang, navigate, hidden } = useApp();
   const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  /* حالة الإخفاء تُقرأ بعد الإقلاع (تفادي اختلاف الترميز بين الخادم والعميل) */
+  useEffect(() => {
+    try {
+      setDismissed(sessionStorage.getItem(BOT_DISMISS_KEY) === "1");
+    } catch {}
+  }, []);
 
   const greet = t("bot.welcome");
 
@@ -105,7 +115,7 @@ export default function ChatbotWidget() {
     }
   };
 
-  if (hidden) return null;
+  if (hidden || dismissed) return null;
 
   return (
     <div className="relative flex items-center gap-1.5">
@@ -125,21 +135,25 @@ export default function ChatbotWidget() {
         {!open && <span className="absolute -top-0.5 -end-0.5 h-3 w-3 rounded-full bg-emerald-400 border-2 border-background" />}
       </button>
 
-      {/* زر الإغلاق (×) بجانب البوت — نفس نمط زر واتساب */}
-      {open && (
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          aria-label={t("common.close")}
-          title={t("common.close")}
-          className="flex h-6 w-6 items-center justify-center rounded-full bg-background text-muted-foreground shadow-md ring-1 ring-border transition-all hover:bg-destructive hover:text-white hover:rotate-90 active:scale-90"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      )}
+      {/* زر الإغلاق (×) الدائم بجانب البوت — يخفي الودجت كلياً لبقية الجلسة (نمط واتساب) */}
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(false);
+          setDismissed(true);
+          try {
+            sessionStorage.setItem(BOT_DISMISS_KEY, "1");
+          } catch {}
+        }}
+        aria-label={t("bot.dismiss")}
+        title={t("bot.dismiss")}
+        className="flex h-6 w-6 items-center justify-center rounded-full bg-background text-muted-foreground shadow-md ring-1 ring-border transition-all hover:bg-destructive hover:text-white hover:rotate-90 active:scale-90"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
 
       {open && (
-        <Card className="absolute z-50 bottom-full mb-3 end-0 w-[min(22rem,calc(100vw-2rem))] rounded-3xl shadow-2xl border overflow-hidden">
+        <Card className="absolute z-50 bottom-full mb-3 end-0 flex flex-col overflow-hidden rounded-3xl border shadow-2xl w-[min(24rem,calc(100vw-2rem))] h-[min(36rem,calc(100dvh-11rem))]">
           {/* رأس */}
           <div className="bg-gradient-to-r from-primary to-primary/85 text-primary-foreground p-4 flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15">
@@ -154,8 +168,8 @@ export default function ChatbotWidget() {
             </Button>
           </div>
 
-          {/* الرسائل */}
-          <div ref={scrollRef} className="p-3 space-y-2.5 max-h-[45dvh] md:max-h-[55dvh] overflow-y-auto bg-muted/30">
+          {/* الرسائل — تأخذ كل المساحة المتاحة (flex-1) مع تمرير داخلي */}
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-3 space-y-2.5 bg-muted/30">
             {msgs.map((m, i) => (
               <div key={i} className={cn("flex", m.from === "me" ? "justify-end" : "justify-start")}>
                 <div className={cn(
@@ -189,8 +203,8 @@ export default function ChatbotWidget() {
             )}
           </div>
 
-          {/* أسئلة سريعة */}
-          <div className="px-3 pt-2 flex gap-1.5 flex-wrap bg-background">
+          {/* أسئلة سريعة — شريط مضغوط بسقف ثابت لا يبتلع مساحة الأجوبة */}
+          <div className="shrink-0 max-h-[5.2rem] overflow-y-auto px-3 pt-2 flex gap-1.5 flex-wrap bg-background">
             {QUICK_KEYS.map((k) => (
               <button
                 key={k}
@@ -203,8 +217,8 @@ export default function ChatbotWidget() {
             ))}
           </div>
 
-          {/* الإدخال */}
-          <div className="p-3 flex items-center gap-2">
+          {/* الإدخال — ثابت أسفل النافذة */}
+          <div className="shrink-0 p-3 flex items-center gap-2">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}

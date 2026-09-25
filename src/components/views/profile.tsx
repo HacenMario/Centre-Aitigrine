@@ -114,7 +114,7 @@ export default function Profile({ navigate }: { navigate: Navigate }) {
               ) : me.name.charAt(0)}
             </span>
             <div className="min-w-0 space-y-1">
-              <p className="font-black text-lg truncate">{me.name}</p>
+              <p className="font-black text-lg break-words">{me.name}</p>
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className="border-primary/30 text-primary">{t(`roles.${me.role}`)}</Badge>
                 <span className="text-sm text-muted-foreground flex items-center gap-1" dir="ltr">

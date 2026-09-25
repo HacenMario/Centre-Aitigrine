@@ -6,6 +6,7 @@
  * ★ الصلاحيات تُراجع عند تغيّر المستخدم وبعد اكتمال الإقلاع
  */
 import { useEffect } from "react";
+import { toast } from "sonner";
 import { AppProvider, useApp } from "@/lib/app-context";
 import type { ViewKey } from "@/lib/nav";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -47,6 +48,25 @@ const ADMIN_ONLY: ViewKey[] = ["documents"];
 function Shell() {
   const { t, me, hidden, ready, view, viewId, navigate } = useApp();
 
+  /* ★ v3.9.0: رسائل العودة من Google — نجاح واضح أو سبب فشل صريح
+     (كانت تُكتب صامتة فلا يرى المستخدم شيئاً بعد التحويل من Google) */
+  useEffect(() => {
+    if (!ready) return;
+    try {
+      const w = sessionStorage.getItem("ait_gauth_welcome");
+      const e = sessionStorage.getItem("ait_gauth_error");
+      if (w) {
+        toast.success(t("gauth.welcome"));
+        sessionStorage.removeItem("ait_gauth_welcome");
+      } else if (e) {
+        const key = `gauth.${e}`;
+        const msg = t(key);
+        toast.error(msg === key ? t("gauth.error") : msg, { duration: 9000 });
+        sessionStorage.removeItem("ait_gauth_error");
+      }
+    } catch {}
+  }, [ready]);
+
   /* مراجعة الصلاحيات عند تغيّر المستخدم أو الصفحة — بعد اكتمال الإقلاع فقط */
   useEffect(() => {
     if (!ready) return;
@@ -63,7 +83,6 @@ function Shell() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me, view, ready]);
-
   /* شاشة الإخفاء السريع تغطي كل شيء */
   if (hidden) return <QuickHide />;
 

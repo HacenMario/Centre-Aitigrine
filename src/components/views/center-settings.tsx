@@ -468,8 +468,8 @@ function SpecialtiesManager() {
                 <Stethoscope className="h-4.5 w-4.5" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold">{nameOf(sp)}</p>
-                <p className="truncate text-[11px] text-muted-foreground" dir="ltr">
+                <p className="break-words text-sm font-bold">{nameOf(sp)}</p>
+                <p className="break-words text-[11px] text-muted-foreground" dir="ltr">
                   <span aria-hidden="true">{LANG_FLAGS.ar}</span> {sp.ar}
                   {sp.fr && <> · <span aria-hidden="true">{LANG_FLAGS.fr}</span> {sp.fr}</>}
                   {sp.en && <> · <span aria-hidden="true">{LANG_FLAGS.en}</span> {sp.en}</>}

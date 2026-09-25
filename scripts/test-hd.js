@@ -1,0 +1,13 @@
+const fs = require("fs");
+const path = require("path");
+const PDFDocument = require("pdfkit");
+const doc = new PDFDocument({ size: "A4", margin: 50 });
+const chunks = [];
+doc.on("data", c => chunks.push(c));
+doc.on("end", () => { fs.writeFileSync("/tmp/hd.pdf", Buffer.concat(chunks)); console.log("✓"); });
+doc.registerFont("bb", path.join(process.cwd(), "/public/fonts/DejaVuSans-Bold.ttf"));
+doc.rect(50, 40, 495, 26).fill("#0f766e");
+doc.font("bb").fontSize(11).fillColor("#ffffff");
+doc.text("البيان", 60, 47, { align: "right", width: 300 });
+doc.text("المبلغ", 365, 47, { align: "left", width: 170 });
+doc.end();
