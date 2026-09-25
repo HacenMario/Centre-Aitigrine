@@ -19,7 +19,7 @@ const AUTO_CLOSE_MS = 10000;
 const SEEN_KEY = "ait_reassure_seen";
 const SEEN_QUOTES_KEY = "ait_quote_seen";
 
-type QuoteRow = { id: string; ar: string; fr: string; en: string; author?: string };
+type QuoteRow = { id: string; ar: string; fr: string; en: string; tr?: string; es?: string; author?: string };
 
 export default function ReassurancePopup() {
   const { t, lang, view, ready } = useApp();
@@ -52,6 +52,8 @@ export default function ReassurancePopup() {
             ar: String(q.textAr || ""),
             fr: String(q.textFr || ""),
             en: String(q.textEn || ""),
+            tr: String(q.textTr || ""),
+            es: String(q.textEs || ""),
             author: String(q.author || ""),
           }));
         }
@@ -96,7 +98,11 @@ export default function ReassurancePopup() {
   }, [ready, view, close]);
 
   if (!open || !quote) return null;
-  const text = quote[lang as Lang] || quote.ar;
+  /* ★ v3.10: سلسلة سقوط تشمل التركية والإسبانية: اللغة → فرنسي → إنجليزي → عربي */
+  const text =
+    lang === "tr" ? (quote.tr || quote.fr || quote.en || quote.ar)
+    : lang === "es" ? (quote.es || quote.fr || quote.en || quote.ar)
+    : quote[lang as Lang] || quote.ar;
 
   return (
     <div

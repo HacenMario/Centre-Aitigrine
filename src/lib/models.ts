@@ -60,6 +60,8 @@ export const User: Model<UserDoc> =
  */
 const SpecialtySchema = new Schema(
   {
+    /** رمز ثابت للتخصصات الافتراضية — يمنع إعادة زرع المحذوفة ويحمي الأسماء المعدلة */
+    code: { type: String, default: "", index: true },
     name: {
       ar: { type: String, required: true },
       fr: { type: String, default: "" },
@@ -98,18 +100,27 @@ const SettingsSchema = new Schema(
     centerName: { type: String, default: "مركز أيت تقرين" },
     centerNameFr: { type: String, default: "" },
     centerNameEn: { type: String, default: "" },
+    /** ★ v3.10: تركي/إسباني — كل حقول الواجهة بخمس لغات */
+    centerNameTr: { type: String, default: "" },
+    centerNameEs: { type: String, default: "" },
     tagline: { type: String, default: "" },
     taglineFr: { type: String, default: "" },
     taglineEn: { type: String, default: "" },
+    taglineTr: { type: String, default: "" },
+    taglineEs: { type: String, default: "" },
     aboutShort: { type: String, default: "" },
     aboutShortFr: { type: String, default: "" },
     aboutShortEn: { type: String, default: "" },
+    aboutShortTr: { type: String, default: "" },
+    aboutShortEs: { type: String, default: "" },
     phone: { type: String, default: "" },
     whatsapp: { type: String, default: "" },
     email: { type: String, default: "" },
     address: { type: String, default: "" },
     addressFr: { type: String, default: "" },
     addressEn: { type: String, default: "" },
+    addressTr: { type: String, default: "" },
+    addressEs: { type: String, default: "" },
     lat: { type: Number, default: 36.7538 }, // الجزائر العاصمة افتراضياً
     lng: { type: Number, default: 3.0588 },
     /** رابط الموقع على خرائط Google — يوجّه الزوار للمركز مباشرة */
@@ -123,6 +134,8 @@ const SettingsSchema = new Schema(
     /** خيارات الحقول تُدار من الإدارة */
     options: {
       specialties: { type: [String], default: [] },
+      /** ★ v3.10: رموز التخصصات الافتراضية التي حذفتها الإدارة — تمنع إعادة زرعها عند الإقلاع */
+      deletedBuiltinSpecialties: { type: [String], default: [] },
       /** v3.5: التصنفات ثلاثية اللغة — كل عنصر { ar, fr, en } (القديمة نصوص تُطبَّع تلقائياً) */
       serviceCategories: { type: [Schema.Types.Mixed], default: [] },
       courseCategories: { type: [Schema.Types.Mixed], default: [] },
@@ -311,6 +324,8 @@ const AppointmentSchema = new Schema(
     invoiceNumber: { type: String, default: "", index: true },
     invoiceFile: { type: String, default: "" }, // اسم ملف PDF في GridFS
     invoiceAt: { type: Date, default: null },
+    /** ★ v3.10: إصدار تخطيط الفاتورة — يُجبر إعادة توليد الفواتير القديمة للتخطيط الجديد (صفحة واحدة) */
+    invoiceVersion: { type: String, default: "" },
     date: { type: String, required: true, index: true }, // YYYY-MM-DD
     time: { type: String, required: true }, // HH:mm
     status: {
@@ -569,6 +584,9 @@ const WelcomeQuoteSchema = new Schema(
     textAr: { type: String, required: true, trim: true, maxlength: 500 },
     textFr: { type: String, default: "", trim: true, maxlength: 500 },
     textEn: { type: String, default: "", trim: true, maxlength: 500 },
+    /** ★ v3.10: تركي/إسباني — كل حقول الإعدادات بخمس لغات */
+    textTr: { type: String, default: "", trim: true, maxlength: 500 },
+    textEs: { type: String, default: "", trim: true, maxlength: 500 },
     author: { type: String, default: "", trim: true, maxlength: 120 },
     active: { type: Boolean, default: true },
   },
@@ -581,7 +599,8 @@ export const WelcomeQuote: Model<WelcomeQuoteDoc> =
 
 /* ─────────────── سجل التدقيق (v3.8) ───────────────
  * توثيق كل عملية حساسة: من فعل ماذا ومتى ومن أي جهاز
- * يُكتب من logAudit() — لا يُحذف تلقائياً أبداً، والعرض للإدارة فقط
+ * يُكتب من logAudit() — ★ v3.10: يُحذف تلقائياً بعد 3 أيام (TTL index بطلب صاحب المركز)،
+ * مع زر تفريغ فوري في واجهة سجل التدقيق — العرض للإدارة فقط
  */
 const AuditLogSchema = new Schema(
   {
@@ -598,6 +617,8 @@ const AuditLogSchema = new Schema(
   { timestamps: true, collection: "auditlogs" }
 );
 AuditLogSchema.index({ createdAt: -1 });
+/* ★ v3.10 حذف تلقائي بعد 3 أيام — TTL index (MongoDB يفحص كل دقيقة) */
+AuditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 3 * 24 * 60 * 60 });
 export const AuditLog =
   (mongoose.models.AuditLog as Model<InferSchemaType<typeof AuditLogSchema>>) ||
   mongoose.model("AuditLog", AuditLogSchema);

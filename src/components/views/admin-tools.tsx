@@ -326,11 +326,13 @@ type AuditRow = {
 };
 
 function AuditViewer() {
-  const { t, lang } = useApp();
+  const { t, lang, me } = useApp();
   const [rows, setRows] = useState<AuditRow[] | null>(null);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const VISIBLE = 10;
 
   const load = useCallback(async (query = "") => {
@@ -343,6 +345,29 @@ function AuditViewer() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  /* ★ v3.10: تفريغ السجل يدوياً لحظياً (زر للإدارة فقط — طلب صاحب المركز)
+     الحذف التلقائي بعد 3 أيام يعمل في الخلفية (TTL + تنظيف الكتابة) */
+  const clearAll = async () => {
+    setClearing(true);
+    try {
+      const r = await fetch("/api/audit", { method: "DELETE" });
+      if (r.ok) {
+        toast.success(t("audit.cleared"));
+        setConfirmClear(false);
+        setShowAll(false);
+        setRows([]);
+        /* نعيد التحميل بعد ثانية — آخر حدث سيكون توثيق عملية التفريغ نفسها */
+        setTimeout(() => load(q.trim()), 800);
+      } else {
+        const j = await r.json().catch(() => ({}));
+        toast.error(j.error || t("common.error"));
+      }
+    } catch {
+      toast.error(t("err.conn"));
+    }
+    setClearing(false);
+  };
 
   const fmtAction = (a: string) => {
     const map: Record<string, string> = {
@@ -367,8 +392,8 @@ function AuditViewer() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[14rem]">
           <Search className="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-muted-foreground" />
           <Input
             value={q}
@@ -378,10 +403,39 @@ function AuditViewer() {
             className="ps-10 h-11 rounded-xl"
           />
         </div>
-        <Button variant="outline" onClick={() => load(q.trim())} disabled={loading} className="h-11 rounded-xl gap-1.5">
-          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> {t("dash.refresh")}
+        <Button variant="outline" onClick={() => load(q.trim())} disabled={loading} className="h-11 rounded-xl gap-1.5 shrink-0">
+          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> <span className="hidden sm:inline">{t("dash.refresh")}</span>
         </Button>
+        {me?.role === "admin" && (
+          <Button
+            variant="outline"
+            onClick={() => setConfirmClear(true)}
+            disabled={loading || clearing}
+            className="h-11 rounded-xl gap-1.5 shrink-0 text-destructive hover:bg-destructive hover:text-white border-destructive/40"
+          >
+            {clearing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            <span className="hidden sm:inline">{t("audit.clearBtn")}</span>
+          </Button>
+        )}
       </div>
+
+      {/* تنبيه الحذف التلقائي بعد 3 أيام + نافذة تأكيد التفريغ اليدوي */}
+      <p className="text-[11px] text-muted-foreground leading-relaxed break-words">{t("audit.autoClean")}</p>
+      {confirmClear && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-foreground/30 p-4" onClick={() => setConfirmClear(false)}>
+          <div className="w-full max-w-sm rounded-3xl border bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <p className="font-black">{t("audit.clearTitle")}</p>
+            <p className="mt-2 text-sm text-muted-foreground leading-relaxed break-words">{t("audit.clearConfirm")}</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setConfirmClear(false)}>{t("common.cancel")}</Button>
+              <Button variant="destructive" onClick={clearAll} disabled={clearing} className="gap-1.5">
+                {clearing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {t("audit.clearBtn")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!rows ? (
         <div className="space-y-2">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}</div>

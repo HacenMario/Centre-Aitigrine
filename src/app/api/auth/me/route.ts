@@ -15,7 +15,7 @@ export async function PATCH(req: NextRequest) {
   return handle(async () => {
     const me = await requireUser();
     const body = await req.json().catch(() => ({}));
-    const { oldPass, newPass, name, bio, title, langs, photoBase64 } = body;
+    const { oldPass, newPass, name, bio, title, langs, photoBase64, phone } = body;
 
     const $set: Record<string, unknown> = {};
     const $unset: Record<string, string> = {};
@@ -32,6 +32,22 @@ export async function PATCH(req: NextRequest) {
     if (Array.isArray(langs)) $set.langs = langs.map(String);
     if (typeof photoBase64 === "string" && photoBase64) $set.photoBase64 = photoBase64;
     else if (photoBase64 === "") $unset.photoBase64 = "";
+
+    /* ★ v3.10: حفظ رقم الهاتف الحقيقي — يلزم حسابات Google (بدل الصيغة الداخلية g-<sub>)
+       تحقق شامل: أرقام فقط 9-15 مع تطبيع المسافات + فحص التفرد (الهاتف فريد في القاعدة) */
+    if (phone !== undefined) {
+      const cleaned = String(phone).replace(/[\s.\-()]/g, "").trim();
+      if (!/^\+?\d{9,15}$/.test(cleaned))
+        return fail(400, "رقم الهاتف غير صحيح — أدخل 9 إلى 15 رقماً (مثال: 0555000111)");
+      /* تطبيع جزائري شائع: 00213… → 0… / +213… → 0… */
+      let normalized = cleaned;
+      if (normalized.startsWith("+213")) normalized = "0" + normalized.slice(4);
+      else if (normalized.startsWith("00213")) normalized = "0" + normalized.slice(5);
+      if (normalized.startsWith("213") && normalized.length === 12) normalized = "0" + normalized.slice(3);
+      const dup = await User.findOne({ phone: normalized, _id: { $ne: me._id } }).lean().catch(() => null);
+      if (dup) return fail(409, "رقم الهاتف مستعمل مسبقاً بحساب آخر");
+      $set.phone = normalized;
+    }
 
     if (!Object.keys($set).length && !Object.keys($unset).length)
       return ok({ user: toSafeUser(me) });

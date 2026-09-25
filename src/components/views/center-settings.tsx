@@ -9,7 +9,7 @@ import BackButton from "@/components/back-button";
 import MapPicker from "@/components/map-picker";
 import ImageInput from "@/components/image-input";
 import MediaInput from "@/components/media-input";
-import { LANG_FLAGS, LANG_NAMES, TriInput, TriTextarea, flattenTri, triFrom, triName } from "@/components/tri-input";
+import { LANG_FLAGS, LANG_NAMES, LANG_TAB, LANG_PLACEHOLDER, TRI5, TriInput, TriTextarea, flattenTri, triFrom, triName } from "@/components/tri-input";
 import type { Tri } from "@/components/tri-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,15 +21,15 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import AdminTools from "@/components/views/admin-tools";
-import { Plus, Trash2, X, Building2, Save, Images, MapPin, Share2, Languages, SlidersHorizontal, FileStack, Lock, Stethoscope, Sparkles, Pencil, Quote as QuoteIcon, Clock, Copy, DatabaseBackup } from "lucide-react";
+import { Plus, Trash2, X, Building2, Save, Images, MapPin, Share2, Languages, SlidersHorizontal, FileStack, Stethoscope, Sparkles, Pencil, Quote as QuoteIcon, Clock, Copy, DatabaseBackup } from "lucide-react";
 import { toast } from "sonner";
 import type { Navigate } from "@/lib/nav";
 
 const emptyTri: Tri = { ar: "", fr: "", en: "" };
-type SpecialtyRow = { _id: string; ar: string; fr: string; en: string; builtin: boolean };
+type SpecialtyRow = { _id: string; ar: string; fr: string; en: string; tr?: string; es?: string; builtin: boolean };
 
 type PageItem = { q?: string; a?: string; title?: string; text?: string };
-type QuoteRow = { id: string; textAr: string; textFr: string; textEn: string; author: string; active: boolean };
+type QuoteRow = { id: string; textAr: string; textFr: string; textEn: string; textTr?: string; textEs?: string; author: string; active: boolean };
 
 export default function CenterSettings({ navigate }: { navigate: Navigate }) {
   const { t, settings, refreshSettings, me } = useApp();
@@ -393,13 +393,17 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
   );
 }
 
-/* ── مدير التخصصات: الافتراضية الدائمة (ثابتة) + إضافات الإدارة بثلاث لغات ── */
+/* ── مدير التخصصات — ★ v3.10: تعديل وحذف للجميع بما فيها الافتراضية (بطلب صاحب المركز) ──
+ * إضافة بخمس لغات + زر تعديل يفتح نموذجاً محلياً بخمس لغات + حذف بنافذة تأكيد */
 function SpecialtiesManager() {
   const { t, lang } = useApp();
   const [rows, setRows] = useState<SpecialtyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [newSpec, setNewSpec] = useState<Tri>(emptyTri);
   const [busy, setBusy] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editVal, setEditVal] = useState<Tri>(emptyTri);
+  const [delTarget, setDelTarget] = useState<SpecialtyRow | null>(null);
 
   const load = async () => {
     try {
@@ -426,10 +430,31 @@ function SpecialtiesManager() {
     else toast.error(j.error || t("common.error"));
   };
 
-  const remove = async (id: string) => {
-    const r = await fetch(`/api/specialties?id=${id}`, { method: "DELETE" });
+  const openEdit = (sp: SpecialtyRow) => {
+    setEditId(sp._id);
+    setEditVal({ ar: sp.ar, fr: sp.fr || "", en: sp.en || "", tr: sp.tr || "", es: sp.es || "" });
+  };
+
+  const saveEdit = async () => {
+    if (!editId || !editVal.ar.trim()) { toast.error(t("err.required")); return; }
+    setBusy(true);
+    const r = await fetch("/api/specialties", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ _id: editId, ...editVal }),
+    });
     const j = await r.json().catch(() => ({}));
-    if (r.ok) { toast.success(t("toast.specialtyDeleted")); load(); }
+    setBusy(false);
+    if (r.ok) {
+      toast.success(t("toast.specialtyUpdated"));
+      setEditId(null);
+      load();
+    } else toast.error(j.error || t("common.error"));
+  };
+
+  const remove = async (sp: SpecialtyRow) => {
+    const r = await fetch(`/api/specialties?id=${sp._id}`, { method: "DELETE" });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) { toast.success(t("toast.specialtyDeleted")); setDelTarget(null); load(); }
     else toast.error(j.error || t("common.error"));
   };
 
@@ -440,7 +465,7 @@ function SpecialtiesManager() {
     <div className="space-y-5">
       <p className="text-sm leading-relaxed text-muted-foreground">{t("set.specHint")}</p>
 
-      {/* إضافة تخصص جديد بثلاث لغات */}
+      {/* إضافة تخصص جديد بخمس لغات */}
       <Card className="rounded-2xl border-primary/20 bg-primary/[0.03]">
         <CardContent className="space-y-3 p-4">
           <p className="text-sm font-black flex items-center gap-1.5">
@@ -454,7 +479,7 @@ function SpecialtiesManager() {
         </CardContent>
       </Card>
 
-      {/* القائمة */}
+      {/* القائمة — لكل تخصص زرا تعديل وحذف (افتراضية ومضافة) */}
       {loading ? (
         <p className="py-8 text-center text-sm text-muted-foreground">{t("common.loading")}</p>
       ) : (
@@ -462,31 +487,70 @@ function SpecialtiesManager() {
           {rows.map((sp) => (
             <div
               key={sp._id}
-              className="flex items-center gap-2.5 rounded-xl border bg-card p-3"
+              className={"rounded-xl border bg-card p-3 " + (editId === sp._id ? "sm:col-span-2 border-primary/40" : "flex items-center gap-2.5")}
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Stethoscope className="h-4.5 w-4.5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="break-words text-sm font-bold">{nameOf(sp)}</p>
-                <p className="break-words text-[11px] text-muted-foreground" dir="ltr">
-                  <span aria-hidden="true">{LANG_FLAGS.ar}</span> {sp.ar}
-                  {sp.fr && <> · <span aria-hidden="true">{LANG_FLAGS.fr}</span> {sp.fr}</>}
-                  {sp.en && <> · <span aria-hidden="true">{LANG_FLAGS.en}</span> {sp.en}</>}
-                </p>
-              </div>
-              {sp.builtin ? (
-                <span className="flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-1 text-[10px] font-bold text-muted-foreground" title={t("set.builtinLock")}>
-                  <Lock className="h-3 w-3" /> {t("set.builtin")}
-                </span>
+              {editId === sp._id ? (
+                /* نموذج التعديل المحلي بخمس لغات */
+                <div className="w-full space-y-3">
+                  <p className="text-sm font-black flex items-center gap-1.5">
+                    <Pencil className="h-4 w-4 text-primary" /> {t("set.editSpecialty")}
+                  </p>
+                  <TriInput label={t("set.specialtyName")} value={editVal} onChange={setEditVal} />
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setEditId(null)} className="rounded-xl">{t("common.cancel")}</Button>
+                    <Button onClick={saveEdit} disabled={busy} className="rounded-xl gap-2">
+                      <Save className="h-4 w-4" /> {busy ? t("common.saving") : t("common.save")}
+                    </Button>
+                  </div>
+                </div>
               ) : (
-                <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive"
-                  onClick={() => remove(sp._id)} aria-label={t("common.delete")}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Stethoscope className="h-4.5 w-4.5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm font-bold">{nameOf(sp)}</p>
+                    <p className="break-words text-[11px] text-muted-foreground" dir="ltr">
+                      <span aria-hidden="true">{LANG_FLAGS.ar}</span> {sp.ar}
+                      {sp.fr && <> · <span aria-hidden="true">{LANG_FLAGS.fr}</span> {sp.fr}</>}
+                      {sp.en && <> · <span aria-hidden="true">{LANG_FLAGS.en}</span> {sp.en}</>}
+                      {sp.tr && <> · <span aria-hidden="true">{LANG_FLAGS.tr}</span> {sp.tr}</>}
+                      {sp.es && <> · <span aria-hidden="true">{LANG_FLAGS.es}</span> {sp.es}</>}
+                    </p>
+                  </div>
+                  {sp.builtin && (
+                    <span className="hidden sm:inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-1 text-[10px] font-bold text-muted-foreground">
+                      {t("set.builtin")}
+                    </span>
+                  )}
+                  <div className="flex shrink-0 gap-1">
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-primary hover:bg-primary/10"
+                      onClick={() => openEdit(sp)} aria-label={t("common.edit")} title={t("common.edit")}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive"
+                      onClick={() => setDelTarget(sp)} aria-label={t("common.delete")} title={t("common.delete")}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </>
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* تأكيد الحذف — شامل الافتراضية */}
+      {delTarget && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-foreground/30 p-4" onClick={() => setDelTarget(null)}>
+          <div className="w-full max-w-sm rounded-3xl border bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <p className="font-black">{t("common.confirmDelete")}</p>
+            <p className="mt-2 text-sm text-muted-foreground leading-relaxed break-words" dir="auto">{nameOf(delTarget)}</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setDelTarget(null)}>{t("common.cancel")}</Button>
+              <Button variant="destructive" onClick={() => remove(delTarget)}>{t("common.delete")}</Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -502,7 +566,7 @@ function QuotesManager() {
   const [rows, setRows] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<QuoteRow | null>(null);
-  const [form, setForm] = useState({ textAr: "", textFr: "", textEn: "", author: "" });
+  const [form, setForm] = useState({ textAr: "", textFr: "", textEn: "", textTr: "", textEs: "", author: "" });
   const [busy, setBusy] = useState(false);
   const [delTarget, setDelTarget] = useState<QuoteRow | null>(null);
 
@@ -524,11 +588,11 @@ function QuotesManager() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ textAr: "", textFr: "", textEn: "", author: "" });
+    setForm({ textAr: "", textFr: "", textEn: "", textTr: "", textEs: "", author: "" });
   };
   const openEdit = (q: QuoteRow) => {
     setEditing(q);
-    setForm({ textAr: q.textAr, textFr: q.textFr || "", textEn: q.textEn || "", author: q.author || "" });
+    setForm({ textAr: q.textAr, textFr: q.textFr || "", textEn: q.textEn || "", textTr: q.textTr || "", textEs: q.textEs || "", author: q.author || "" });
   };
 
   const save = async () => {
@@ -565,7 +629,11 @@ function QuotesManager() {
   };
 
   const showTri = (q: QuoteRow) =>
-    lang === "fr" ? (q.textFr || q.textAr) : lang === "en" ? (q.textEn || q.textAr) : q.textAr;
+    lang === "fr" ? (q.textFr || q.textAr)
+    : lang === "en" ? (q.textEn || q.textFr || q.textAr)
+    : lang === "tr" ? (q.textTr || q.textFr || q.textEn || q.textAr)
+    : lang === "es" ? (q.textEs || q.textFr || q.textEn || q.textAr)
+    : q.textAr;
 
   return (
     <div className="space-y-5">
@@ -578,8 +646,8 @@ function QuotesManager() {
             <Plus className="h-4 w-4 text-primary" />
             {editing ? t("set.quoteEdit") : t("set.quoteAdd")}
           </p>
-          <TriInput label={t("set.quoteText")} value={{ ar: form.textAr, fr: form.textFr, en: form.textEn }}
-            onChange={(v) => setForm({ ...form, textAr: v.ar, textFr: v.fr, textEn: v.en })} />
+          <TriInput label={t("set.quoteText")} value={{ ar: form.textAr, fr: form.textFr, en: form.textEn, tr: form.textTr, es: form.textEs }}
+            onChange={(v) => setForm({ ...form, textAr: v.ar, textFr: v.fr, textEn: v.en, textTr: v.tr || "", textEs: v.es || "" })} />
           <div className="grid sm:grid-cols-[1fr_auto] gap-3 items-end">
             <div className="space-y-1.5">
               <Label>{t("set.quoteAuthor")} <span className="text-muted-foreground text-xs">({t("common.optional")})</span></Label>
@@ -631,6 +699,8 @@ function QuotesManager() {
                   <span aria-hidden="true">{LANG_FLAGS.ar}</span> {q.textAr}
                   {q.textFr && <> · <span aria-hidden="true">{LANG_FLAGS.fr}</span> {q.textFr}</>}
                   {q.textEn && <> · <span aria-hidden="true">{LANG_FLAGS.en}</span> {q.textEn}</>}
+                  {q.textTr && <> · <span aria-hidden="true">{LANG_FLAGS.tr}</span> {q.textTr}</>}
+                  {q.textEs && <> · <span aria-hidden="true">{LANG_FLAGS.es}</span> {q.textEs}</>}
                 </p>
                 {q.author && (
                   <span className="inline-block rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground" dir="auto">{q.author}</span>
@@ -658,7 +728,7 @@ function QuotesManager() {
   );
 }
 
-/* ── قائمة تصنيفات ثلاثية اللغة (إضافة/حذف — كل عنصر { ar, fr, en }) ── */
+/* ── قائمة تصنيفات متعددة اللغات (إضافة/حذف — كل عنصر { ar, fr, en, tr, es }) — ★ v3.10: خمس لغات ── */
 function TriCatList({ label, values, onChange }: { label: string; values: TriCat[]; onChange: (v: TriCat[]) => void }) {
   const { t, lang } = useApp();
   const [nv, setNv] = useState<Tri>(emptyTri);
@@ -681,20 +751,20 @@ function TriCatList({ label, values, onChange }: { label: string; values: TriCat
         ))}
       </div>
       <div className="ait-tri space-y-2 rounded-xl border bg-card/40 p-2.5">
-        {(["ar", "fr", "en"] as const).map((l) => (
+        {TRI5.map((l) => (
           <div key={l} className="flex items-center gap-2">
             <span className="flex w-11 shrink-0 items-center justify-center gap-1 rounded-md bg-muted/70 py-1 text-[11px] font-black text-muted-foreground" title={LANG_NAMES[l]}>
               <span aria-hidden="true">{LANG_FLAGS[l]}</span>
-              <span className={l === "ar" ? "" : "tracking-wide"}>{l === "ar" ? "ع" : l.toUpperCase()}</span>
+              <span className={l === "ar" ? "" : "tracking-wide"}>{LANG_TAB[l]}</span>
             </span>
-            <Input dir={l === "ar" ? "rtl" : "ltr"} value={nv[l]} onChange={(e) => setNv({ ...nv, [l]: e.target.value })}
-              placeholder={l === "ar" ? t("common.add") : l === "fr" ? "Français…" : "English…"} className="h-10" />
+            <Input dir={l === "ar" ? "rtl" : "ltr"} value={nv[l] ?? ""} onChange={(e) => setNv({ ...nv, [l]: e.target.value })}
+              placeholder={l === "ar" ? t("common.add") : LANG_PLACEHOLDER[l]} className="h-10" />
           </div>
         ))}
         <Button type="button" size="sm" variant="outline" className="gap-1.5 self-start"
           onClick={() => {
             if (!nv.ar.trim()) { toast.error(t("err.required")); return; }
-            onChange([...list, { ar: nv.ar.trim(), fr: nv.fr.trim(), en: nv.en.trim() }]);
+            onChange([...list, { ar: nv.ar.trim(), fr: nv.fr.trim(), en: nv.en.trim(), tr: nv.tr?.trim() || "", es: nv.es?.trim() || "" }]);
             setNv(emptyTri);
           }}>
           <Plus className="h-4 w-4" /> {t("common.add")}

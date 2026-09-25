@@ -1,5 +1,5 @@
 /**
- * المساعد الذكي (v3.8.1) — محرك مطابقة ذكي بخمس لغات
+ * المساعد الذكي (v3.10.0) — محرك مطابقة ذكي بخمس لغات + نوايا مباشرة لأزرار القائمة
  * POST /api/chatbot { message, lang? }
  * ★ ما الجديد عن v3.8:
  *   - تقييم بالكلمات المفتاحية لكل القواعد ثم اختيار الأفضل (وليس أول مطابقة)
@@ -9,6 +9,9 @@
  *     كلمة مرور/دخول Google/خصوصية/أطفال/قلق واكتئاب/شهادات/تواصل/تقويم/ترحيب/شكر/مساعدة)
  *   - إجابات بخمس لغات (عربي/فرنسي/إنجليزي/تركي/إسباني)
  *   - الأسئلة الشائعة المُدارة تُقرأ بكل لغاتها مع تسجيل تطابق أفضل
+ * ★ v3.10: النوايا (intent) — أزرار الأسئلة السريعة ترسل معرّف القاعدة مباشرة
+ *   فتجيب الإجابة الصحيحة حرفياً بأي لغة (بلا أي تخمين) — نهاية «لا يفهم أسئلة قائمته»
+ *   + مرادفات موسعة (أوقات/دوام/عيادة/ثمن/شحال/قداش/نلغي...) + أولوية تكسر التعادل
  * بلا ذكاء خارجي — يعمل دائماً وبلا تكلفة وبلا إنترنت خارجي
  */
 import { NextRequest } from "next/server";
@@ -54,9 +57,10 @@ const R = (
 });
 
 /** قواعد الم مطابقة — التقييم يجمع الكلمات المطابقة ويختار الأعلى */
-const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
+const RULES: { id: string; priority: number; keys: string[]; reply: BotReply; weight?: number }[] = [
   {
-    keys: ["حجز", "احجز", "موعد", "book", "booking", "appointment", "rendez", "réserver", "réservation", "randez", "randevu", "cita", "reservar", "ساعة", "وقت", "slot"],
+    id: "booking",
+    keys: ["حجز", "احجز", "نحجز", "موعد", "مواعيد", "سيشن", "book", "booking", "appointment", "rendez", "réserver", "réservation", "randez", "randevu", "cita", "reservar", "ساعة", "وقت", "slot"],
     reply: R(
       "يسعدنا خدمتك! يمكنك حجز موعدك مباشرة من صفحة المواعيد: اختر الأخصائي ثم التاريخ والوقت المتاح، وستصلك إشعارات التأكيد والتذكير تلقائياً. إن رغبة في جلسة عن بُعد اختر «عن بُعد» كطريقة للجلسة.",
       "Nous serions ravis de vous servir ! Réservez votre rendez-vous depuis la page des rendez-vous : choisissez le spécialiste, puis la date et l'horaire disponibles. Vous recevrez automatiquement les notifications de confirmation et de rappel. Pour une séance à distance, choisissez « à distance ».",
@@ -68,7 +72,8 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
     ),
   },
   {
-    keys: ["سعر", "أسعار", "تكلفة", "كم", "price", "prix", "coût", "cout", "combien", "tarif", "cost", "دج", "دينار", "fiyat", "ücret", "precio", "cuánto", "cuanto", "kaç"],
+    id: "price",
+    keys: ["سعر", "أسعار", "اسعار", "السعر", "ثمن", "تمن", "شحال", "بشحال", "قداش", "غالي", "بكم", "اسعار", "تكلفة", "كم", "ثمن", "تمن", "شحال", "بشحال", "قداش", "غالي", "price", "prix", "coût", "cout", "combien", "tarif", "cost", "دج", "دينار", "fiyat", "ücret", "precio", "cuánto", "cuanto", "kaç"],
     reply: R(
       "تختلف الأسعار حسب الخدمة والتكوين، وهي معلنة بكل شفافية بالدينار الجزائري. تجد السعر بجانب كل خدمة في صفحة الخدمات وسعر التكوين في صفحة التكوينات، وبعض كوبونات الخصم تمنحك تخفيضاً إضافياً عند الحجز.",
       "Les tarifs varient selon le service et la formation, et sont affichés en toute transparence en dinars algériens. Le prix figure à côté de chaque service dans la page Services, et celui des formations dans leur page. Certains coupons de réduction offrent une remise supplémentaire à la réservation.",
@@ -80,6 +85,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
     ),
   },
   {
+    id: "coupon",
     keys: ["خصم", "كوبون", "عرض", "تخفيض", "coupon", "discount", "promo", "réduction", "reduction", "offre", "indirim", "kupon", "cupón", "cupon", "descuento", "code"],
     reply: R(
       "نوفّر كوبونات خصم دورية (نسبة أو مبلغ ثابت). إن كان لديك رمز كوبون أدخله في خانة «رمز الخصم» عند خطوة التأكيد أثناء الحجز وسيُطبق الخصم تلقائياً على سعر الجلسة.",
@@ -92,7 +98,8 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
     ),
   },
   {
-    keys: ["عن بعد", "اونلاين", "أونلاين", "online", "remote", "video", "visio", "distance", "زووم", "zoom", "uzaktan", "distancia", "en ligne"],
+    id: "remote",
+    keys: ["عن بعد", "عن بُعد", "اونلاين", "أونلاين", "online", "remote", "video", "visio", "distance", "زووم", "zoom", "uzaktan", "distancia", "en ligne"],
     reply: R(
       "نعم، تتوفر جلسات عن بُعد بالفيديو بجانب الجلسات الحضورية. عند الحجز اختر «عن بُعد» كطريقة للجلسة وستستعمل نفس صفحة المواعيد لمتابعة موعدك وتذكيراته.",
       "Oui, des séances à distance par visioconférence sont disponibles en plus des séances présentes. Choisissez « à distance » lors de la réservation ; la page des rendez-vous reste la même pour le suivi et les rappels.",
@@ -104,6 +111,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
     ),
   },
   {
+    id: "specialists",
     keys: ["تخصص", "أخصائي", "اخصائي", "طبيب", "معالج", "specialist", "docteur", "médecin", "orthophoniste", "psychologue", "doctor", "uzman", "terapist", "especialista", "psicólogo", "psicologo", "logopeda", "فريق"],
     reply: R(
       "يضم مركزنا فريقاً من الأخصائيين النفسيين وأخصائيي الأرطفونية المعتمدين. تصفح بطاقات الفريق في الرئيسية للاطلاع على خبرة كل أخصائي ولغاته وتقييماته، ثم احجز معه مباشرة.",
@@ -115,7 +123,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["تعرف على فريق الأخصائيين", "Découvrir l'équipe", "Meet the team", "Ekibi tanıyın", "Conocer al equipo"]
     ),
   },
-  {
+  { id: "courses", priority: 1,
     keys: ["تكوين", "دورة", "ورشة", "formation", "cours", "atelier", "training", "course", "workshop", "eğitim", "kurs", "curso", "formación", "formacion", "talleres"],
     reply: R(
       "ننظم تكوينات ودورات في علم النفس والأرطفونية على مدار السنة ببرنامج حصص واضح (تاريخ، بداية، نهاية) مع شهادة مشاركة أو إتمام. سجل نفسك من صفحة التكوينات وستجد التفاصيل والأسعار.",
@@ -127,8 +135,8 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["استكشف التكوينات", "Explorer les formations", "Explore courses", "Eğitimleri keşfet", "Explorar cursos"]
     ),
   },
-  {
-    keys: ["موقع", "عنوان", "وين", "أين", "خريطة", "address", "adresse", "location", "où", "ou", "map", "مقر", "adres", "konum", "nerede", "dirección", "direccion", "dónde", "donde"],
+  { id: "address", priority: 2,
+    keys: ["موقع", "عنوان", "مكان", "مكانكم", "موقعكم", "مقركم", "عيادة", "العيادة", "تقعون", "المدينة", "كين", "وين", "أين", "خريطة", "address", "adresse", "location", "où", "ou", "map", "مقر", "adres", "konum", "nerede", "dirección", "direccion", "dónde", "donde"],
     reply: R(
       "تجد عنوان المركز وخرائط Google ومعلومات الاتصال كاملة في صفحة التواصل، وكذلك أسفل كل صفحة في التذييل. الموقع في الجزائر العاصمة — بيرخادم.",
       "L'adresse du centre, la carte Google Maps et les coordonnées figurent sur la page Contact, ainsi qu'en pied de page. Le centre se situe à Alger — Bir Khadem.",
@@ -139,8 +147,8 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["افتح صفحة التواصل", "Page contact", "Contact page", "İletişim sayfası", "Página de contacto"]
     ),
   },
-  {
-    keys: ["وقت", "توقيت", "ساعات", "يفتح", "أيام", "مفتوح", "horaires", "heures", "ouvert", "hours", "schedule", "open", "saat", "çalışma", "horario", "abierto"],
+  { id: "hours", priority: 3,
+    keys: ["وقت", "توقيت", "اوقات", "أوقات", "دوام", "ساعات العمل", "توقيت العمل", "يفتح", "يغلق", "ساعات", "يفتح", "أيام", "مفتوح", "horaires", "heures", "ouvert", "hours", "schedule", "open", "saat", "çalışma", "horario", "abierto"],
     reply: R(
       "أوقات العمل تظهر عند الحجز: التقويم الخاص بكل أخصائي يعرض أيامه وساعاته الفعلية، وتُحدَّث لحظياً مع كل حجز جديد حتى لا يحدث أي تعارض.",
       "Les horaires apparaissent à la réservation : le calendrier de chaque spécialiste affiche ses jours et heures réels, mis à jour en temps réel à chaque réservation.",
@@ -151,8 +159,8 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["شاهد الأوقات المتاحة", "Voir les disponibilités", "See availability", "Uygun saatleri gör", "Ver disponibilidad"]
     ),
   },
-  {
-    keys: ["إلغاء", "الغاء", "ألغي", "تأجيل", "تغيير موعد", "annuler", "annulation", "cancel", "iptal", "cancelar", "cancelación", "cancelacion", "déplacer", "reporter"],
+  { id: "cancel", priority: 3,
+    keys: ["إلغاء", "الغاء", "نلغي", "ألغي", "الغي", "تأجيل", "اجل", "تعديل الموعد", "نغيّر الموعد", "ألغي", "تأجيل", "تغيير موعد", "annuler", "annulation", "cancel", "iptal", "cancelar", "cancelación", "cancelacion", "déplacer", "reporter"],
     reply: R(
       "يمكنك إلغاء موعدك من صفحة «مواعيدي» في أي وقت، ويُستحسن ذلك قبل 24 ساعة على الأقل حتى يستفيد غيرك من الوقت. الأخصائي أو الإدارة قد يقترحان لك موعداً بديلاً عند الضرورة.",
       "Vous pouvez annuler votre rendez-vous depuis « Mes rendez-vous » à tout moment, idéalement au moins 24 heures à l'avance. Le spécialiste ou l'administration peut aussi vous proposer un créneau alternatif si nécessaire.",
@@ -163,7 +171,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["إدارة مواعيدي", "Mes rendez-vous", "My appointments", "Randevularım", "Mis citas"]
     ),
   },
-  {
+  { id: "ebooks", priority: 1,
     keys: ["كتاب", "كتب", "مطالعة", "ebook", "livre", "livres", "lecture", "reading", "kitap", "libro", "libros"],
     reply: R(
       "مكتبتنا الإلكترونية توفر كتباً تفاعلية بأسطر إجابات يمكنك تعبئتها داخل الموقع مباشرة — بلا تحميل ولا حساب بريدي، وتُحفظ إجاباتك في حسابك.",
@@ -175,7 +183,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["افتح المكتبة الإلكترونية", "Ouvrir la bibliothèque", "Open the library", "Kütüphaneyi aç", "Abrir la biblioteca"]
     ),
   },
-  {
+  { id: "articles", priority: 1,
     keys: ["مقال", "مقالات", "ابحاث", "أبحاث", "article", "articles", "blog", "recherche", "makale", "artículo", "articulo", "artículos", "articulos"],
     reply: R(
       "ينشر فريقنا مقالات علمية مبسطة في علم النفس والأرطفونية — متاحة للجميع مجاناً في صفحة المقالات.",
@@ -187,7 +195,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["اقرأ المقالات", "Lire les articles", "Read articles", "Makaleleri oku", "Leer artículos"]
     ),
   },
-  {
+  { id: "invoice", priority: 2,
     keys: ["فاتورة", "فواتير", "invoice", "facture", "fatura", "factura", "إيصال"],
     reply: R(
       "تُصدر فاتورة PDF رسمية بشعار المركز تلقائياً عند انتهاء الجلسة المدفوعة، ويمكن تحميلها من المواعيد المؤكدة/المنتهية. الفاتورة تظهر بلسان واجهة المستخدم المختار.",
@@ -199,7 +207,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["عرض مواعيدي", "Mes rendez-vous", "My appointments", "Randevularım", "Mis citas"]
     ),
   },
-  {
+  { id: "notifications", priority: 1,
     keys: ["إشعار", "اشعار", "إشعارات", "notification", "push", "rappel", "rappel", "bildirim", "notificación", "notificacion", "recordatorio", "تذكير"],
     reply: R(
       "إشعارات الموقع (الجرس) تصلك تلقائياً عند كل تحديث، وإشعارات الجهاز (Push) اختيارية: فعّلها من جرس الإشعارات لتصلك تذكيرات المواعيد حتى والموقع مغلق. ويمكنك تعطيلها في أي وقت من متصفحك.",
@@ -211,7 +219,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["متابعة إشعاراتي", "Mes notifications", "My notifications", "Bildirimlerim", "Mis notificaciones"]
     ),
   },
-  {
+  { id: "install", priority: 1,
     keys: ["تحميل", "تثبيت", "تطبيق", "install", "pwa", "application", "appli", "uygulama", "indir", "instalar", "aplicación", "aplicacion", "app"],
     reply: R(
       "يمكنك تثبيت الموقع كتطبيق على هاتفك: من قائمة المتصفح اختر «إضافة إلى الشاشة الرئيسية» أو «تثبيت التطبيق». بعد التثبيت يعمل الموقع حتى دون اتصال بالإنترنت.",
@@ -223,7 +231,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["تعرف على التثبيت", "Guide d'installation", "Install guide", "Kurulum rehberi", "Guía de instalación"]
     ),
   },
-  {
+  { id: "language", priority: 2,
     keys: ["لغة", "ترجمة", "language", "langue", "traduction", "dil", "çeviri", "idioma", "lenguaje", "traducción", "traduccion", "arabe", "français", "anglais", "turkish", "espagnol", "عربي", "فرنسي", "انجليزي", "تركي", "اسباني"],
     reply: R(
       "الموقع متوفر بخمس لغات: العربية، الفرنسية، الإنجليزية، التركية والإسبانية. غيّر اللغة من زر الكرة الأرضية في الأعلى — كل الصفحات والنوافذ والإشعارات ستترجم تلقائياً.",
@@ -235,7 +243,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["تجربة تغيير اللغة", "Changer de langue", "Change language", "Dili değiştir", "Cambiar idioma"]
     ),
   },
-  {
+  { id: "account", priority: 1,
     keys: ["حساب", "تسجيل", "انشاء", "إنشاء", "سجل", "register", "signup", "sign up", "compte", "inscrire", "kayıt", "hesap", "registro", "cuenta", "crear cuenta"],
     reply: R(
       "أنشئ حسابك من صفحة الدخول بتبويب «حساب جديد»: أدخل اسمك الكامل ورقم هاتفك وكلمة مرور قوية. حساب العميل يُنشأ فوراً، أما حسابات الأخصائيين فتُنشأ من الإدارة.",
@@ -247,8 +255,8 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["صفحة الدخول", "Page de connexion", "Login page", "Giriş sayfası", "Página de inicio de sesión"]
     ),
   },
-  {
-    keys: ["كلمة السر", "كلمة المرور", "نسيت", "password", "forgot", "mot de passe", "oublié", "oublie", "şifre", "unuttum", "contraseña", "olvidado", "recuperar"],
+  { id: "password", priority: 2,
+    keys: ["كلمة السر", "كلمة المرور", "كلمه السر", "كلمه المرور", "غيّر", "غيرها", "نسيت", "password", "forgot", "mot de passe", "oublié", "oublie", "şifre", "unuttum", "contraseña", "olvidado", "recuperar"],
     reply: R(
       "نسيت كلمة المرور؟ من صفحة الدخول اضغط «نسيت كلمة المرور» وأرسل طلب استعادة — ستعالجه الإدارة وتعطيك كلمة مرور مؤقتة. وإن كنت سجلت عبارة استرجاع عند التسجيل يمكنك استعادة الحساب بنفسك فوراً.",
       "Mot de passe oublié ? Depuis la page de connexion, cliquez sur « Mot de passe oublié » et envoyez une demande — l'administration la traitera et vous donnera un mot de passe temporaire. Si vous avez enregistré une phrase de récupération, vous pouvez récupérer votre compte vous-même immédiatement.",
@@ -259,7 +267,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["استعادة حسابي", "Récupérer mon compte", "Recover my account", "Hesabımı kurtar", "Recuperar mi cuenta"]
     ),
   },
-  {
+  { id: "google", priority: 3,
     keys: ["google", "جوجل", "قوقل", "oauth", "gmail"],
     reply: R(
       "يمكنك الدخول بحساب Google من بوابة العملاء: اضغط زر «الدخول بحساب Google» بجانب الدخول بالهاتف. أول دخول ينشئ حساب عميل مرتبطاً ببريدك تلقائياً، وتبقى طريقة الهاتف وكلمة المرور متاحة دائماً.",
@@ -271,7 +279,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["بوابة العملاء", "Portail client", "Client portal", "Danışan portalı", "Portal del cliente"]
     ),
   },
-  {
+  { id: "privacy", priority: 1,
     keys: ["خصوصية", "سرية", "بيانات", "privacy", "confidential", "confidentialité", "données", "donnees", "gizlilik", "veri", "privacidad", "datos", "confidencial"],
     reply: R(
       "السرية التامة مبدأ أساسي عندنا: كل ما يُقال في الجلسة يبقى ضمن إطار المركز، ولا تُشارك بياناتك مع أي طرف تجاري. تفاصيل كاملة في صفحة «الخصوصية» أسفل الموقع.",
@@ -283,7 +291,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["اقرأ سياسة الخصوصية", "Politique de confidentialité", "Privacy policy", "Gizlilik politikası", "Política de privacidad"]
     ),
   },
-  {
+  { id: "children", priority: 2,
     keys: ["طفل", "أطفال", "اطفال", "طفلي", "child", "kid", "enfant", "bébé", "bebe", "çocuk", "niño", "niña", "nino", "niño", "pediatric", "pédiatrie"],
     reply: R(
       "نستقبل الأطفال من سنّ 4 سنوات في جلسات الأرطفونية والجمهور النفسي المناسب، بحضور أحد الوالدين عند الحاجة. يحدد التقييم الأولي برنامج العمل الأنسب لكل طفل.",
@@ -295,7 +303,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["حجز موعد لطفل", "Réserver pour un enfant", "Book for a child", "Çocuk için randevu", "Reservar para un niño"]
     ),
   },
-  {
+  { id: "anxiety", priority: 2,
     keys: ["قلق", "توتر", "اكتئاب", "ضغط", "خوف", "انكسار", "dépression", "anxiété", "stress", "depression", "anxiety", "kaygı", "stres", "depresyon", "ansiedad", "estrés", "estres", "triste"],
     reply: R(
       "أفهم شعورك، وطلب المساعدة خطوة شجاعة. فريقنا من الأخصائيين جاهز للاستماع إليك ومساعدتك بخطة علاج مناسبة — احجز جلستك الأولى وسيكون هناك من يصغي إليك بهدوء وتقدير.",
@@ -307,7 +315,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["احجز جلستك الأولى", "Réserver ma première séance", "Book my first session", "İlk seansımı ayarla", "Reservar mi primera sesión"]
     ),
   },
-  {
+  { id: "testimonials", priority: 1,
     keys: ["شهادة", "شهادات", "تجربة", "تجارب", "testimonial", "certificate", "témoignage", "temoignage", "certificat", "referans", "testimonio", "certificado", "opinión", "opinion"],
     reply: R(
       "قسم «شهادات وقصص نجاح» يعرض تجارب حقيقية لعملائنا بموافقتهم وبتصريح كامل، مع حماية الخصوصية (لا أسماء كاملة أبداً). ويمكنك أنت أيضاً مشاركة تجربتك من نفس الصفحة.",
@@ -319,7 +327,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["اقرأ الشهادات", "Voir les témoignages", "Read testimonials", "Referansları oku", "Leer testimonios"]
     ),
   },
-  {
+  { id: "calendar", priority: 2,
     keys: ["تقويم", "أضف", "google calendar", "calendar", "ical", "ics", "takvim", "calendario", "agenda", "ajouter au calendrier"],
     reply: R(
       "بعد تأكيد موعدك ستجد زر «إضافة للتقويم»: أضف الموعد إلى تقويم Google مباشرة أو حمّل ملف .ics لأي تطبيق تقويم، مع تنبيه قبل الموعد بساعة.",
@@ -331,8 +339,8 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["إدارة مواعيدي", "Mes rendez-vous", "My appointments", "Randevularım", "Mis citas"]
     ),
   },
-  {
-    keys: ["واتساب", "whatsapp", "wa.me", "واتساب", "numéro", "رقم الهاتف", "telefon", "teléfono", "telefono", "contact", "اتصل", "call"],
+  { id: "contact", priority: 2,
+    keys: ["واتساب", "رقمكم", "نتصل", "نتواصل", "whatsapp", "wa.me", "واتساب", "numéro", "رقم الهاتف", "telefon", "teléfono", "telefono", "contact", "اتصل", "call"],
     reply: R(
       "زر «راسلنا على واتساب» ثابت في أسفل الشاشة في كل الصفحات — اضغطه للتواصل المباشر مع فريقنا. يمكنك كذلك الاطلاع على الهاتف والبريد من صفحة التواصل أو التذييل.",
       "Le bouton « Écrivez-nous sur WhatsApp » est fixe en bas de l'écran sur toutes les pages — appuyez-le pour nous contacter directement. Le téléphone et l'e-mail figurent aussi sur la page Contact et le pied de page.",
@@ -343,7 +351,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["صفحة التواصل", "Page contact", "Contact page", "İletişim sayfası", "Página de contacto"]
     ),
   },
-  {
+  { id: "whoami", priority: 0,
     keys: ["من انت", "من أنت", "روبوت", "بوت", "robot", "who are you", "qui es-tu", "tu es un", "kimsin", "bot musun", "quién eres", "quien eres", "eres un"],
     reply: R(
       "أنا المساعد الذكي لمركز آيت تقرين — أجيب عن أسئلتك حول الحجوزات والخدمات والتكوينات وأوجهك للصفحة المناسبة، وأعمل حتى دون إنترنت. للاستشارة المتخصصة احجز جلسة مع أحد أخصائيينا.",
@@ -355,7 +363,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["تحدث إلى أخصائي", "Parler à un spécialiste", "Talk to a specialist", "Bir uzmanla konuş", "Hablar con un especialista"]
     ),
   },
-  {
+  { id: "help", priority: 0,
     keys: ["مساعدة", "ساعدني", "help", "aide", "yardım", "ayuda", "كيف", "how", "comment", "nasıl", "cómo", "como"],
     reply: R(
       "أنا هنا لمساعدتك! يمكنني الإجابة عن: الحجز والمواعيد، الأسعار، كوبونات الخصم، التكوينات، الكتب الإلكترونية، المقالات، الفواتير، إشعارات التذكير، تثبيت التطبيق، وتغيير اللغة. اسألني أو اختر أحد الأسئلة السريعة أسفل الشات.",
@@ -367,7 +375,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       ["ابدأ من الرئيسية", "Aller à l'accueil", "Go to home", "Ana sayfaya git", "Ir al inicio"]
     ),
   },
-  {
+  { id: "greeting", priority: 0,
     keys: ["مرحبا", "السلام", "سلام", "أهلا", "اهلا", "hello", "hi", "bonjour", "salut", "مرحبتين", "صباح", "مساء", "merhaba", "selam", "hola", "buenos", "buenas", "hey"],
     reply: R(
       "مرحباً بك في مركز آيت تقرين! أنا مساعدك الذكي — أجيب عن أسئلتك حول الحجوزات والخدمات والتكوينات، وأوجهك للصفحة المناسبة. كيف أساعدك؟",
@@ -377,7 +385,7 @@ const RULES: { keys: string[]; reply: BotReply; weight?: number }[] = [
       "¡Bienvenido al Centro Ait Tegrine! Soy su asistente inteligente — respondo sus preguntas sobre reservas, servicios y cursos y le guío a la página adecuada. ¿En qué puedo ayudarle?",
     ),
   },
-  {
+  { id: "thanks", priority: 0,
     keys: ["شكرا", "شكراً", "thanks", "thank", "merci", "teşekkür", "sağol", "tesekkür", "gracias"],
     reply: R(
       "على الرحب والسعة! إن احتجت أي شيء آخر أنا هنا دائماً. نتمنى لك يوماً طيباً 🌿",
@@ -444,11 +452,22 @@ export async function POST(req: NextRequest) {
     if (!normMsg) return ok({ reply: null });
     const words = normMsg.split(" ").filter((w) => w.length > 1);
 
-    /* 1) القواعد المدمجة — أعلى تقييم يفوز (وليس أول مطابقة) */
-    let best: { reply: BotReply; score: number } | null = null;
+    /* 0) ★ v3.10: النوايا المباشرة — أزرار الأسئلة السريعة ترسل معرّف القاعدة
+       فتجيب الإجابة الصحيحة حرفياً مهما كانت لغة السؤال (بلا تخمين إطلاقاً) */
+    const intent = String(b?.intent || "").trim();
+    if (intent) {
+      const byIntent = RULES.find((r) => r.id === intent);
+      if (byIntent) return ok({ reply: byIntent.reply });
+    }
+
+    /* 1) القواعد المدمجة — أعلى تقييم يفوز (وليس أول مطابقة)
+       ★ v3.10: عند التعادل تفوز الأولوية الأعلى (إلغاء > حجز، أوقات العمل > حجز، ...)
+       كان التعادل يُحسم بترتيب القواعد فكانت «ما هي أوقات العمل؟» تجيب رد الحجز! */
+    let best: { reply: BotReply; score: number; priority: number } | null = null;
     for (const rule of RULES) {
       const sc = scoreRule(normMsg, words, rule.keys);
-      if (sc > 0 && (!best || sc > best.score)) best = { reply: rule.reply, score: sc };
+      if (sc > 0 && (!best || sc > best.score || (sc === best.score && (rule.priority || 0) > best.priority)))
+        best = { reply: rule.reply, score: sc, priority: rule.priority || 0 };
     }
     if (best && best.score >= 2) {
       return ok({ reply: best.reply });

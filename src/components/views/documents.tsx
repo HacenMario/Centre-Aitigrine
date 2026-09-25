@@ -107,7 +107,7 @@ export default function Documents({ navigate }: { navigate: Navigate }) {
       ? s?.centerName
       : pickTri(s as unknown as Record<string, unknown>, "centerName", lang)) || t("app.name");
   const centerSub = lang === "ar" ? t("app.subLine") : t("app.subLine");
-  const centerAddress = lang === "ar" ? s?.address : (s?.addressFr || s?.addressEn || s?.address || "");
+  const centerAddress = pickTri(s as unknown as Record<string, unknown>, "address", lang) || s?.address || "";
 
   /* الأخصائي المعالج بلغة الوثيقة — يظهر في الوثائق السريرية المناسبة */
   const specTitle = specialist

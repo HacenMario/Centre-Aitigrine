@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Navigate } from "@/lib/nav";
-import { TriInput, TriTextarea, type Tri } from "@/components/tri-input";
+import { TriInput, TriTextarea, type Tri , TRI3 } from "@/components/tri-input";
 
 type RecordData = {
   patientId: string;
@@ -256,7 +256,7 @@ function RecordEditorInner({ patientId, onBack, navigate }: { patientId: string;
       <SectionCard icon={MessageCircleQuestion} title={t("pat.consultBlock")}>
         <div className="space-y-1.5">
           <Label>{t("pat.symptoms")}</Label>
-          <TriTextarea
+          <TriTextarea langs={TRI3}
             value={triOf("symptoms")}
             onChange={(v) => updTri("symptoms", v)}
             rows={3}
@@ -265,7 +265,7 @@ function RecordEditorInner({ patientId, onBack, navigate }: { patientId: string;
         </div>
         <div className="space-y-1.5">
           <Label>{t("pat.motive")}</Label>
-          <TriTextarea
+          <TriTextarea langs={TRI3}
             value={triOf("motive")}
             onChange={(v) => updTri("motive", v)}
             rows={2}
@@ -279,7 +279,7 @@ function RecordEditorInner({ patientId, onBack, navigate }: { patientId: string;
         <div className="grid sm:grid-cols-[1fr_auto_auto] gap-3 items-start">
           <div className="space-y-1.5">
             <Label>{t("pat.diagnosis")}</Label>
-            <TriInput value={triOf("diagnosis")} onChange={(v) => updTri("diagnosis", v)} />
+            <TriInput langs={TRI3} value={triOf("diagnosis")} onChange={(v) => updTri("diagnosis", v)} />
           </div>
           <div className="space-y-1.5">
             <Label>{t("pat.system")}</Label>
@@ -301,7 +301,7 @@ function RecordEditorInner({ patientId, onBack, navigate }: { patientId: string;
 
       {/* ── الخطة العلاجية ── */}
       <SectionCard icon={ClipboardList} title={t("pat.planBlock")}>
-        <TriTextarea
+        <TriTextarea langs={TRI3}
           value={triOf("treatmentPlan")}
           onChange={(v) => updTri("treatmentPlan", v)}
           rows={4}

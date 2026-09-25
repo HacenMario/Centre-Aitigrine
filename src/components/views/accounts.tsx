@@ -30,7 +30,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Pencil, Trash2, Power, Search, UsersRound, Phone, KeyRound, BellRing, X } from "lucide-react";
 import { toast } from "sonner";
-import { TriInput, TriTextarea, flattenTri, triFrom, triName } from "@/components/tri-input";
+import { TriInput, TriTextarea, flattenTri, triFrom, triName, TRI3 } from "@/components/tri-input";
 import { FullAvatar } from "@/components/full-image";
 import Pagination from "@/components/pagination";
 import { cn } from "@/lib/utils";
@@ -426,7 +426,7 @@ function AccountForm({
             </div>
           </div>
           {/* اللقب المهني — ثلاثي اللغة */}
-          <TriInput
+          <TriInput langs={TRI3}
             label={t("acc.title")}
             value={triFrom(value as Record<string, unknown>, "title")}
             onChange={(v) => upd({ ...flattenTri("title", v) } as Partial<Account> & { password?: string })}
@@ -495,7 +495,7 @@ function AccountForm({
         </div>
       )}
 
-      <TriTextarea
+      <TriTextarea langs={TRI3}
         label={t("acc.bio")}
         value={triFrom(value as Record<string, unknown>, "bio")}
         onChange={(v) => upd({ ...flattenTri("bio", v) } as Partial<Account> & { password?: string })}

@@ -1,13 +1,20 @@
 /**
- * الفاتورة PDF (v3.9.0) — ★ بالفرنسية دائماً بطلب صاحب المركز
- * «لا أريدها بالعربية، أريدها كاملة بالفرنسية دائماً وتكون منضمة ومناسبة»
- *
- * - تخطيط LTR فرنسي ثابت: ترويسة (شعار + المركز) → رقم وتاريخ → بيانات العميل والجلسة
- *   → جدول المبالغ → الصافي → حالة الدفع → تذييل.
+ * الفاتورة PDF — ★ بالفرنسية دائماً بطلب صاحب المركز، تخطيط LTR فرنسي منضبط
  * - القيم الواردة من قاعدة البيانات (أسماء، خدمة) قد تكون بالعربية: pdfkit+fontkit
  *   يشكّل العربية ويصحح ترتيبها، وتُثبَّت المسافات بين الحروف العربية عبر NBSP
  *   (الحل المُثبت بصرياً في v3.8.1) — دون أي تأثير على النص الفرنسي.
  * - الملف: facture-<num>.pdf في GridFS (idempotent) — تاريخ الإصدار بتوقيت الجزائر GMT+1
+ *
+ * ── v3.10.0 — إصلاح «الفاتورة في صفحتين» الجذري ──
+ * السبب: التذييل كان يُرسم عند y=772/786 بينما حد الصفحة السفلي 792 —
+ * السطر الأخير كان يفيض بضع نقاط فيفتح PDFKit صفحة ثانية لسطر واحد!
+ * الحل: تذييل مرفوع (752/766) بنصوص أقصر مضمونة بسطر واحد بالقياس الفعلي widthOfString،
+ * وكل المحتوى ينتهي قبل ~460 بفاصل آمن ضخم — الصفحة الواحدة مضمونة هندسياً.
+ *
+ * ── v3.10.0 — توحيد Mode/Désignation ──
+ * سطر الجدول يذكر وضع الجلسة بنفس صياغة سطر Mode (لا تناقض بين
+ * «Présentielle au centre» / «À distance» ونص عمود DÉSIGNATION)،
+ * مع قصّ عمود DÉSIGNATION بالقياس الفعلي فلا يتجاوز عمود MONTANT أبداً.
  */
 import fs from "fs";
 import path from "path";
@@ -38,8 +45,10 @@ const LABELS: Record<string, string> = {
   paymentStatus: "Statut du paiement",
   paid: "Payé",
   unpaid: "Non payé",
-  footer1: "Cette facture est émise électroniquement par le système du Centre Ait Tegrine — document officiel.",
-  footer2: "Merci de votre confiance — nous vous souhaitons santé et bien-être.",
+  footer1: "Facture émise électroniquement par le Centre Ait Tegrine — document officiel.",
+  footer2: "Merci de votre confiance — santé et bien-être.",
+  remoteShort: "à distance (vidéo)",
+  onsiteShort: "présentielle au centre",
   psych: "Séance psychologique",
   art: "Séance d'art-thérapie",
   currency: "DA",
@@ -92,7 +101,20 @@ const hasArabic = (s: string) => /[\u0600-\u06FF]/.test(String(s ?? ""));
 /** القيم: عربية فقط تحتاج تثبيت المسافات — الفرنسية تُرسم كما هي */
 const V = (s: string) => (hasArabic(s) ? fixArabicSpacing(String(s)) : String(s ?? ""));
 
-/** توليد بايتات PDF — دائماً بالفرنسية وتخطيط LTR منضبط */
+/** قصّ نص ليتسع لعرض معيّن بالقياس الفعلي — يمنع أي تجاوز عمودي */
+function fitText(doc: PDFKit.PDFDocument, s: string, maxW: number): string {
+  let out = String(s ?? "").trim();
+  if (!out) return out;
+  try {
+    while (out.length > 1 && doc.widthOfString(out) > maxW) {
+      out = out.slice(0, -1).replace(/\s+\S*$/, "");
+      if (doc.widthOfString(out + " …") <= maxW) return out + " …";
+    }
+  } catch {}
+  return out;
+}
+
+/** توليد بايتات PDF — دائماً بالفرنسية وتخطيط LTR منضبط — صفحة واحدة مضمونة */
 export function renderInvoicePdf(d: InvoiceData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const L = LABELS;
@@ -169,14 +191,15 @@ export function renderInvoicePdf(d: InvoiceData): Promise<Buffer> {
 
     y += 8;
 
-    /* ══ 3) جدول المبالغ ══ */
+    /* ══ 3) جدول المبالغ — صفحة واحدة: كل المحتوى ينتهي هنا قبل ~460 (حد الأمان 720) ══ */
     const tableX = 50;
     const tableW = 495;
     const AMT_X = 380; /* بداية عمود المبلغ */
+    const DESC_MAX_W = AMT_X - tableX - 30; /* أقصى عرض لعمود DÉSIGNATION قبل عمود المبلغ */
 
     doc.rect(tableX, y, tableW, 26).fill(TEAL);
     doc.font("bodyb").fontSize(10.5).fillColor("#ffffff");
-    doc.text(L.designation, tableX + 12, y + 7, { width: AMT_X - tableX - 24 });
+    doc.text(L.designation, tableX + 12, y + 7, { width: DESC_MAX_W });
     doc.text(L.amount, AMT_X, y + 7, { width: tableX + tableW - AMT_X - 12, align: "right" });
     y += 26;
 
@@ -185,13 +208,18 @@ export function renderInvoicePdf(d: InvoiceData): Promise<Buffer> {
       doc.rect(tableX, y, tableW, h).fill(bold ? "#e6f5f3" : "#ffffff");
       doc.strokeColor(LINE).lineWidth(0.5).rect(tableX, y, tableW, h).stroke();
       doc.font(bold ? "bodyb" : "body").fontSize(10.5).fillColor(INK);
-      doc.text(label, tableX + 12, y + 7, { width: AMT_X - tableX - 24 });
-      doc.text(value, AMT_X, y + 7, { width: tableX + tableW - AMT_X - 12, align: "right" });
+      /* ★ v3.10: قصّ بالقياس الفعلي — لا يتجاوز النص عمود المبلغ مهما طال */
+      doc.text(fitText(doc, label, DESC_MAX_W), tableX + 12, y + 7, { width: DESC_MAX_W, lineBreak: false });
+      doc.text(value, AMT_X, y + 7, { width: tableX + tableW - AMT_X - 12, align: "right", lineBreak: false });
       y += h;
     };
 
-    row(V(d.serviceTitle || L.psych).slice(0, 62), money(d.price));
-    if (d.discount > 0) row(`${L.discount}${d.couponCode ? ` (${d.couponCode})` : ""}`.slice(0, 62), `- ${money(d.discount)}`);
+    /* ★ v3.10: DÉSIGNATION يذكّر وضع الجلسة بنفس صياغة سطر Mode — لا تناقض أبداً */
+    const isRemote = d.mode === "remote";
+    const desigBase = V(d.serviceTitle || L.psych);
+    const desigSuffix = isRemote ? L.remoteShort : L.onsiteShort;
+    row(`${desigBase} — ${desigSuffix}`, money(d.price));
+    if (d.discount > 0) row(`${L.discount}${d.couponCode ? ` (${d.couponCode})` : ""}`, `- ${money(d.discount)}`);
     row(L.netDue, money(d.total), true);
 
     /* حالة الدفع */
@@ -200,13 +228,14 @@ export function renderInvoicePdf(d: InvoiceData): Promise<Buffer> {
     doc.roundedRect(tableX, y, 190, 24, 12).fill(paid ? "#ecfdf5" : "#fffbeb");
     doc.strokeColor(paid ? "#a7f3d0" : "#fde68a").lineWidth(1).roundedRect(tableX, y, 190, 24, 12).stroke();
     doc.font("bodyb").fontSize(10).fillColor(paid ? "#047857" : "#b45309");
-    doc.text(`${L.paymentStatus} : ${paid ? L.paid : L.unpaid}`, tableX + 12, y + 7, { width: 170 });
+    doc.text(`${L.paymentStatus} : ${paid ? L.paid : L.unpaid}`, tableX + 12, y + 7, { width: 170, lineBreak: false });
     y += 34;
 
-    /* تذييل ثابت أسفل الصفحة */
+    /* ══ تذييل مرفوع (v3.10) — 752/766 < حد الصفحة 792 بفاصل مريح
+       الصفحة الواحدة مضمونة: حتى لو التف نص التذييل (مستحيل بعد القياس) يبقى داخل الحد */
     doc.font("body").fontSize(8.5).fillColor(GRAY);
-    doc.text(L.footer1, 50, 772, { width: 495, align: "center", lineGap: 1 });
-    doc.text(L.footer2, 50, 786, { width: 495, align: "center" });
+    doc.text(L.footer1, 50, 752, { width: 495, align: "center", lineGap: 0, lineBreak: false });
+    doc.text(L.footer2, 50, 766, { width: 495, align: "center", lineBreak: false });
 
     doc.end();
   });
@@ -214,9 +243,10 @@ export function renderInvoicePdf(d: InvoiceData): Promise<Buffer> {
 
 /**
  * ضمان وجود الفاتورة الفرنسية للجلسة (idempotent)
- * ★ v3.9.0: ملف واحد بالفرنسية: facture-<num>.pdf — الجلسات التي تحمل رقماً قديماً
- *   تُولَّد لها الحقيبة الفرنسية الجديدة عند أول طلب (الأسماء القديمة invoice-*.pdf لا تُلمس)
+ * ★ v3.10: إصدار التخطيط (invoiceVersion) — الفواتير القديمة (صفحتان بسبب تذييل الفائض)
+ *   تُعاد توليدها تلقائياً بالتخطيط الجديد (صفحة واحدة) عند أول طلب
  */
+const INVOICE_VERSION = "v3.10";
 export async function ensureInvoice(appointmentId: string, _lang?: InvoiceLang): Promise<{ number: string; file: string } | null> {
   void _lang;
   const appt = await Appointment.findById(appointmentId).lean<Record<string, unknown> | null>();
@@ -226,7 +256,8 @@ export async function ensureInvoice(appointmentId: string, _lang?: InvoiceLang):
   const file = `facture-${number || "draft"}.pdf`;
   if (number) {
     const meta = await mediaMeta(file).catch(() => null);
-    if (meta) return { number, file };
+    /* الفاتورة الموجودة تُعاد فقط إن كانت بنفس إصدار التخطيط الحالي */
+    if (meta && String(appt.invoiceVersion || "") === INVOICE_VERSION) return { number, file };
   }
 
   const [st, client, spec] = await Promise.all([
@@ -273,14 +304,13 @@ export async function ensureInvoice(appointmentId: string, _lang?: InvoiceLang):
   const fileName = `facture-${invNumber}.pdf`;
   await putMedia(fileName, buf, "application/pdf");
 
-  /* نربط الرقم بالموعد مرة واحدة */
-  if (!number) {
-    await Appointment.findByIdAndUpdate(appointmentId, {
-      invoiceNumber: invNumber,
-      invoiceFile: fileName,
-      invoiceAt: now,
-    });
-  }
+  /* نربط الرقم بالإصدار والموعد — الإصدار يضمن إعادة توليد أي فاتورة قديمة */
+  await Appointment.findByIdAndUpdate(appointmentId, {
+    invoiceNumber: invNumber,
+    invoiceFile: fileName,
+    invoiceAt: number ? (appt.invoiceAt as Date || now) : now,
+    invoiceVersion: INVOICE_VERSION,
+  });
 
   void mediaBucket;
   return { number: invNumber, file: fileName };

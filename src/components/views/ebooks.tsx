@@ -30,7 +30,7 @@ import {
   BookOpenText, Plus, Pencil, Trash2, Power, PenLine, Lock, ArrowRight, ArrowLeft, ShieldCheck, MessagesSquare, X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { TriInput, TriTextarea, triFrom, flattenTri, pickTri } from "@/components/tri-input";
+import { TriInput, TriTextarea, triFrom, flattenTri, pickTri, TRI3 } from "@/components/tri-input";
 import FullImage from "@/components/full-image";
 import Pagination from "@/components/pagination";
 import { cn } from "@/lib/utils";
@@ -440,13 +440,13 @@ function EbookEditor({ ebook, onChange, onDone }: { ebook: Partial<Ebook> | null
 
   return (
     <div className="space-y-4">
-      <TriInput
+      <TriInput langs={TRI3}
         label={t("common.title")}
         value={triFrom(ebook as Record<string, unknown>, "title")}
         onChange={(v) => upd({ ...flattenTri("title", v) } as Partial<Ebook>)}
       />
       <div className="grid sm:grid-cols-2 gap-3">
-        <TriTextarea
+        <TriTextarea langs={TRI3}
           label={t("eb.summary")}
           value={triFrom(ebook as Record<string, unknown>, "summary")}
           onChange={(v) => upd({ ...flattenTri("summary", v) } as Partial<Ebook>)}

@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Power, CalendarDays, Clock, UserRound, Images, X, MoveHorizontal, UsersRound, CircleCheckBig } from "lucide-react";
 import { toast } from "sonner";
-import { TriInput, TriTextarea, flattenTri, pickTri, triFrom, triName } from "@/components/tri-input";
+import { TriInput, TriTextarea, flattenTri, pickTri, triFrom, triName, TRI3 } from "@/components/tri-input";
 import FullImage from "@/components/full-image";
 import ScrollRow from "@/components/scroll-row";
 import Pagination from "@/components/pagination";
@@ -346,7 +346,7 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <TriInput
+              <TriInput langs={TRI3}
                 label={t("common.title")}
                 value={triFrom(editing as Record<string, unknown>, "title")}
                 onChange={(v) => setEditing({ ...editing, ...flattenTri("title", v) })}
@@ -391,7 +391,7 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
               </div>
             </div>
             <div className="space-y-2">
-              <TriTextarea
+              <TriTextarea langs={TRI3}
                 label={t("common.description")}
                 value={triFrom(editing as Record<string, unknown>, "description")}
                 onChange={(v) => setEditing({ ...editing, ...flattenTri("description", v) })}

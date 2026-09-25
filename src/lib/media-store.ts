@@ -29,6 +29,14 @@ export async function mediaBucket(): Promise<GridFSBucket> {
 /** حفظ ملف في GridFS */
 export async function putMedia(name: string, buf: Buffer, contentType: string): Promise<void> {
   const bucket = await mediaBucket();
+  /* ★ v3.10: حذف أي نسخ سابقة بنفس الاسم أولاً — كان GridFS يراكم تكرارات
+     والقراءة (limit:1) قد تعيد النسخة القديمة! */
+  try {
+    const old = await bucket.find({ filename: name }, { limit: 20 }).toArray();
+    for (const f of old) {
+      try { await bucket.delete(f._id); } catch {}
+    }
+  } catch {}
   await new Promise<void>((resolve, reject) => {
     const up = bucket.openUploadStream(name, { contentType });
     up.on("finish", () => resolve());

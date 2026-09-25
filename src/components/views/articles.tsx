@@ -34,7 +34,7 @@ import {
   Newspaper, Plus, Pencil, Trash2, Power, X, ArrowRight, ArrowLeft, ShieldCheck, PenLine, Clock,
 } from "lucide-react";
 import { toast } from "sonner";
-import { TriInput, TriTextarea, flattenTri, localeOf, pickTri, triFrom } from "@/components/tri-input";
+import { TriInput, TriTextarea, flattenTri, localeOf, pickTri, triFrom, TRI3 } from "@/components/tri-input";
 import FullImage from "@/components/full-image";
 import Pagination from "@/components/pagination";
 import { cn } from "@/lib/utils";
@@ -513,12 +513,12 @@ function ArticleEditor({
 
   return (
     <div className="space-y-4">
-      <TriInput
+      <TriInput langs={TRI3}
         label={t("common.title")}
         value={triFrom(article as Record<string, unknown>, "title")}
         onChange={(v) => upd({ ...flattenTri("title", v) } as Partial<Article>)}
       />
-      <TriTextarea
+      <TriTextarea langs={TRI3}
         label={t("art.summary")}
         value={triFrom(article as Record<string, unknown>, "summary")}
         onChange={(v) => upd({ ...flattenTri("summary", v) } as Partial<Article>)}
@@ -554,7 +554,7 @@ function ArticleEditor({
         <Label className="flex items-center gap-1.5">
           <PenLine className="h-3.5 w-3.5 text-primary" /> {t("art.content")}
         </Label>
-        <TriTextarea
+        <TriTextarea langs={TRI3}
           value={triFrom(article as Record<string, unknown>, "content")}
           onChange={(v) => upd({ ...flattenTri("content", v) } as Partial<Article>)}
           rows={10}

@@ -9,15 +9,22 @@ import { requireUser } from "@/lib/auth";
 import { ensureVapidKeys } from "@/lib/push";
 import { logAudit } from "@/lib/audit";
 
-/** v3.5: تطبيع التصنيفات ثلاثية اللغة — النصوص القديمة تصبح { ar } */
-type TriCat = { ar: string; fr: string; en: string };
+/** v3.5: تطبيع التصنيفات متعددة اللغات — النصوص القديمة تصبح { ar } — ★ v3.10: خمس لغات */
+type TriCat = { ar: string; fr: string; en: string; tr?: string; es?: string };
 function normCats(v: unknown): TriCat[] {
   if (!Array.isArray(v)) return [];
   return v
     .map((c) => {
       if (typeof c === "string") return { ar: c, fr: "", en: "" };
       const o = (c ?? {}) as Record<string, unknown>;
-      return { ar: String(o.ar ?? "").trim(), fr: String(o.fr ?? "").trim(), en: String(o.en ?? "").trim() };
+      /* ★ v3.10: تركي/إسباني مع التصنيفات أيضاً */
+      return {
+        ar: String(o.ar ?? "").trim(),
+        fr: String(o.fr ?? "").trim(),
+        en: String(o.en ?? "").trim(),
+        tr: String(o.tr ?? "").trim(),
+        es: String(o.es ?? "").trim(),
+      };
     })
     .filter((c) => c.ar);
 }
@@ -73,18 +80,27 @@ export async function PUT(req: NextRequest) {
       "centerName",
       "centerNameFr",
       "centerNameEn",
+      /* ★ v3.10: تركي/إسباني — كل حقول الواجهة بخمس لغات */
+      "centerNameTr",
+      "centerNameEs",
       "tagline",
       "taglineFr",
       "taglineEn",
+      "taglineTr",
+      "taglineEs",
       "aboutShort",
       "aboutShortFr",
       "aboutShortEn",
+      "aboutShortTr",
+      "aboutShortEs",
       "phone",
       "whatsapp",
       "email",
       "address",
       "addressFr",
       "addressEn",
+      "addressTr",
+      "addressEs",
       "mapsUrl",
     ] as const;
     for (const f of strFields) if (b[f] !== undefined) s[f] = String(b[f]);

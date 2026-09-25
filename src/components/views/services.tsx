@@ -29,7 +29,7 @@ import { Plus, Pencil, Trash2, Power, Eye, ChevronDown, ChevronUp, Sparkles, Smi
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { Navigate } from "@/lib/nav";
-import { TriInput, TriTextarea, flattenTri, triFrom, triName, type Tri } from "@/components/tri-input";
+import { TriInput, TriTextarea, flattenTri, triFrom, triName, type Tri , TRI3 } from "@/components/tri-input";
 import FullImage from "@/components/full-image";
 import Pagination from "@/components/pagination";
 import { pickByLang } from "@/lib/pick-lang";
@@ -226,7 +226,7 @@ export default function Services({ navigate }: { navigate: Navigate }) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <TriInput label={t("common.title")} value={triTitle} onChange={setTriTitle} required />
+            <TriInput langs={TRI3} label={t("common.title")} value={triTitle} onChange={setTriTitle} required />
             <div className="grid grid-cols-[1fr_auto] gap-3">
               <div className="space-y-2">
                 <Label>{t("srv.icon")}</Label>
@@ -253,7 +253,7 @@ export default function Services({ navigate }: { navigate: Navigate }) {
                 )}
               </div>
             </div>
-            <TriTextarea label={t("common.description")} value={triDesc} onChange={setTriDesc} rows={3} />
+            <TriTextarea langs={TRI3} label={t("common.description")} value={triDesc} onChange={setTriDesc} rows={3} />
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>{t("common.price")}</Label>

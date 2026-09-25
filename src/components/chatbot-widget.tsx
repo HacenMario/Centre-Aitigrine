@@ -8,6 +8,8 @@
  *    والأسئلة السريعة في شريط مضغوط — لا تضيق مساحة الأجوبة أبداً
  *  - متجاوبة تماماً: عرض/ارتفاع آمنان لا يتجاوزان إطار الشاشة على الحاسوب والجوال
  *  - إجابات بخمس لغات + إرسال لغة الواجهة للخادم — يعمل حتى بلا إنترنت (وضع عدم الاتصال)
+ *  ★ v3.10: أزرار الأسئلة السريعة ترسل «نية» مباشرة (intent) — الإجابة الصحيحة
+ *    حرفياً بكل اللغات بلا تخمين، ومحرك النص الحر أقوى بأولويات ومرادفات موسعة
  */
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
@@ -51,7 +53,15 @@ function pickLabel(r: Record<string, unknown>, lang: string): string {
   return "";
 }
 
-const QUICK_KEYS = ["bot.q1", "bot.q2", "bot.q3", "bot.q4", "bot.q5", "bot.q6"];
+/** ★ v3.10: الأسئلة السريعة ترسل النية (intent) مع النص — الإجابة الصحيحة حرفياً بأي لغة */
+const QUICK: { id: string; key: string }[] = [
+  { id: "booking", key: "bot.q1" },
+  { id: "price", key: "bot.q2" },
+  { id: "remote", key: "bot.q3" },
+  { id: "address", key: "bot.q4" },
+  { id: "password", key: "bot.q5" },
+  { id: "hours", key: "bot.q6" },
+];
 const BOT_DISMISS_KEY = "ait_bot_dismissed";
 
 export default function ChatbotWidget() {
@@ -83,7 +93,7 @@ export default function ChatbotWidget() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [msgs, typing]);
 
-  const send = async (text?: string) => {
+  const send = async (text?: string, intent?: string) => {
     const msg = (text ?? input).trim();
     if (!msg || typing) return;
     setInput("");
@@ -93,7 +103,7 @@ export default function ChatbotWidget() {
       const r = await fetch("/api/chatbot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg, lang }),
+        body: JSON.stringify({ message: msg, lang, ...(intent ? { intent } : {}) }),
       });
       const j = await r.json().catch(() => null);
       const reply = j?.reply as Record<string, unknown> | null;
@@ -203,16 +213,17 @@ export default function ChatbotWidget() {
             )}
           </div>
 
-          {/* أسئلة سريعة — شريط مضغوط بسقف ثابت لا يبتلع مساحة الأجوبة */}
+          {/* أسئلة سريعة — شريط مضغوط بسقف ثابت لا يبتلع مساحة الأجوبة
+              ★ v3.10: كل زر يرسل نويته مباشرة — الإجابة الصحيحة مضمونة بكل اللغات */}
           <div className="shrink-0 max-h-[5.2rem] overflow-y-auto px-3 pt-2 flex gap-1.5 flex-wrap bg-background">
-            {QUICK_KEYS.map((k) => (
+            {QUICK.map((q) => (
               <button
-                key={k}
+                key={q.key}
                 type="button"
-                onClick={() => send(t(k))}
+                onClick={() => send(t(q.key), q.id)}
                 className="text-[11px] font-semibold rounded-full border bg-muted/50 px-2.5 py-1 hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition"
               >
-                {t(k)}
+                {t(q.key)}
               </button>
             ))}
           </div>

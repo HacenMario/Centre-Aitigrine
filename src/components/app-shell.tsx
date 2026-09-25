@@ -19,6 +19,7 @@ import ReassurancePopup from "@/components/reassurance-popup";
 import BackToTop from "@/components/back-to-top";
 import FloatingAd from "@/components/floating-ad";
 import ChatbotWidget from "@/components/chatbot-widget";
+import GooglePhoneDialog from "@/components/google-phone-dialog";
 import Landing from "@/components/views/landing";
 import Login from "@/components/views/login";
 import Appointments from "@/components/views/appointments";
@@ -149,6 +150,8 @@ function Shell() {
       </div>
       {/* نافذة لحظة اطمئنان — تظهر مرة واحدة في الجلسة عند ولوج الرئيسية */}
       <ReassurancePopup />
+      {/* ★ v3.10: نافذة الهاتف الإلزامية لحسابات Google — أول مرة فقط، بلا تجاوز ممكن */}
+      <GooglePhoneDialog />
       {/* الإعلان العائم — للعملاء والأخصائيين (نمط طمأنينة) */}
       <FloatingAd />
     </div>

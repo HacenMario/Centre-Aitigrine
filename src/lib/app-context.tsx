@@ -49,25 +49,34 @@ export type Me = {
   active?: boolean;
 } | null;
 
-export type TriCat = { ar: string; fr: string; en: string };
+export type TriCat = { ar: string; fr: string; en: string; tr?: string; es?: string };
 export type DayHours = { start: string; end: string; closed: boolean };
 
 export type CenterSettings = {
   centerName: string;
   centerNameFr: string;
   centerNameEn: string;
+  /** ★ v3.10: تركي/إسباني — كل حقول الواجهة بخمس لغات */
+  centerNameTr: string;
+  centerNameEs: string;
   tagline: string;
   taglineFr: string;
   taglineEn: string;
+  taglineTr: string;
+  taglineEs: string;
   aboutShort: string;
   aboutShortFr: string;
   aboutShortEn: string;
+  aboutShortTr: string;
+  aboutShortEs: string;
   phone: string;
   whatsapp: string;
   email: string;
   address: string;
   addressFr: string;
   addressEn: string;
+  addressTr: string;
+  addressEs: string;
   lat: number;
   lng: number;
   /** رابط الموقع على خرائط Google — يوجه الزوار للمركز مباشرة من الفوتر وصفحة التواصل */
@@ -136,18 +145,26 @@ const DEFAULT_SETTINGS: CenterSettings = {
   centerName: "مركز أيت تقرين",
   centerNameFr: "",
   centerNameEn: "",
+  centerNameTr: "",
+  centerNameEs: "",
   tagline: "",
   taglineFr: "",
   taglineEn: "",
+  taglineTr: "",
+  taglineEs: "",
   aboutShort: "",
   aboutShortFr: "",
   aboutShortEn: "",
+  aboutShortTr: "",
+  aboutShortEs: "",
   phone: "",
   whatsapp: "",
   email: "",
   address: "",
   addressFr: "",
   addressEn: "",
+  addressTr: "",
+  addressEs: "",
   lat: 36.7538,
   lng: 3.0588,
   mapsUrl: "",
