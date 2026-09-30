@@ -294,6 +294,56 @@ export function statusChangedText(opts: {
   };
 }
 
+/* ─────────── تغيير وقت الموعد (إعادة جدولة) ★ v3.12 ─────────── */
+export function rescheduledText(opts: {
+  oldDate: string;
+  oldTime: string;
+  date: string;
+  time: string;
+  toClient: boolean;
+  otherName?: string; // اسم الأخصائي (للعميل)
+  clientName?: string; // اسم العميل (للأخصائي/الإدارة)
+}): PentaNotification {
+  const { oldDate, oldTime, date, time, toClient, otherName, clientName } = opts;
+  const d = Object.fromEntries(LANGS.map((l) => [l, fmtDate(date, l)])) as Record<"ar" | "fr" | "en" | "tr" | "es", string>;
+  const od = Object.fromEntries(LANGS.map((l) => [l, fmtDate(oldDate, l)])) as Record<"ar" | "fr" | "en" | "tr" | "es", string>;
+  if (toClient) {
+    return {
+      titles: {
+        ar: "تم تغيير موعدك",
+        fr: "Votre rendez-vous a été modifié",
+        en: "Your appointment has been rescheduled",
+        tr: "Randevunuz değiştirildi",
+        es: "Su cita ha sido cambiada",
+      },
+      bodies: {
+        ar: `تم تغيير موعدك${otherName ? ` مع ${otherName}` : ""} من ${od.ar} على الساعة ${oldTime} إلى ${d.ar} على الساعة ${time}.`,
+        fr: `Votre rendez-vous${otherName ? ` avec ${otherName}` : ""} a été déplacé du ${od.fr} à ${oldTime} au ${d.fr} à ${time}.`,
+        en: `Your appointment${otherName ? ` with ${otherName}` : ""} has been moved from ${od.en} at ${oldTime} to ${d.en} at ${time}.`,
+        tr: `Randevunuz${otherName ? ` — ${otherName} ile` : ""} ${od.tr} saat ${oldTime} üzerinden ${d.tr} saat ${time} saatine alındı.`,
+        es: `Su cita${otherName ? ` con ${otherName}` : ""} ha sido cambiada del ${od.es} a las ${oldTime} al ${d.es} a las ${time}.`,
+      },
+    };
+  }
+  /* للأخصائي أو للإدارة */
+  return {
+    titles: {
+      ar: "تم تغيير وقت موعد",
+      fr: "L'heure d'un rendez-vous a été modifiée",
+      en: "Appointment time changed",
+      tr: "Randevu saati değiştirildi",
+      es: "Se cambió la hora de una cita",
+    },
+    bodies: {
+      ar: `تم تغيير الموعد من ${od.ar} على الساعة ${oldTime} إلى ${d.ar} على الساعة ${time}${clientName ? ` — العميل: ${clientName}` : ""}.`,
+      fr: `Le rendez-vous est passé du ${od.fr} à ${oldTime} au ${d.fr} à ${time}${clientName ? ` — client : ${clientName}` : ""}.`,
+      en: `The appointment moved from ${od.en} at ${oldTime} to ${d.en} at ${time}${clientName ? ` — client: ${clientName}` : ""}.`,
+      tr: `Randevu ${od.tr} saat ${oldTime} üzerinden ${d.tr} saat ${time} saatine alındı${clientName ? ` — danışan: ${clientName}` : ""}.`,
+      es: `La cita pasó del ${od.es} a las ${oldTime} al ${d.es} a las ${time}${clientName ? ` — cliente: ${clientName}` : ""}.`,
+    },
+  };
+}
+
 /* ─────────── إشعار عام ─────────── */
 export function generalText(ar: string, fr: string, en: string, tr?: string, es?: string): PentaNotification {
   return {

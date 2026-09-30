@@ -43,6 +43,8 @@ export type Me = {
   bioEn?: string;
   yearsExperience?: number;
   specialties?: string[];
+  /** ★ v3.12: الخدمات التي يجيدها الأخصائي (معرفات) */
+  serviceIds?: string[];
   photoBase64?: string;
   weeklyHours?: Record<string, string[]>;
   assignedSpecialistId?: string | null;

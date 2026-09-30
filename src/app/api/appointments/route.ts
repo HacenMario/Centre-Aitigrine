@@ -7,7 +7,7 @@
  */
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
-import { Appointment, Coupon, User } from "@/lib/models";
+import { Appointment, Coupon, Service, User } from "@/lib/models";
 import { currentUser, requireUser } from "@/lib/auth";
 import { notifyStaff, notifyUser } from "@/lib/push";
 import { mapToObj } from "@/lib/map";
@@ -107,12 +107,14 @@ export async function POST(req: NextRequest) {
     if (!spec || spec.role !== "specialist" || spec.active === false)
       return fail(400, "الأخصائي غير متاح");
 
-    /* احترام ساعات الأخصائي (نمط طمأنينة SLOT_UNAVAILABLE) — Map أو كائن عادي */
+    /* ★ v3.12: احترام أوقات الأخصائي المحفوظة حصراً (نمط طمأنينة SLOT_UNAVAILABLE)
+     * فقط المواعيد المحفوظة في إعدادات الأخصائي قابلة للحجز —
+     * أوقات العيادة العامة لا تطغى أبداً: اليوم بلا أوقات محفوظة = لا حجز */
     const wh = mapToObj(spec.weeklyHours) as Record<string, string[]>;
     const dow = String(new Date(`${date}T00:00:00`).getDay());
     const dayHours = wh[dow] || [];
-    if (dayHours.length && !dayHours.includes(time))
-      return fail(400, "الأخصائي لا يستقبل في هذا التوقيت — اختر وقتاً آخر");
+    if (!dayHours.includes(time))
+      return fail(400, "الأخصائي لا يستقبل في هذا التوقيت — اختر من الأوقات المحفوظة في إعداداته");
 
     /* فحص تصادم: نفس الأخصائي + نفس اليوم + نفس الوقت */
     const clash = await Appointment.findOne({
@@ -142,6 +144,25 @@ export async function POST(req: NextRequest) {
       await Coupon.findByIdAndUpdate(c._id, { $inc: { usedCount: 1 } });
     }
 
+    /* ★ v3.12: الخدمة — يجب أن تكون مفعّلة ومن خدمات الأخصائي المرتبطة (إن حدّد خدماته)
+     * العناوين المترجمة تُشتق من مستند الخدمة خادمياً (لا ثقة بنصوص الواجهة) */
+    let serviceIdVal: string | null = null;
+    let svcTitle = String(b.serviceTitle || "");
+    let svcTitleFr = String(b.serviceTitleFr || "");
+    let svcTitleEn = String(b.serviceTitleEn || "");
+    if (b.serviceId) {
+      const svc = await Service.findById(String(b.serviceId))
+        .lean<{ _id: unknown; title: string; titleFr?: string; titleEn?: string; active?: boolean } | null>();
+      if (!svc || svc.active === false) return fail(400, "الخدمة غير متاحة");
+      const specSvcIds = (Array.isArray(spec.serviceIds) ? spec.serviceIds : []).map(String);
+      if (specSvcIds.length && !specSvcIds.includes(String(svc._id)))
+        return fail(400, "هذه الخدمة لا يقدمها هذا الأخصائي — اختر من خدماته");
+      serviceIdVal = String(svc._id);
+      svcTitle = svc.title;
+      svcTitleFr = svc.titleFr || "";
+      svcTitleEn = svc.titleEn || "";
+    }
+
     let clientName = "";
     if (me.role !== "client") {
       const c = await User.findById(clientId).lean<{ name: string } | null>();
@@ -151,10 +172,10 @@ export async function POST(req: NextRequest) {
     const a = await Appointment.create({
       clientId,
       specialistId,
-      serviceId: b.serviceId || null,
-      serviceTitle: String(b.serviceTitle || ""),
-      serviceTitleFr: String(b.serviceTitleFr || ""),
-      serviceTitleEn: String(b.serviceTitleEn || ""),
+      serviceId: serviceIdVal,
+      serviceTitle: svcTitle,
+      serviceTitleFr: svcTitleFr,
+      serviceTitleEn: svcTitleEn,
       kind: ["psychological", "art_therapy"].includes(b.kind) ? b.kind : "psychological",
       mode: ["onsite", "remote"].includes(b.mode) ? b.mode : "onsite",
       price: Math.max(0, Number(b.price) || 0),
@@ -176,7 +197,7 @@ export async function POST(req: NextRequest) {
       const c = await User.findById(clientId).lean<{ name: string } | null>();
       clientName = c?.name || "";
     }
-    notifyUser(clientId, bookingCreatedText({ date, time, serviceTitle: String(b.serviceTitle || ""), viewer: "client", otherName: specName }), "booking", `appointments:${String(a._id)}`);
+    notifyUser(clientId, bookingCreatedText({ date, time, serviceTitle: svcTitle, viewer: "client", otherName: specName }), "booking", `appointments:${String(a._id)}`);
     notifyUser(specialistId, bookingCreatedText({ date, time, viewer: "specialist", clientName }), "booking", `appointments:${String(a._id)}`);
     notifyStaff(bookingCreatedText({ date, time, viewer: "staff", otherName: specName, clientName }), "booking", `appointments:${String(a._id)}`);
 

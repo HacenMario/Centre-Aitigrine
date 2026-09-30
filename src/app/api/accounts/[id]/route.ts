@@ -3,7 +3,7 @@
  */
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
-import { Specialty, User } from "@/lib/models";
+import { Service, Specialty, User } from "@/lib/models";
 import { hashPassword, requireUser, toSafeUser } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 
@@ -48,6 +48,14 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       const ids = Array.isArray(b.specialties) ? b.specialties.map(String).filter(Boolean) : [];
       const valid = await Specialty.find({ _id: { $in: ids } }).select("_id").lean<{ _id: unknown }[]>();
       $set.specialties = valid.map((s) => String(s._id));
+    }
+    /* ★ v3.12: الخدمات التي يجيدها الأخصائي — تحقق من وجودها ثم نجمع */
+    if (b.serviceIds !== undefined) {
+      const ids = Array.isArray(b.serviceIds) ? b.serviceIds.map(String).filter(Boolean) : [];
+      const valid = ids.length
+        ? await Service.find({ _id: { $in: ids } }).select("_id").lean<{ _id: unknown }[]>()
+        : [];
+      $set.serviceIds = valid.map((s) => String(s._id));
     }
     if (typeof b.photoBase64 === "string" && b.photoBase64) $set.photoBase64 = b.photoBase64;
     else if (b.photoBase64 === "") $unset.photoBase64 = "";

@@ -7,7 +7,7 @@
  */
 import { NextRequest } from "next/server";
 import { ok, handle } from "@/lib/api-helpers";
-import { Rating, Specialty, User } from "@/lib/models";
+import { Rating, Service, Specialty, User } from "@/lib/models";
 import { mapToObj } from "@/lib/map";
 
 type SpecRow = {
@@ -23,8 +23,19 @@ type SpecRow = {
   bioEn?: string;
   yearsExperience?: number;
   specialties?: unknown[];
+  serviceIds?: unknown[];
   photoBase64?: string;
   weeklyHours?: Map<string, string[]>;
+};
+
+type ServiceRow = {
+  _id: unknown;
+  title: string;
+  titleFr?: string;
+  titleEn?: string;
+  icon?: string;
+  price?: number;
+  durationMin?: number;
 };
 
 export async function GET(req: NextRequest) {
@@ -69,6 +80,32 @@ export async function GET(req: NextRequest) {
       ])
     );
 
+    /* ★ v3.12: خدمات كل أخصائي (المفعّلة فقط) في استعلام واحد —
+       يختار العميل بعد اختيار الأخصائي من بين خدماته هو لا كل خدمات العيادة */
+    const allSvcIds = new Set<string>();
+    rows.forEach((u) => {
+      (Array.isArray(u.serviceIds) ? u.serviceIds : []).forEach((s) => allSvcIds.add(String(s)));
+    });
+    const svcRows = allSvcIds.size
+      ? await Service.find({ _id: { $in: [...allSvcIds] }, active: true })
+          .select("title titleFr titleEn icon price durationMin")
+          .lean<ServiceRow[]>()
+      : [];
+    const svcMap = new Map(
+      svcRows.map((s) => [
+        String(s._id),
+        {
+          _id: String(s._id),
+          title: s.title,
+          titleFr: s.titleFr || "",
+          titleEn: s.titleEn || "",
+          icon: s.icon || "✨",
+          price: s.price ?? 0,
+          durationMin: s.durationMin ?? 60,
+        },
+      ])
+    );
+
     return ok({
       specialists: rows.map((u) => {
         const arr = Array.isArray(u.specialties) ? u.specialties : [];
@@ -76,6 +113,10 @@ export async function GET(req: NextRequest) {
           .map((s) => specMap.get(String(s)))
           .filter(Boolean) as { _id: string; ar: string; fr: string; en: string; builtin: boolean }[];
         const rating = ratingMap.get(String(u._id)) || { avg: 0, count: 0 };
+        /* ★ v3.12: خدمات الأخصائي المفعّلة — بنفس ترتيب الربط */
+        const services = (Array.isArray(u.serviceIds) ? u.serviceIds : [])
+          .map((s) => svcMap.get(String(s)))
+          .filter(Boolean) as { _id: string; title: string; titleFr: string; titleEn: string; icon: string; price: number; durationMin: number }[];
         return {
           _id: String(u._id),
           name: u.name,
@@ -89,6 +130,7 @@ export async function GET(req: NextRequest) {
           bioEn: u.bioEn || "",
           yearsExperience: u.yearsExperience ?? 0,
           specialties: linked,
+          services,
           photoBase64: u.photoBase64 || "",
           weeklyHours: mapToObj(u.weeklyHours) as Record<string, string[]>,
           rating,

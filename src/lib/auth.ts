@@ -32,6 +32,8 @@ export type SafeUser = {
   bioEn?: string;
   yearsExperience: number;
   specialties: string[];
+  /** ★ v3.12: الخدمات التي يجيدها الأخصائي (معرفات) */
+  serviceIds: string[];
   photoBase64: string;
   weeklyHours: Record<string, string[]>;
   assignedSpecialistId: string | null;
@@ -49,6 +51,12 @@ export function toSafeUser(u: UserDoc): SafeUser {
   if (Array.isArray(rawSpecs)) {
     specIds = rawSpecs.map((s) => (s && typeof s === "object" && "_id" in (s as object) ? String((s as { _id: unknown })._id) : String(s)));
   }
+  /* ★ v3.12: الخدمات المرتبطة بالأخصائي — مراجع أوبجكت آيدية → نصوص */
+  let svcIds: string[] = [];
+  const rawSvcs: unknown = (u as { serviceIds?: unknown }).serviceIds;
+  if (Array.isArray(rawSvcs)) {
+    svcIds = rawSvcs.map((s) => (s && typeof s === "object" && "_id" in (s as object) ? String((s as { _id: unknown })._id) : String(s)));
+  }
   return {
     _id: String(u._id),
     name: u.name,
@@ -64,6 +72,7 @@ export function toSafeUser(u: UserDoc): SafeUser {
     bioEn: (u as { bioEn?: string }).bioEn ?? "",
     yearsExperience: (u as { yearsExperience?: number }).yearsExperience ?? 0,
     specialties: specIds,
+    serviceIds: svcIds,
     photoBase64: u.photoBase64 ?? "",
     weeklyHours,
     assignedSpecialistId: u.assignedSpecialistId ? String(u.assignedSpecialistId) : null,

@@ -57,6 +57,11 @@ export async function POST(req: NextRequest) {
         (role === "specialist" || role === "trainer") && Array.isArray(b.specialties)
           ? b.specialties.map(String).filter(Boolean)
           : [],
+      /* ★ v3.12: الخدمات التي يجيدها الأخصائي — للأخصائي فقط */
+      serviceIds:
+        role === "specialist" && Array.isArray(b.serviceIds)
+          ? b.serviceIds.map(String).filter(Boolean)
+          : [],
       photoBase64: String(b.photoBase64 || ""),
       /* ساعات العمل: للأخصائي فقط (المكوّن لا يستقبل مواعيد أصلاً) */
       weeklyHours: role === "specialist" ? b.weeklyHours || {} : {},

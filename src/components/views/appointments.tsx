@@ -1,15 +1,14 @@
 "use client";
 /**
  * مواعيدي — لكل الأدوار
- * العميل: حجز جديد (أخصائي ← يوم ← وقت بالنقر) + إلغاء
- * الأخصائي: جلساته + تأكيد/إنهاء/إلغاء
- * الإدارة: كل مواعيد المركز + إدارة الحالات + حجز لعميل
+ * العميل: حجز جديد (أخصائي ← يوم ← وقت بالنقر من أوقاته المحفوظة) + إلغاء
+ * الأخصائي: جلساته + تأكيد/إنهاء/إلغاء + تغيير وقت الموعد مع إشعار العميل ★ v3.12
+ * الإدارة: كل مواعيد المركز + إدارة الحالات + حجز لعميل + تغيير الأوقات
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import BackButton from "@/components/back-button";
 import { PageSkeleton } from "@/components/brand-skeleton";
-import { buildTimeGrid } from "@/components/slot-grid";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,14 +44,18 @@ type Appt = {
   kind: string; date: string; time: string; status: string; notes: string;
   price?: number; paymentStatus?: string;
 };
-type Account = { _id: string; name: string; role: string; specialty?: string; title?: string; titleFr?: string; titleEn?: string; photoBase64?: string; weeklyHours?: Record<string, string[]>; active: boolean };
+type Account = { _id: string; name: string; role: string; specialty?: string; title?: string; titleFr?: string; titleEn?: string; photoBase64?: string; weeklyHours?: Record<string, string[]>; services?: SpecService[]; active: boolean };
 type ServiceItem = { _id: string; title: string; titleFr?: string; titleEn?: string; kind?: string; price?: number };
+/* ★ v3.12: خدمة من خدمات الأخصائي المرتبطة (من /api/specialists) */
+type SpecService = { _id: string; title: string; titleFr?: string; titleEn?: string; icon?: string; price?: number; durationMin?: number };
 
-/* أسماء الأيام حسب اللغة — الحجز والتواريخ تظهر دائماً بلغة المستخدم */
+/* أسماء الأيام حسب اللغة — الحجز والتواريخ تظهر دائماً بلغة المستخدم (خمس لغات ★ v3.12) */
 const DAYS_BY_LANG: Record<string, string[]> = {
   ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"],
   fr: ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"],
   en: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+  tr: ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"],
+  es: ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
 };
 
 function todayStr() {
@@ -155,6 +158,8 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
   const [open, setOpen] = useState(false);
   const [delId, setDelId] = useState<string | null>(null);
   const [rateFor, setRateFor] = useState<{ id: string; name: string } | null>(null);
+  /* ★ v3.12: تغيير وقت الموعد — للأخصائي صاحب الموعد وللإدارة */
+  const [reschedFor, setReschedFor] = useState<Appt | null>(null);
   /* ترقيم الصفحات — الحالة قبل أي عائد مبكر (قواعد الـ hooks) */
   const [page, setPage] = useState(1);
 
@@ -366,6 +371,13 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
                       <Star className="h-4 w-4 fill-amber-400 text-amber-400" /> {t("rate.button")}
                     </Button>
                   )}
+                  {/* ★ v3.12: تغيير وقت الموعد — للأخصائي صاحب الموعد وللإدارة، مع إشعار العميل */}
+                  {(me.role === "specialist" || isStaff) && ["pending", "confirmed"].includes(a.status) && (
+                    <Button size="sm" variant="outline" className="gap-1.5"
+                      onClick={() => setReschedFor(a)}>
+                      <CalendarClock className="h-4 w-4" /> {t("appt.changeTime")}
+                    </Button>
+                  )}
                   {/* ★ v3.8: إضافة الموعد للتقويم — Google Calendar أو ملف iCal */}
                   {["confirmed", "completed"].includes(a.status) && (me.role === "client" || isStaff) && (
                     <AddToCalendar
@@ -413,6 +425,8 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
       <Pagination page={page} pageCount={pageCount} onPage={setPage} total={appts.length} pageSize={PAGE_SIZE} />
 
       <BookingDialog open={open} onClose={() => { setOpen(false); load(); }} />
+      {/* ★ v3.12: نافذة تغيير وقت الموعد */}
+      <RescheduleDialog open={!!reschedFor} appt={reschedFor} onClose={() => { setReschedFor(null); load(); }} />
       {rateFor && (
         <RatingsDialog
           specialistId={rateFor.id}
@@ -448,14 +462,13 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
  * الأوقات المعروضة = ساعات الأخصائي الفعلية لذلك اليوم، المحجوز والماضي معطّل
  */
 function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { t, me, settings, lang } = useApp();
+  const { t, me, lang } = useApp();
   const DAYS = DAYS_BY_LANG[lang] || DAYS_BY_LANG.ar;
   const isStaff = me?.role === "admin" || me?.role === "assistant";
   const [step, setStep] = useState(1);
 
   const [specialists, setSpecialists] = useState<Account[]>([]);
   const [clients, setClients] = useState<Account[]>([]);
-  const [services, setServices] = useState<ServiceItem[]>([]);
   const [specId, setSpecId] = useState("");
   const [clientId, setClientId] = useState("");
   const [serviceId, setServiceId] = useState("");
@@ -469,8 +482,6 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
   const [couponInfo, setCouponInfo] = useState<{ code: string; discount: number } | null>(null);
   const [couponErr, setCouponErr] = useState("");
   const [couponBusy, setCouponBusy] = useState(false);
-
-  const o = settings?.options;
 
   const reset = () => {
     setStep(1);
@@ -496,28 +507,43 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
           setClients((cj.users || []).filter((u: Account) => u.active));
         } catch {}
       }
-      try {
-        const vr = await fetch("/api/services");
-        const vj = await vr.json();
-        setServices(vj.services || []);
-      } catch {}
     })();
   }, [open, isStaff]);
 
   const spec = useMemo(() => specialists.find((s) => s._id === specId), [specId, specialists]);
+  /* ★ v3.12: خدمات الأخصائي المختار حصراً — يختار العميل من بينها لا من كل خدمات العيادة */
+  const specServices: SpecService[] = spec?.services || [];
   const specTitle = (s: Account) =>
     pickTri(s as unknown as Record<string, unknown>, "title", lang) ||
     (s.specialty === "art_therapy" ? t("specialty.art_therapy") : s.specialty === "both" ? t("specialty.both") : t("specialty.psychological"));
-  const svcTitle = (s: ServiceItem) => pickTri(s as unknown as Record<string, unknown>, "title", lang) || s.title;
+  const svcTitle = (s: SpecService) => pickTri(s as unknown as Record<string, unknown>, "title", lang) || s.title;
 
-  /* أوقات الأخصائي في اليوم المختار — إن لم يحدد ساعات نستعمل أوقات المركز */
+  /* ★ v3.12: أوقات الأخصائي المحفوظة حصراً لليوم المختار —
+   * أوقات العيادة العامة لا تطغى أبداً: اليوم بلا أوقات محفوظة = لا حجز */
   const daySlots = useMemo(() => {
     if (!specId || !date) return [];
     const dow = String(new Date(date + "T00:00:00").getDay());
     const own = spec?.weeklyHours?.[dow] || [];
-    if (own.length) return [...own].sort();
-    return buildTimeGrid(o?.dayStart || "09:00", o?.dayEnd || "17:00", o?.slotMinutes || 60);
-  }, [specId, date, spec, o?.dayStart, o?.dayEnd, o?.slotMinutes]);
+    return [...own].sort();
+  }, [specId, date, spec]);
+
+  /* أيام استقبال الأخصائي (لها أوقات محفوظة) — النقر يختار أقرب تاريخ لهذا اليوم */
+  const specDays = useMemo(() => {
+    const wh = spec?.weeklyHours || {};
+    const out: { dow: number; count: number }[] = [];
+    for (let i = 0; i < 7; i++) {
+      const n = (wh[String(i)] || []).length;
+      if (n > 0) out.push({ dow: i, count: n });
+    }
+    return out;
+  }, [spec]);
+
+  const nextDateForDow = (dow: number) => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7));
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
 
   useEffect(() => {
     if (!specId || !date) { setTaken([]); return; }
@@ -544,8 +570,8 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
 
   const canNext = step === 1 ? !!specId && (!isStaff || !!clientId) : step === 2 ? !!date && !!time : true;
 
-  /* ★ v3.8: السعر الأساس للخصم = سعر الخدمة المختارة (أو 0) */
-  const basePrice = Math.max(0, Number(services.find((s) => s._id === serviceId)?.price) || 0);
+  /* ★ v3.8: السعر الأساس للخصم = سعر الخدمة المختارة من خدمات الأخصائي (أو 0) */
+  const basePrice = Math.max(0, Number(specServices.find((s) => s._id === serviceId)?.price) || 0);
   const finalPrice = Math.max(0, basePrice - (couponInfo?.discount || 0));
 
   const applyCoupon = async () => {
@@ -583,9 +609,9 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
           specialistId: specId,
           clientId: isStaff ? clientId : me?._id,
           serviceId: serviceId || undefined,
-          serviceTitle: services.find((s) => s._id === serviceId)?.title || "",
-          serviceTitleFr: services.find((s) => s._id === serviceId)?.titleFr || "",
-          serviceTitleEn: services.find((s) => s._id === serviceId)?.titleEn || "",
+          serviceTitle: specServices.find((s) => s._id === serviceId)?.title || "",
+          serviceTitleFr: specServices.find((s) => s._id === serviceId)?.titleFr || "",
+          serviceTitleEn: specServices.find((s) => s._id === serviceId)?.titleEn || "",
           kind: spec?.specialty === "art_therapy" ? "art_therapy" : "psychological",
           mode: "onsite",
           price: basePrice,
@@ -678,7 +704,7 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
                       <button
                         key={s._id}
                         type="button"
-                        onClick={() => { setSpecId(s._id); setTime(""); }}
+                        onClick={() => { setSpecId(s._id); setTime(""); setServiceId(""); }}
                         aria-pressed={specId === s._id}
                         className={cn(
                           "flex items-center gap-3 rounded-2xl border p-3 text-start transition-all min-h-[64px]",
@@ -709,14 +735,27 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
               </div>
               <div className="space-y-2">
                 <Label>{t("appt.chooseService")} <span className="text-muted-foreground text-xs">({t("common.optional")})</span></Label>
-                <Select value={serviceId} onValueChange={setServiceId}>
-                  <SelectTrigger className="h-12"><SelectValue placeholder="—" /></SelectTrigger>
-                  <SelectContent>
-                    {services.map((s) => (
-                      <SelectItem key={s._id} value={s._id}>{svcTitle(s)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* ★ v3.12: خدمات الأخصائي المختار حصراً — لا كل خدمات العيادة */}
+                {specId && specServices.length === 0 ? (
+                  <p className="rounded-xl bg-muted/60 p-3 text-xs leading-relaxed text-muted-foreground">
+                    {t("appt.noSpecServices")}
+                  </p>
+                ) : (
+                  <Select value={serviceId} onValueChange={setServiceId} disabled={!specId}>
+                    <SelectTrigger className="h-12"><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      {specServices.map((s) => (
+                        <SelectItem key={s._id} value={s._id}>
+                          <span className="flex items-center gap-2">
+                            <span aria-hidden="true">{s.icon || "✨"}</span>
+                            {svcTitle(s)}
+                            {Number(s.price) > 0 && <span className="text-xs font-bold text-primary">{Number(s.price).toLocaleString(lang === "ar" ? "ar-DZ" : "fr-DZ")} {lang === "ar" ? "دج" : "DA"}</span>}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </>
           )}
@@ -739,10 +778,48 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
                   </p>
                 )}
               </div>
+              {/* ★ v3.12: أيام استقبال الأخصائي — النقر يقفز لأقرب تاريخ لهذا اليوم */}
+              {specDays.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t("appt.specDays")}</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {specDays.map(({ dow, count }) => {
+                      const active = date && new Date(date + "T00:00:00").getDay() === dow;
+                      return (
+                        <button
+                          key={dow}
+                          type="button"
+                          onClick={() => { setDate(nextDateForDow(dow)); setTime(""); }}
+                          aria-pressed={!!active}
+                          className={cn(
+                            "flex min-h-9 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition-all",
+                            active
+                              ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                              : "bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                          )}
+                        >
+                          {DAYS[dow]}
+                          <span className={cn(
+                            "rounded-full px-1.5 text-[10px] tabular-nums",
+                            active ? "bg-primary-foreground/25" : "bg-primary/10 text-primary"
+                          )}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {specId && date && (
                 <div className="space-y-2">
                   <Label>{t("appt.chooseTime")}</Label>
-                  {daySlots.length === 0 ? (
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">{t("appt.onlySpecSlots")}</p>
+                  {specDays.length === 0 ? (
+                    <p className="rounded-xl bg-muted/60 p-4 text-sm text-muted-foreground text-center">
+                      {t("appt.noSpecHours")}
+                    </p>
+                  ) : daySlots.length === 0 ? (
                     <p className="rounded-xl bg-muted/60 p-4 text-sm text-muted-foreground text-center">
                       {t("appt.noHours")}
                     </p>
@@ -803,7 +880,7 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
                 {serviceId && (
                   <p className="flex justify-between gap-2 text-sm">
                     <span className="text-muted-foreground">{t("appt.chooseService")}</span>
-                    <span className="font-bold">{services.find((s) => s._id === serviceId) ? svcTitle(services.find((s) => s._id === serviceId)!) : "—"}</span>
+                    <span className="font-bold">{specServices.find((s) => s._id === serviceId) ? svcTitle(specServices.find((s) => s._id === serviceId)!) : "—"}</span>
                   </p>
                 )}
                 <p className="flex justify-between gap-2 text-sm">
@@ -884,6 +961,201 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
             )}
           </div>
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ───────────────── نافذة تغيير وقت الموعد ★ v3.12 ─────────────────
+ * للأخصائي صاحب الموعد وللإدارة — الأوقات المعروضة = أوقات الأخصائي
+ * المحفوظة في إعداداته حصراً (لا أوقات العيادة العامة) —
+ * عند الحفظ يتحقق الخادم كاملاً ويتلقى العميل إشعاراً فورياً بالتوقيت الجديد */
+function RescheduleDialog({ open, appt, onClose }: { open: boolean; appt: Appt | null; onClose: () => void }) {
+  const { t, me, lang } = useApp();
+  const DAYS = DAYS_BY_LANG[lang] || DAYS_BY_LANG.ar;
+  const isStaff = me?.role === "admin" || me?.role === "assistant";
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [specHours, setSpecHours] = useState<Record<string, string[]>>({});
+  const [taken, setTaken] = useState<string[]>([]);
+
+  /* فتح النافذة: جلب ساعات الأخصائي — الأخصائي نفسه من حسابه، الإدارة من الحسابات */
+  useEffect(() => {
+    if (!open || !appt) return;
+    setDate(appt.date);
+    setTime("");
+    setTaken([]);
+    setSpecHours({});
+    (async () => {
+      if (me?.role === "specialist") {
+        setSpecHours(me?.weeklyHours || {});
+      } else if (isStaff) {
+        try {
+          const r = await fetch("/api/accounts", { cache: "no-store" });
+          const j = await r.json();
+          const s = (j.users || []).find((u: Account) => u._id === appt.specialistId);
+          setSpecHours(s?.weeklyHours || {});
+        } catch {
+          setSpecHours({});
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, appt?._id]);
+
+  /* الأوقات المحجوزة لليوم المختار — الموعد نفسه متاح (ننتقل منه) */
+  useEffect(() => {
+    if (!open || !appt || !date) {
+      setTaken([]);
+      return;
+    }
+    (async () => {
+      try {
+        const r = await fetch(`/api/appointments?mode=taken&specialistId=${appt.specialistId}&date=${date}`, { cache: "no-store" });
+        const j = await r.json();
+        setTaken((j.taken || []).filter((x: string) => !(date === appt.date && x === appt.time)));
+      } catch {
+        setTaken([]);
+      }
+    })();
+  }, [open, appt, date]);
+
+  const daySlots = useMemo(() => {
+    if (!date) return [];
+    const dow = String(new Date(date + "T00:00:00").getDay());
+    return [...(specHours[dow] || [])].sort();
+  }, [date, specHours]);
+
+  /* الأوقات المعطّلة: المحجوزة + الماضية (إن كان اليوم) */
+  const disabledTimes = useMemo(() => {
+    const dis = [...taken];
+    if (date === todayStr()) {
+      const nm = nowHM();
+      daySlots.forEach((s) => {
+        if (s <= nm && !dis.includes(s)) dis.push(s);
+      });
+    }
+    return dis;
+  }, [taken, date, daySlots]);
+
+  const hasAnyHours = Object.values(specHours).some((v) => (v || []).length > 0);
+
+  const save = async () => {
+    if (!appt || !date || !time) {
+      toast.error(t("err.required"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/appointments/${appt._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, time }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) {
+        toast.success(t("appt.rescheduleDone"));
+        onClose();
+      } else {
+        toast.error(j.error || t("common.error"));
+      }
+    } catch {
+      toast.error(t("err.conn"));
+    }
+    setBusy(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto rounded-3xl">
+        <DialogHeader>
+          <DialogTitle className="text-start">{t("appt.rescheduleTitle")}</DialogTitle>
+          <DialogDescription className="text-start">{t("appt.rescheduleHint")}</DialogDescription>
+        </DialogHeader>
+        {appt && (
+          <div className="space-y-4">
+            {/* التوقيت الحالي */}
+            <div className="flex items-center gap-3 rounded-2xl border bg-muted/40 p-3">
+              <span className="flex h-13 w-13 shrink-0 flex-col items-center justify-center rounded-xl bg-primary/10 py-1.5 text-primary">
+                <span className="text-[10px] font-bold leading-none">{DAYS[new Date(appt.date + "T00:00:00").getDay()]}</span>
+                <span className="mt-1 text-sm font-black tabular-nums leading-none">{appt.time}</span>
+              </span>
+              <div className="min-w-0 flex-1 text-sm">
+                <p className="break-words font-bold">{me?.role === "client" ? appt.specialistName : appt.clientName || "—"}</p>
+                <p className="text-xs text-muted-foreground" dir="ltr">
+                  {appt.date} · {appt.time}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="resched-date">{t("appt.chooseDate")}</Label>
+              <Input
+                id="resched-date"
+                type="date"
+                min={todayStr()}
+                value={date}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  setTime("");
+                }}
+                className="h-12"
+              />
+              {date && <p className="text-xs font-semibold text-primary">{DAYS[new Date(date + "T00:00:00").getDay()]}</p>}
+            </div>
+
+            {date && (
+              <div className="space-y-2">
+                <Label>{t("appt.chooseTime")}</Label>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">{t("appt.onlySpecSlots")}</p>
+                {!hasAnyHours ? (
+                  <p className="rounded-xl bg-muted/60 p-4 text-sm text-muted-foreground text-center">{t("appt.noSpecHours")}</p>
+                ) : daySlots.length === 0 ? (
+                  <p className="rounded-xl bg-muted/60 p-4 text-sm text-muted-foreground text-center">{t("appt.noHours")}</p>
+                ) : disabledTimes.filter((s) => daySlots.includes(s)).length >= daySlots.length ? (
+                  <p className="rounded-xl bg-muted/60 p-4 text-sm text-muted-foreground text-center">{t("appt.allTaken")}</p>
+                ) : (
+                  <div className="grid grid-cols-3 xs:grid-cols-4 gap-2">
+                    {daySlots.map((s) => {
+                      const dis = disabledTimes.includes(s);
+                      const sel = time === s;
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          disabled={dis}
+                          aria-pressed={sel}
+                          onClick={() => setTime(sel ? "" : s)}
+                          className={cn(
+                            "rounded-xl px-1 py-2.5 text-sm font-semibold tabular-nums transition-all border select-none",
+                            "min-h-[44px] flex items-center justify-center",
+                            dis
+                              ? "bg-muted/50 text-muted-foreground/50 line-through cursor-not-allowed border-transparent"
+                              : sel
+                                ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25 scale-[1.03]"
+                                : "bg-background hover:border-primary/50 hover:bg-primary/5 border-border"
+                          )}
+                        >
+                          <span dir="ltr">{s}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-1">
+              <Button type="button" variant="outline" onClick={onClose} className="h-12 flex-1 rounded-xl">
+                {t("common.cancel")}
+              </Button>
+              <Button onClick={save} disabled={busy || !date || !time} className="h-12 flex-1 rounded-xl">
+                {busy ? t("common.saving") : t("common.confirm")}
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

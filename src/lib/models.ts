@@ -40,6 +40,9 @@ const UserSchema = new Schema(
     yearsExperience: { type: Number, default: 0, min: 0, max: 70 },
     /** التخصصات المرتبطة بالأخصائي — مراجع مجموعة التخصصات */
     specialties: [{ type: Schema.Types.ObjectId, ref: "Specialty" }],
+    /** ★ v3.12: الخدمات التي يجيدها الأخصائي — عند الحجز يختار العميل من بينها فقط
+     *  (لا تُعرض عليه كل خدمات العيادة — الربط يتم من إعدادات حساب الأخصائي) */
+    serviceIds: [{ type: Schema.Types.ObjectId, ref: "Service" }],
     /** ساعات العمل الأسبوعية — تُحدد بالنقر: { "0": ["09:00","10:00"], ... } */
     weeklyHours: { type: Map, of: [String], default: {} },
     /** الأخصائي المعالج للعميل (يضبطه الأدمين) */

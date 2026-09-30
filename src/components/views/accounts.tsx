@@ -30,7 +30,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Pencil, Trash2, Power, Search, UsersRound, Phone, KeyRound, BellRing, X } from "lucide-react";
 import { toast } from "sonner";
-import { TriInput, TriTextarea, flattenTri, triFrom, triName, TRI3 } from "@/components/tri-input";
+import { TriInput, TriTextarea, flattenTri, triFrom, triName, TRI3, pickTri } from "@/components/tri-input";
 import { FullAvatar } from "@/components/full-image";
 import Pagination from "@/components/pagination";
 import { cn } from "@/lib/utils";
@@ -44,11 +44,14 @@ type Account = {
   _id: string; name: string; phone: string; role: "admin" | "assistant" | "specialist" | "trainer" | "client";
   specialty?: string; langs?: string[]; title?: string; titleFr?: string; titleEn?: string;
   bio?: string; bioFr?: string; bioEn?: string; yearsExperience?: number; specialties?: string[];
+  /** ★ v3.12: الخدمات التي يجيدها الأخصائي */
+  serviceIds?: string[];
   photoBase64?: string;
   weeklyHours?: Record<string, string[]>; assignedSpecialistId?: string | null; active: boolean;
 };
 
 type SpecialtyRow = { _id: string; ar: string; fr: string; en: string; builtin: boolean };
+type ServiceRow = { _id: string; title: string; titleFr?: string; titleEn?: string; icon?: string; active?: boolean };
 
 const ROLE_BADGE: Record<string, string> = {
   admin: "bg-rose-500/12 text-rose-700 dark:text-rose-400 border-rose-500/25",
@@ -339,13 +342,33 @@ function AccountForm({
 }) {
   const { t, lang } = useApp();
   const [busy, setBusy] = useState(false);
+  /* ★ v3.12: قائمة الخدمات لربطها بالأخصائي */
+  const [serviceRows, setServiceRows] = useState<ServiceRow[]>([]);
   const upd = (patch: Partial<Account> & { password?: string }) => onChange({ ...value, ...patch });
   const isNew = !value?._id;
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/services", { cache: "no-store" });
+        if (r.ok) {
+          const j = await r.json();
+          setServiceRows(j.services || []);
+        }
+      } catch {}
+    })();
+  }, []);
 
   const toggleSpecialty = (id: string) => {
     const cur = value?.specialties || [];
     const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
     upd({ specialties: next });
+  };
+
+  const toggleService = (id: string) => {
+    const cur = value?.serviceIds || [];
+    const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+    upd({ serviceIds: next });
   };
 
   const save = async () => {
@@ -493,6 +516,34 @@ function AccountForm({
                   );
                 })}
               </div>
+            </div>
+          )}
+          {/* ★ v3.12: الخدمات التي يجيدها الأخصائي — العميل يختار من بينها عند الحجز */}
+          {value?.role === "specialist" && serviceRows.length > 0 && (
+            <div className="space-y-2">
+              <Label>{t("acc.linkServices")}</Label>
+              <div className="flex flex-wrap gap-2 rounded-xl border bg-card/40 p-3">
+                {serviceRows.map((sv) => {
+                  const checked = (value?.serviceIds || []).includes(sv._id);
+                  const name = pickTri(sv as unknown as Record<string, unknown>, "title", lang) || sv.title;
+                  return (
+                    <label
+                      key={sv._id}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all",
+                        checked
+                          ? "border-primary/40 bg-primary/10 text-primary shadow-sm"
+                          : "bg-background text-muted-foreground hover:border-primary/25 hover:text-foreground"
+                      )}
+                    >
+                      <Checkbox checked={checked} onCheckedChange={() => toggleService(sv._id)} />
+                      <span aria-hidden="true">{sv.icon || "✨"}</span>
+                      {name}
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">{t("acc.linkServicesHint")}</p>
             </div>
           )}
           {/* ساعات الاستقبال — للأخصائي فقط (المكوّن لا يستقبل مواعيد أصلاً ★ v3.11) */}
