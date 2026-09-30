@@ -28,7 +28,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarClock, Plus, Trash2, CheckCircle2, XCircle, CircleCheckBig, Info, UserRound, Star, Banknote, Coins, CalendarPlus, FileDown, Tag } from "lucide-react";
+import { CalendarClock, Plus, Trash2, CheckCircle2, XCircle, CircleCheckBig, Info, UserRound, Star, Banknote, Coins, CalendarPlus, FileDown, Tag, Phone } from "lucide-react";
 import { toast } from "sonner";
 import RatingsDialog from "@/components/ratings-dialog";
 import Pagination from "@/components/pagination";
@@ -39,7 +39,7 @@ import type { Navigate } from "@/lib/nav";
 const PAGE_SIZE = 12;
 
 type Appt = {
-  _id: string; clientId: string; specialistId: string; clientName?: string; specialistName?: string;
+  _id: string; clientId: string; specialistId: string; clientName?: string; specialistName?: string; clientPhone?: string;
   serviceTitle: string; serviceTitleFr?: string; serviceTitleEn?: string;
   kind: string; date: string; time: string; status: string; notes: string;
   price?: number; paymentStatus?: string;
@@ -298,6 +298,18 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
                             <Tag className="h-3 w-3 shrink-0" aria-hidden="true" />
                             <span className="truncate">{t("appt.service")}: {pickTri(a as unknown as Record<string, unknown>, "serviceTitle", lang)}</span>
                           </span>
+                        )}
+                        {/* ★ v3.16: هاتف العميل — اتصال بلمسة واحدة، بنمط بطاقات الحسابات والمرضى */}
+                        {!!a.clientPhone && !a.clientPhone.startsWith("g-") && (
+                          <a
+                            href={`tel:${a.clientPhone}`}
+                            dir="ltr"
+                            aria-label={`${a.clientName || ""} ${a.clientPhone}`}
+                            className="inline-flex max-w-full items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-700 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400"
+                          >
+                            <Phone className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            <span className="truncate tabular-nums">{a.clientPhone}</span>
+                          </a>
                         )}
                       </div>
                     </>

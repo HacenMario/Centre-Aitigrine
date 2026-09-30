@@ -178,7 +178,7 @@ export default function Accounts({ navigate }: { navigate: Navigate }) {
                   <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400">
                     <KeyRound className="h-4 w-4" />
                   </span>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-auto">
                     <p className="text-sm font-bold break-words">{rq.name}</p>
                     <p className="text-xs text-muted-foreground" dir="ltr">{rq.phone}</p>
                   </div>
@@ -224,7 +224,9 @@ export default function Accounts({ navigate }: { navigate: Navigate }) {
                     <FullAvatar src={a.photoBase64} alt={a.name} className="h-12 w-12" imgClassName="p-0.5" />
                   ) : a.name.charAt(0)}
                 </span>
-                <div className="min-w-0 flex-1">
+                {/* ★ v3.16: flex-auto (أساس المحتوى) بدل flex-1 (أساس صفر) — الاسم يحجز مساحته
+                    ويلتف بالكلمات كاملة في نفس السطر بدل التقطّع حرفاً حرفاً عمودياً على الهاتف */}
+                <div className="min-w-0 flex-auto">
                   <p className="font-bold text-sm break-words">{a.name}</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5" dir="ltr">
                     <Phone className="h-3 w-3" /> {a.phone}

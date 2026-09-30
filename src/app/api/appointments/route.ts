@@ -56,14 +56,17 @@ export async function GET(req: NextRequest) {
       ids.add(String(a.specialistId));
     });
     const users = await User.find({ _id: { $in: [...ids] } })
-      .select("name role")
-      .lean<{ _id: unknown; name: string; role: string }[]>();
+      .select("name role phone")
+      .lean<{ _id: unknown; name: string; role: string; phone?: string }[]>();
     const nameMap = new Map(users.map((u) => [String(u._id), u.name]));
+    /* ★ v3.16: هاتف العميل — يظهر على بطاقة الموعد لحسابَي الإدارة والمساعد */
+    const phoneMap = new Map(users.map((u) => [String(u._id), u.phone || ""]));
     return ok({
       appointments: appts.map((a) => ({
         ...a,
         clientName: nameMap.get(String(a.clientId)) || "—",
         specialistName: nameMap.get(String(a.specialistId)) || "—",
+        clientPhone: phoneMap.get(String(a.clientId)) || "",
       })),
     });
   });
