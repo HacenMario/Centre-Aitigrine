@@ -1,7 +1,9 @@
-/** التكوينات — GET للجميع (مع enrolledCount للمقاعد المتبقية)، POST للإدارة */
+/** التكوينات — GET للجميع (مع enrolledCount للمقاعد المتبقية)، POST للإدارة
+ * ★ v3.11: المكوِّن المسؤول (trainerId) — مرجع حساب دور «مكون» يُزامن اسمه trainerName
+ */
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
-import { Course } from "@/lib/models";
+import { Course, User } from "@/lib/models";
 import { currentUser, isStaff, requireUser } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -11,14 +13,37 @@ export async function GET(req: NextRequest) {
     const all = searchParams.get("all") === "1" && me && isStaff(me.role);
     const q = all ? {} : { active: true };
     const courses = await Course.find(q).sort({ createdAt: -1 }).lean();
+    /* ★ v3.11: مزامنة أسماء المكوِّنين — resolvetrainerId → أحدث اسم للحساب (يغطي تغيير الاسم)
+     * وترجيع trainerRole لبطاقة التكوين لعرض شارة (أخصائي/مكوِّن) */
+    const tIds = new Set<string>();
+    courses.forEach((c) => {
+      const tid = (c as { trainerId?: unknown }).trainerId;
+      if (tid) tIds.add(String(tid));
+    });
+    let trainerMap = new Map<string, { name: string; role: string }>();
+    if (tIds.size) {
+      const tus = await User.find({ _id: { $in: [...tIds] } })
+        .select("name role")
+        .lean<{ _id: unknown; name: string; role: string }[]>();
+      trainerMap = new Map(
+        tus.map((u) => [String(u._id), { name: u.name, role: u.role }])
+      );
+    }
     /* عدد المسجلين لكل تكوين — لحساب المقاعد المتبقية (نمط طمأنينة) */
     const mine = me?._id ? String(me._id) : null;
     return ok({
-      courses: courses.map((c) => ({
-        ...c,
-        enrolledCount: ((c.enrolledIds as unknown[]) || []).length,
-        enrolledByMe: mine ? ((c.enrolledIds as unknown[]) || []).some((x) => String(x) === mine) : false,
-      })),
+      courses: courses.map((c) => {
+        const tid = String((c as { trainerId?: unknown }).trainerId || "");
+        const tu = tid ? trainerMap.get(tid) : undefined;
+        return {
+          ...c,
+          trainerId: tid || null,
+          trainerName: tu?.name || c.trainerName || "",
+          trainerRole: tu?.role || "",
+          enrolledCount: ((c.enrolledIds as unknown[]) || []).length,
+          enrolledByMe: mine ? ((c.enrolledIds as unknown[]) || []).some((x) => String(x) === mine) : false,
+        };
+      }),
     });
   });
 }
@@ -29,6 +54,20 @@ export async function POST(req: NextRequest) {
     const b = await req.json().catch(() => ({}));
     const title = String(b.title || "").trim();
     if (!title) return fail(400, "عنوان التكوين مطلوب");
+
+    /* ★ v3.11: المكوِّن المسؤول — تحقق خادمي: حساب نشط بدور «مكون» (أو أخصائي) */
+    let trainerId: string | null = null;
+    let trainerName = String(b.trainerName || "");
+    if (b.trainerId) {
+      const tu = await User.findById(String(b.trainerId))
+        .select("name role active")
+        .lean<{ _id: unknown; name: string; role: string; active?: boolean } | null>();
+      if (!tu || tu.active === false || !["trainer", "specialist"].includes(tu.role))
+        return fail(400, "المكوِّن المحدد غير صالح");
+      trainerId = String(tu._id);
+      trainerName = tu.name;
+    }
+
     const c = await Course.create({
       title,
       titleFr: String(b.titleFr || ""),
@@ -37,7 +76,8 @@ export async function POST(req: NextRequest) {
       descriptionFr: String(b.descriptionFr || ""),
       descriptionEn: String(b.descriptionEn || ""),
       category: String(b.category || ""),
-      trainerName: String(b.trainerName || ""),
+      trainerId,
+      trainerName,
       price: Number(b.price) || 0,
       capacity: Number(b.capacity) || 0,
       coverBase64: String(b.coverBase64 || ""),

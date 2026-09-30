@@ -37,7 +37,7 @@ export default function Patients({ navigate }: { navigate: Navigate }) {
   const [openPatient, setOpenPatient] = useState<string | null>(null);
   /* ترقيم الصفحات الاحترافي */
   const [page, setPage] = useState(1);
-  const isSpec = me?.role === "specialist";
+  const isSpec = me?.role === "specialist" || me?.role === "trainer";
 
   const load = useCallback(async () => {
     setLoading(true);

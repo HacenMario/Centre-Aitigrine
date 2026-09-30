@@ -37,6 +37,10 @@ export async function GET(req: NextRequest) {
     let q: Record<string, unknown> = {};
     if (me.role === "client") q = { clientId: me._id };
     else if (me.role === "specialist") q = { specialistId: me._id };
+    else if (me.role === "trainer")
+      /* ★ v3.11: المكوّن لا يستقبل مواعيد أصلاً — نُرجع قائمة فارغة دائماً
+       * (يمنع أيضاً أي تسلّل لرؤية مواعيد الآخرين عبر نداء مباشر) */
+      q = { specialistId: me._id };
     else {
       const status = searchParams.get("status");
       if (status) q.status = status;

@@ -41,7 +41,7 @@ const ACC_PAGE_SIZE = 12;
 type ResetReq = { id: string; name: string; phone: string; role: string; createdAt: string };
 
 type Account = {
-  _id: string; name: string; phone: string; role: "admin" | "assistant" | "specialist" | "client";
+  _id: string; name: string; phone: string; role: "admin" | "assistant" | "specialist" | "trainer" | "client";
   specialty?: string; langs?: string[]; title?: string; titleFr?: string; titleEn?: string;
   bio?: string; bioFr?: string; bioEn?: string; yearsExperience?: number; specialties?: string[];
   photoBase64?: string;
@@ -54,6 +54,7 @@ const ROLE_BADGE: Record<string, string> = {
   admin: "bg-rose-500/12 text-rose-700 dark:text-rose-400 border-rose-500/25",
   assistant: "bg-violet-500/12 text-violet-700 dark:text-violet-400 border-violet-500/25",
   specialist: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 border-emerald-500/25",
+  trainer: "bg-amber-500/12 text-amber-700 dark:text-amber-400 border-amber-500/25",
   client: "bg-sky-500/12 text-sky-700 dark:text-sky-400 border-sky-500/25",
 };
 
@@ -198,6 +199,7 @@ export default function Accounts({ navigate }: { navigate: Navigate }) {
             <TabsTrigger value="admin">{t("roles.admin")}</TabsTrigger>
             <TabsTrigger value="assistant">{t("roles.assistant")}</TabsTrigger>
             <TabsTrigger value="specialist">{t("roles.specialist")}</TabsTrigger>
+            <TabsTrigger value="trainer">{t("roles.trainer")}</TabsTrigger>
             <TabsTrigger value="client">{t("roles.client")}</TabsTrigger>
           </TabsList>
         </Tabs>
@@ -231,7 +233,7 @@ export default function Accounts({ navigate }: { navigate: Navigate }) {
                     {a.specialty === "art_therapy" ? t("acc.art") : a.specialty === "both" ? t("acc.both") : t("acc.psycho")}
                   </span>
                 )}
-                {a.role === "specialist" && (a.yearsExperience || 0) > 0 && (
+                {(a.role === "specialist" || a.role === "trainer") && (a.yearsExperience || 0) > 0 && (
                   <span className="text-xs font-bold text-primary">+{a.yearsExperience} {t("spec.years")}</span>
                 )}
                 {!a.active && <Badge variant="secondary">{t("common.inactive")}</Badge>}
@@ -393,7 +395,7 @@ function AccountForm({
           <Select value={value?.role || "client"} onValueChange={(v) => upd({ role: v as Account["role"] })}>
             <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {(["admin", "assistant", "specialist", "client"] as const).map((r) => (
+              {(["admin", "assistant", "specialist", "trainer", "client"] as const).map((r) => (
                 <SelectItem key={r} value={r}>{t(`roles.${r}`)}</SelectItem>
               ))}
             </SelectContent>
@@ -401,20 +403,40 @@ function AccountForm({
         </div>
       </div>
 
-      {value?.role === "specialist" && (
+      {/* ★ v3.11: شرح دور المكوّن — صلاحيات الأخصائي بلا مواعيد وبلا ظهور في قائمة الأخصائيين */}
+      {value?.role === "trainer" && (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+          {t("acc.trainerNote")}
+        </p>
+      )}
+
+      {(value?.role === "specialist" || value?.role === "trainer") && (
         <>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>{t("acc.specialty")}</Label>
-              <Select value={value?.specialty || "psychological"} onValueChange={(v) => upd({ specialty: v })}>
-                <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="psychological">{t("acc.psycho")}</SelectItem>
-                  <SelectItem value="art_therapy">{t("acc.art")}</SelectItem>
-                  <SelectItem value="both">{t("acc.both")}</SelectItem>
-                </SelectContent>
-              </Select>
+          {/* نوع الخدمة الإكلينيكي — للأخصائي فقط (المكوّن لا يستقبل مواعيد ★ v3.11) */}
+          {value?.role === "specialist" ? (
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>{t("acc.specialty")}</Label>
+                <Select value={value?.specialty || "psychological"} onValueChange={(v) => upd({ specialty: v })}>
+                  <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="psychological">{t("acc.psycho")}</SelectItem>
+                    <SelectItem value="art_therapy">{t("acc.art")}</SelectItem>
+                    <SelectItem value="both">{t("acc.both")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t("acc.years")}</Label>
+                <Input
+                  type="number" min={0} max={70}
+                  value={value?.yearsExperience ?? 0}
+                  onChange={(e) => upd({ yearsExperience: Math.max(0, Math.min(70, Number(e.target.value) || 0)) })}
+                  className="h-11"
+                />
+              </div>
             </div>
+          ) : (
             <div className="space-y-2">
               <Label>{t("acc.years")}</Label>
               <Input
@@ -424,7 +446,7 @@ function AccountForm({
                 className="h-11"
               />
             </div>
-          </div>
+          )}
           {/* اللقب المهني — ثلاثي اللغة */}
           <TriInput langs={TRI3}
             label={t("acc.title")}
@@ -446,7 +468,7 @@ function AccountForm({
               ))}
             </div>
           </div>
-          {/* التخصصات المرتبطة بالأخصائي — من القائمة الدائمة + إضافات الإدارة */}
+          {/* التخصصات المرتبطة بالأخصائي/المكوّن — من القائمة الدائمة + إضافات الإدارة */}
           {specialtyRows.length > 0 && (
             <div className="space-y-2">
               <Label>{t("acc.linkSpecialties")}</Label>
@@ -473,10 +495,13 @@ function AccountForm({
               </div>
             </div>
           )}
-          <div className="space-y-2">
-            <Label>{t("acc.weeklyHours")}</Label>
-            <WeekHoursEditor value={value?.weeklyHours || {}} onChange={(v) => upd({ weeklyHours: v })} />
-          </div>
+          {/* ساعات الاستقبال — للأخصائي فقط (المكوّن لا يستقبل مواعيد أصلاً ★ v3.11) */}
+          {value?.role === "specialist" && (
+            <div className="space-y-2">
+              <Label>{t("acc.weeklyHours")}</Label>
+              <WeekHoursEditor value={value?.weeklyHours || {}} onChange={(v) => upd({ weeklyHours: v })} />
+            </div>
+          )}
         </>
       )}
 

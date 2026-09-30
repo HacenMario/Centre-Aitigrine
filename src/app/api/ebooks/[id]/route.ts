@@ -39,8 +39,8 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
         clientName: nameMap.get(String(r.clientId)) || "—",
         answers: mapToObj(r.answers) as Record<string, string>,
       }));
-    } else if (me.role === "specialist") {
-      /* الأخصائي المعالج: يرى إجابات عملائه المعيّنين له فقط */
+    } else if (me.role === "specialist" || me.role === "trainer") {
+      /* الأخصائي/المكوّن المعالج: يرى إجابات عملائه المعيّنين له فقط — ★ v3.11 */
       const clients = await User.find({
         assignedSpecialistId: me._id,
         role: "client",

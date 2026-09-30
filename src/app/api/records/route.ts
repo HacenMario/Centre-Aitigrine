@@ -4,12 +4,16 @@
  * GET ?patientId=xxx → ملف مريض واحد
  * PUT  → إنشاء/تحديث ملف (أخصائي مرتبط بالحالة أو إدارة)
  *
- * 🔒 السرية: الأخصائي يصل فقط لمرضاه (المعيَّنون له أو لهم مواعيد معه)
+ * 🔒 السرية: الأخصائي/المكوّن يصل فقط لمرضاه (المعيَّنون لهم أو لهم مواعيد)
+ * ★ v3.11: المكوّن (trainer) له نفس وصول الأخصائي — مرضاه المعيّنون له فقط
  */
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
 import { Appointment, MedicalRecord, User } from "@/lib/models";
 import { requireUser, toSafeUser } from "@/lib/auth";
+
+/* ★ v3.11: الأخصائي أو المكوّن — كلاهما يرى مرضاه المعيّنين فقط */
+const isCareProvider = (role: string) => role === "specialist" || role === "trainer";
 
 /** معرّفات مرضى الأخصائي: المعيَّنون له + من لهم مواعيد معه */
 async function patientsOfSpecialist(specialistId: string): Promise<string[]> {
@@ -25,7 +29,7 @@ async function patientsOfSpecialist(specialistId: string): Promise<string[]> {
 
 export async function GET(req: NextRequest) {
   return handle(async () => {
-    const me = await requireUser(["admin", "assistant", "specialist"]);
+    const me = await requireUser(["admin", "assistant", "specialist", "trainer"]);
     const { searchParams } = new URL(req.url);
     const patientId = searchParams.get("patientId");
 
@@ -33,7 +37,7 @@ export async function GET(req: NextRequest) {
     if (patientId) {
       const patient = await User.findById(patientId).lean();
       if (!patient || patient.role !== "client") return fail(404, "المريض غير موجود");
-      if (me.role === "specialist") {
+      if (isCareProvider(me.role)) {
         const mine = await patientsOfSpecialist(String(me._id));
         if (!mine.includes(String(patientId))) return fail(403, "هذا المريض ليس ضمن ملفاتك — وصول مرفوض");
       }
@@ -68,7 +72,7 @@ export async function GET(req: NextRequest) {
 
     /* قائمة المرضى */
     let patientIds: string[];
-    if (me.role === "specialist") {
+    if (isCareProvider(me.role)) {
       patientIds = await patientsOfSpecialist(String(me._id));
     } else {
       const clients = await User.find({ role: "client" }).select("_id").lean<{ _id: unknown }[]>();
@@ -102,7 +106,7 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   return handle(async () => {
-    const me = await requireUser(["admin", "assistant", "specialist"]);
+    const me = await requireUser(["admin", "assistant", "specialist", "trainer"]);
     const b = await req.json().catch(() => ({}));
     const patientId = String(b.patientId || "");
     if (!patientId) return fail(400, "حدد المريض");
@@ -110,8 +114,8 @@ export async function PUT(req: NextRequest) {
     const patient = await User.findById(patientId).lean();
     if (!patient || patient.role !== "client") return fail(404, "المريض غير موجود");
 
-    /* 🔒 الأخصائي: مرضاه فقط */
-    if (me.role === "specialist") {
+    /* 🔒 الأخصائي/المكوّن: مرضاه فقط */
+    if (isCareProvider(me.role)) {
       const mine = await patientsOfSpecialist(String(me._id));
       if (!mine.includes(patientId)) return fail(403, "هذا المريض ليس ضمن ملفاتك — وصول مرفوض");
     }
@@ -119,7 +123,7 @@ export async function PUT(req: NextRequest) {
     const existing = await MedicalRecord.findOne({ patientId });
     const fields = {
       specialistId:
-        me.role === "specialist"
+        isCareProvider(me.role)
           ? me._id
           : b.specialistId
             ? b.specialistId

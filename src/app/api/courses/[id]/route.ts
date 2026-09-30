@@ -1,7 +1,9 @@
-/** تعديل/تفعيل/حذف تكوين — الإدارة | POST: تسجيل عميل في تكوين (نمط طمأنينة) */
+/** تعديل/تفعيل/حذف تكوين — الإدارة | POST: تسجيل عميل في تكوين (نمط طمأنينة)
+ * ★ v3.11: المكوِّن المسؤول (trainerId) — مرجع حساب دور «مكون» أو «أخصائي»
+ */
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
-import { Course } from "@/lib/models";
+import { Course, User } from "@/lib/models";
 import { requireUser } from "@/lib/auth";
 import { notifyStaff } from "@/lib/push";
 import { enrollRequestText } from "@/lib/notify-text";
@@ -43,7 +45,21 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (b.descriptionFr !== undefined) c.descriptionFr = String(b.descriptionFr);
     if (b.descriptionEn !== undefined) c.descriptionEn = String(b.descriptionEn);
     if (b.category !== undefined) c.category = String(b.category);
-    if (b.trainerName !== undefined) c.trainerName = String(b.trainerName);
+    /* ★ v3.11: المكوِّن المسؤول — تحقق خادمي عند التعديل + مزامنة الاسم */
+    if (b.trainerId !== undefined) {
+      if (!b.trainerId) {
+        c.trainerId = null;
+        if (b.trainerName !== undefined) c.trainerName = String(b.trainerName);
+      } else {
+        const tu = await User.findById(String(b.trainerId))
+          .select("name role active")
+          .lean<{ _id: unknown; name: string; role: string; active?: boolean } | null>();
+        if (!tu || tu.active === false || !["trainer", "specialist"].includes(tu.role))
+          return fail(400, "المكوِّن المحدد غير صالح");
+        c.trainerId = tu._id as never;
+        c.trainerName = tu.name;
+      }
+    } else if (b.trainerName !== undefined) c.trainerName = String(b.trainerName);
     if (b.price !== undefined) c.price = Number(b.price) || 0;
     if (b.capacity !== undefined) c.capacity = Number(b.capacity) || 0;
     if (typeof b.coverBase64 === "string") c.coverBase64 = b.coverBase64;

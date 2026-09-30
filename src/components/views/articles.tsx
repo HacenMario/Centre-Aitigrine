@@ -83,9 +83,10 @@ function fmtDate(iso: string, lang: "ar" | "fr" | "en"): string {
 export default function Articles({ navigate }: { navigate: Navigate }) {
   const { t, me, lang } = useApp();
   const isStaff = me?.role === "admin" || me?.role === "assistant";
-  const isSpecialist = me?.role === "specialist";
-  /** النشر متاح للأخصائيين والإدارة فقط — طلب المستخدم */
-  const canPublish = !!me && (isStaff || isSpecialist);
+  /** ★ v3.11: الأخصائي والمكوّن — كلاهما ينشر المقالات */
+  const isAuthor = me?.role === "specialist" || me?.role === "trainer";
+  /** النشر متاح للأخصائيين والمكوّنين والإدارة */
+  const canPublish = !!me && (isStaff || isAuthor);
 
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,8 +102,8 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
         const r = await fetch("/api/articles?all=1", { cache: "no-store" });
         const j = await r.json();
         setArticles(j.articles || []);
-      } else if (isSpecialist) {
-        /* الأخصائي: المقالات المفعّلة + مقالاته هو حتى المعطّلة منها */
+      } else if (isAuthor) {
+        /* الأخصائي/المكوّن: المقالات المفعّلة + مقالاته هو حتى المعطّلة منها — ★ v3.11 */
         const [pub, mine] = await Promise.all([
           fetch("/api/articles", { cache: "no-store" }),
           fetch("/api/articles?mine=1", { cache: "no-store" }),
@@ -119,7 +120,7 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
       }
     } catch {}
     setLoading(false);
-  }, [isStaff, isSpecialist]);
+  }, [isStaff, isAuthor]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { setPage(1); }, [filter, articles.length]);
@@ -145,9 +146,9 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const canManage = (a: Article) =>
-    !!me && (me.role === "admin" || (isSpecialist && String(a.authorId || "") === String(me._id)));
+    !!me && (me.role === "admin" || (isAuthor && String(a.authorId || "") === String(me._id)));
   const canDelete = (a: Article) =>
-    me?.role === "admin" || (isSpecialist && String(a.authorId || "") === String(me._id));
+    me?.role === "admin" || (isAuthor && String(a.authorId || "") === String(me._id));
 
   const toggleActive = async (a: Article) => {
     const r = await fetch(`/api/articles/${a._id}`, {

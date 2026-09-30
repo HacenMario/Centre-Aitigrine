@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest) {
     /* إشعار صاحب الطلب بأن طلبه عولج — مع الكلمة المؤقتة ليتمكن من الدخول
        الضغط على الإشعار ينقل مباشرة لبوابة الدخول المناسبة لنوع الحساب */
     const target = await User.findById(reqDoc.userId).select("role").lean<{ role?: string } | null>();
-    const loginLink = target?.role === "specialist" ? "login:specialist" : target?.role === "admin" ? "login:admin" : "login:client";
+    const loginLink = target?.role === "specialist" || target?.role === "trainer" ? "login:specialist" : target?.role === "admin" ? "login:admin" : "login:client";
     notifyUser(String(reqDoc.userId), resetHandledText({ tempPassword: password }), "reset", loginLink);
     return ok({ done: true });
   });

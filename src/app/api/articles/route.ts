@@ -2,8 +2,8 @@
  * المقالات العلمية (v3.6.0) — علم النفس والأرطفونية
  * GET: للجميع — المقالات المفعّلة فقط (الإدارة ترى الكل مع ?all=1)
  *      القائمة بلا متن المقال (يُجلب كاملاً عند فتح المقال) — أداء أفضل
- * POST: الأخصائيون وإدارة المركز فقط (admin/assistant/specialist)
- *       أخصائي ينشر → إشعار فريق الإدارة
+ * POST: الأخصائيون والمكوّنون وإدارة المركز (admin/assistant/specialist/trainer)
+ *       أخصائي أو مكوّن ينشر → إشعار فريق الإدارة
  *       إدارة تنشر → إشعار العملاء والأخصائيين (عدا الكاتب)
  */
 import { NextRequest } from "next/server";
@@ -21,8 +21,11 @@ export async function GET(req: NextRequest) {
     const me = await currentUser();
     const { searchParams } = new URL(req.url);
     const all = searchParams.get("all") === "1" && me && isStaff(me.role);
-    /* الأخصائي يرى مقالاته المعطّلة هو أيضاً (كي يتمكن من إعادة تفعيلها) */
-    const mineOnly = searchParams.get("mine") === "1" && me && me.role === "specialist";
+    /* الأخصائي/المكوّن يرى مقالاته المعطّلة هو أيضاً (كي يتمكن من إعادة تفعيلها) — ★ v3.11 */
+    const mineOnly =
+      searchParams.get("mine") === "1" &&
+      me &&
+      (me.role === "specialist" || me.role === "trainer");
     const q = all ? {} : mineOnly ? { authorId: me._id } : { active: true };
     const articles = await Article.find(q)
       .select(LIST_PROJECTION)
@@ -34,7 +37,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   return handle(async () => {
-    const me = await requireUser(["admin", "assistant", "specialist"]);
+    const me = await requireUser(["admin", "assistant", "specialist", "trainer"]);
     const b = await req.json().catch(() => ({}));
     const title = String(b.title || "").trim();
     const content = String(b.content || "").trim();
@@ -73,17 +76,17 @@ export async function POST(req: NextRequest) {
       titleEn: String(b.titleEn || ""),
     };
     try {
-      if (me.role === "specialist") {
-        /* أخصائي نشر → فريق الإدارة يُعلم */
+      if (me.role === "specialist" || me.role === "trainer") {
+        /* أخصائي أو مكوّن نشر → فريق الإدارة يُعلم */
         await notifyStaff(
           articlePublishedText({ ...tri, authorName: me.name || "", viewer: "staff" }),
           "article",
           "articles"
         );
       } else {
-        /* إدارة نشرت → العملاء والأخصائيون النشطون (عدا الكاتب) يُعلمون */
+        /* إدارة نشرت → العملاء والأخصائيون والمكوّنون النشطون (عدا الكاتب) يُعلمون */
         const audience = await User.find({
-          role: { $in: ["client", "specialist"] },
+          role: { $in: ["client", "specialist", "trainer"] },
           active: true,
           _id: { $ne: me._id },
         })

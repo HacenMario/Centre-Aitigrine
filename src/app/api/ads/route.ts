@@ -264,7 +264,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "like") {
-      if (!me || !["client", "specialist"].includes(me.role))
+      if (!me || !["client", "specialist", "trainer"].includes(me.role))
         return fail(401, "سجّل الدخول كي تتفاعل مع الإعلانات");
       const ad = await Ad.findById(id).select("likes title").lean();
       if (!ad) return fail(404, "الإعلان غير موجود");
@@ -281,7 +281,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "comment") {
-      if (!me || !["client", "specialist"].includes(me.role))
+      if (!me || !["client", "specialist", "trainer"].includes(me.role))
         return fail(401, "سجّل الدخول كي تتفاعل مع الإعلانات");
       const text = String(b.text || "").trim();
       if (!text) return fail(400, "اكتب تعليقك أولاً");

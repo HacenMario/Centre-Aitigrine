@@ -32,7 +32,7 @@ export type Me = {
   _id: string;
   name: string;
   phone: string;
-  role: "admin" | "assistant" | "specialist" | "client";
+  role: "admin" | "assistant" | "specialist" | "trainer" | "client";
   specialty?: "psychological" | "art_therapy" | "both";
   langs?: string[];
   title?: string;

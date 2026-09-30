@@ -44,13 +44,13 @@ type Course = {
   _id: string;
   title: string; titleFr?: string; titleEn?: string;
   description: string; descriptionFr?: string; descriptionEn?: string;
-  category: string; trainerName: string;
+  category: string; trainerName: string; trainerId?: string | null; trainerRole?: string;
   price: number; capacity: number; enrolledCount?: number; enrolledByMe?: boolean;
   coverBase64: string; images: string[]; sessions: Session[]; active: boolean;
 };
 const EMPTY: Partial<Course> = { title: "", description: "", category: "", trainerName: "", price: 0, capacity: 0, coverBase64: "", images: [], sessions: [], active: true };
-/** أخصائيو المركز — تُعبّئ قائمة «المكوّن» في نافذة إنشاء/تعديل التكوين (v3.6) */
-type SpecOption = { _id: string; name: string; title?: string };
+/** ★ v3.11: المكوِّنون والأخصائيون — يُعبّئون قائمة «المكوِّن» في نافذة إنشاء/تعديل التكوين */
+type SpecOption = { _id: string; name: string; title?: string; kind: "specialist" | "trainer" };
 
 export default function Courses({ navigate }: { navigate: Navigate }) {
   const { t, lang, me, settings } = useApp();
@@ -81,20 +81,34 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
 
   useEffect(() => { load(); }, [load]);
 
-  /* v3.6: جلب أخصائيي المركز النشطين — للإدارة فقط (تظهر القائمة في نافذة التكوين) */
+  /* ★ v3.11: جلب أخصائيي المركز + المكوِّنين النشطين — للإدارة فقط (تظهر القائمة في نافذة التكوين) */
   useEffect(() => {
     if (!isStaff) return;
     (async () => {
       try {
-        const r = await fetch("/api/specialists", { cache: "no-store" });
-        const j = await r.json();
-        setSpecList(
-          (j.specialists || []).map((s: { _id: string; name: string; title?: string }) => ({
+        const [rs, rt] = await Promise.all([
+          fetch("/api/specialists", { cache: "no-store" }),
+          fetch("/api/accounts?role=trainer", { cache: "no-store" }),
+        ]);
+        const js = await rs.json().catch(() => ({}));
+        const jt = await rt.json().catch(() => ({}));
+        const specs: SpecOption[] = (js.specialists || []).map(
+          (s: { _id: string; name: string; title?: string }) => ({
             _id: String(s._id),
             name: s.name,
             title: s.title || "",
-          }))
+            kind: "specialist" as const,
+          })
         );
+        const trainers: SpecOption[] = (jt.users || [])
+          .filter((u: { active?: boolean }) => u.active !== false)
+          .map((u: { _id: string; name: string; title?: string }) => ({
+            _id: String(u._id),
+            name: u.name,
+            title: u.title || "",
+            kind: "trainer" as const,
+          }));
+        setSpecList([...trainers, ...specs]);
       } catch {}
     })();
   }, [isStaff]);
@@ -230,7 +244,13 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
                   <p className="text-sm text-muted-foreground leading-relaxed break-words whitespace-pre-line">{descOf(c)}</p>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     {c.category && <Badge variant="outline" className="break-words whitespace-normal">{catLabel(c.category)}</Badge>}
-                    {c.trainerName && <span className="flex items-center gap-1"><UserRound className="h-3 w-3" />{c.trainerName}</span>}
+                    {c.trainerName && (
+                      <span className="flex items-center gap-1">
+                        <UserRound className="h-3 w-3" />
+                        {c.trainerName}
+                        {c.trainerRole === "trainer" && <span className="opacity-60">· {t("roles.trainer")}</span>}
+                      </span>
+                    )}
                     {c.price > 0 && <span className="font-bold text-primary">{fmtPrice(c.price)}</span>}
                   </div>
                   <SeatsBar c={c} />
@@ -366,10 +386,17 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
               </div>
               <div className="space-y-2">
                 <Label>{t("crs.trainer")}</Label>
-                {/* v3.6: الأخصائي يُختار من قائمة أخصائيي المركز — لا كتابة حرة */}
+                {/* ★ v3.11: المكوِّن/الأخصائي يُختار من قائمة حسابات المركز — بربط مباشر trainerId
+                    (الاسم القديم الحر المحفوظ سابقاً يبقى خياراً محفوظاً) */}
                 <Select
-                  value={editing?.trainerName || ""}
-                  onValueChange={(v) => setEditing({ ...editing, trainerName: v === "__none__" ? "" : v })}
+                  value={editing?.trainerId || (editing?.trainerName ? `name:${editing.trainerName}` : "__none__")}
+                  onValueChange={(v) => {
+                    if (v === "__none__") return setEditing({ ...editing, trainerId: null, trainerName: "" });
+                    if (v.startsWith("name:"))
+                      return setEditing({ ...editing, trainerId: null, trainerName: v.slice(5) });
+                    const picked = specList.find((s) => s._id === v);
+                    setEditing({ ...editing, trainerId: v, trainerName: picked?.name || "" });
+                  }}
                 >
                   <SelectTrigger className="h-11">
                     <SelectValue placeholder={t("crs.trainerPlaceholder")} />
@@ -377,13 +404,14 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
                   <SelectContent>
                     <SelectItem value="__none__">{t("crs.trainerNone")}</SelectItem>
                     {specList.map((s) => (
-                      <SelectItem key={s._id} value={s.name}>
-                        {s.title ? `${s.name} — ${s.title}` : s.name}
+                      <SelectItem key={s._id} value={s._id}>
+                        {s.kind === "trainer" ? `🎓 ${s.name}` : s.title ? `${s.name} — ${s.title}` : s.name}
+                        {s.kind === "trainer" ? ` (${t("roles.trainer")})` : ""}
                       </SelectItem>
                     ))}
-                    {/* اسم قديم محفوظ سابقاً بلا حساب أخصائي — يظهر كخيار للحفاظ عليه */}
-                    {editing?.trainerName && !specList.some((s) => s.name === editing.trainerName) && (
-                      <SelectItem value={editing.trainerName}>{editing.trainerName}</SelectItem>
+                    {/* اسم قديم محفوظ سابقاً بلا حساب مرتبط — يظهر كخيار للحفاظ عليه */}
+                    {editing?.trainerName && !editing?.trainerId && !specList.some((s) => s.name === editing.trainerName) && (
+                      <SelectItem value={`name:${editing.trainerName}`}>{editing.trainerName}</SelectItem>
                     )}
                   </SelectContent>
                 </Select>

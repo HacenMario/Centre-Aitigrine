@@ -1,9 +1,9 @@
 /**
  * مقال واحد (v3.6.0)
  * GET: القراءة عامة للجميع — المقال المفعّل يقرأه الزوار والمستخدمون،
- *      والمعطّل يراه فريق الإدارة وصاحبه الأخصائي فقط
- * PATCH: الإدارة تعدّل أي مقال — الأخصائي يعدّل مقالاته هو فقط
- * DELETE: الأدمين يحذف أي مقال — الأخصائي يحذف مقاله هو فقط
+ *      والمعطّل يراه فريق الإدارة وصاحبه (أخصائي أو مكوّن) فقط
+ * PATCH: الإدارة تعدّل أي مقال — الأخصائي والمكوّن يعدّلان مقالاتهما هو فقط
+ * DELETE: الأدمين يحذف أي مقال — الأخصائي والمكوّن يحذف مقاله هو فقط
  */
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
@@ -29,12 +29,15 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   return handle(async () => {
-    const me = await requireUser(["admin", "assistant", "specialist"]);
+    const me = await requireUser(["admin", "assistant", "specialist", "trainer"]);
     const { id } = await ctx.params;
     const a = await Article.findById(id);
     if (!a) return fail(404, "المقال غير موجود");
-    /* الأخصائي: مقالاته هو فقط */
-    if (me.role === "specialist" && String(a.authorId || "") !== String(me._id))
+    /* الأخصائي/المكوّن: مقالاته هو فقط — ★ v3.11 */
+    if (
+      (me.role === "specialist" || me.role === "trainer") &&
+      String(a.authorId || "") !== String(me._id)
+    )
       return fail(403, "لا تملك صلاحية تعديل هذا المقال");
 
     const b = await req.json().catch(() => ({}));
@@ -66,13 +69,16 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {
   return handle(async () => {
-    const me = await requireUser(["admin", "assistant", "specialist"]);
+    const me = await requireUser(["admin", "assistant", "specialist", "trainer"]);
     const { id } = await ctx.params;
     const a = await Article.findById(id);
     if (!a) return fail(404, "المقال غير موجود");
-    /* المساعد لا يحذف (نمط الكتب الإلكترونية) — الأخصائي يحذف مقاله هو فقط */
+    /* المساعد لا يحذف (نمط الكتب الإلكترونية) — الأخصائي/المكوّن يحذف مقاله هو فقط */
     if (me.role === "assistant") return fail(403, "لا تملك صلاحية حذف المقالات");
-    if (me.role === "specialist" && String(a.authorId || "") !== String(me._id))
+    if (
+      (me.role === "specialist" || me.role === "trainer") &&
+      String(a.authorId || "") !== String(me._id)
+    )
       return fail(403, "لا تملك صلاحية حذف هذا المقال");
     await Article.findByIdAndDelete(id);
     return ok();

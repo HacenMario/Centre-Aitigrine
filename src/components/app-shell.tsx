@@ -78,9 +78,18 @@ function Shell() {
       return;
     }
     if (STAFF_ONLY.includes(view) && (!me || (me.role !== "admin" && me.role !== "assistant"))) {
-      /* المرضى والملفات مسموح بها للأخصائي أيضاً */
-      if ((view === "patients" || view === "record") && me?.role === "specialist") return;
+      /* المرضى والملفات مسموح بها للأخصائي أيضاً — والمكوّن (ملفاته المعيَّنة له) ★ v3.11 */
+      if (
+        (view === "patients" || view === "record") &&
+        (me?.role === "specialist" || me?.role === "trainer")
+      )
+        return;
       navigate("home");
+    }
+    /* ★ v3.11: المكوّن لا يستقبل مواعيد — أي وصول مباشر لصفحة المواعيد يُعاد للرئيسية */
+    if (view === "appointments" && me?.role === "trainer") {
+      navigate("home");
+      return;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me, view, ready]);

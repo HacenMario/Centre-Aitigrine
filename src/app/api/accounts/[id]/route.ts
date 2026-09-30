@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (b.name !== undefined) $set.name = String(b.name).trim();
     if (b.phone !== undefined) $set.phone = String(b.phone).trim();
     if (b.password) $set.passwordHash = hashPassword(String(b.password));
-    if (b.role && ["admin", "assistant", "specialist", "client"].includes(b.role)) $set.role = b.role;
+    if (b.role && ["admin", "assistant", "specialist", "trainer", "client"].includes(b.role)) $set.role = b.role;
     if (b.specialty !== undefined) $set.specialty = b.specialty;
     if (Array.isArray(b.langs)) $set.langs = b.langs.map(String);
     if (b.title !== undefined) $set.title = String(b.title);

@@ -21,7 +21,7 @@ export type SafeUser = {
   _id: string;
   name: string;
   phone: string;
-  role: "admin" | "assistant" | "specialist" | "client";
+  role: "admin" | "assistant" | "specialist" | "trainer" | "client";
   specialty?: "psychological" | "art_therapy" | "both";
   langs: string[];
   title: string;
@@ -175,7 +175,17 @@ export async function currentUser(): Promise<UserDoc | null> {
   }
 }
 
-export type Role = "admin" | "assistant" | "specialist" | "client";
+export type Role = "admin" | "assistant" | "specialist" | "trainer" | "client";
+
+/** ★ v3.11: أدوار الطاقم الإكلينيكي (يستقبلون مواعيد): الأخصائي فقط — المكوّن لا يستقبل مواعيد */
+export function isClinical(role: string): boolean {
+  return role === "specialist";
+}
+
+/** ★ v3.11: أدوار الطاقم الكاملة (أدمين/مساعد/أخصائي/مكوّن) */
+export function isCrew(role: string): boolean {
+  return role === "admin" || role === "assistant" || role === "specialist" || role === "trainer";
+}
 
 /** حارس صلاحيات: يرمي Response جاهزاً عند عدم التخويل */
 export async function requireUser(roles?: Role[]): Promise<UserDoc> {

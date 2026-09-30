@@ -12,10 +12,15 @@ const UserSchema = new Schema(
     passwordHash: { type: String, required: true },
     role: {
       type: String,
-      enum: ["admin", "assistant", "specialist", "client"],
+      enum: ["admin", "assistant", "specialist", "trainer", "client"],
       required: true,
       index: true,
     },
+    /** ★ v3.11: المكوِّن = حساب من فريق الطاقم بنفس ملف الأخصائي المهني
+     *  (اللقب/النبذة/التخصصات/الصورة/سنوات الخبرة) لكن:
+     *  — لا يظهر في قائمة الأخصائيين العامة ولا في فريق الرئيسية
+     *  — لا يمكن حجز مواعيد معه ولا يقبل مواعيد
+     *  — ينشر المقالات ويُكلَّف بالتكوينات (trainerId في Course) */
     /** للأخصائي: نفسي / أرطوفوني / كلاهما */
     specialty: {
       type: String,
@@ -205,6 +210,9 @@ const CourseSchema = new Schema(
     descriptionFr: { type: String, default: "" },
     descriptionEn: { type: String, default: "" },
     category: { type: String, default: "" },
+    /** ★ v3.11: المكوِّن المسؤول عن التكوين — مرجع حساب دور «مكون»
+     *  trainerName يُزامَن من اسم الحساب خلفياً (وتبقى الكتابة الحرة القديمة تعمل) */
+    trainerId: { type: Schema.Types.ObjectId, ref: "User", default: null },
     trainerName: { type: String, default: "" },
     price: { type: Number, default: 0 },
     capacity: { type: Number, default: 0 }, // 0 = بلا حد
@@ -419,7 +427,7 @@ const ArticleSchema = new Schema(
     /** بطاقة الكاتب — لقطة محفوظة لحظة النشر (لا تتأثر بتغيّر الحساب لاحقاً) */
     authorId: { type: Schema.Types.ObjectId, ref: "User", index: true },
     authorName: { type: String, default: "", maxlength: 120 },
-    authorRole: { type: String, default: "", enum: ["", "admin", "assistant", "specialist"] },
+    authorRole: { type: String, default: "", enum: ["", "admin", "assistant", "specialist", "trainer"] },
     authorTitle: { type: String, default: "", maxlength: 120 },
     authorTitleFr: { type: String, default: "", maxlength: 120 },
     authorTitleEn: { type: String, default: "", maxlength: 120 },

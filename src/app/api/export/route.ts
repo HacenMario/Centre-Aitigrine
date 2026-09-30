@@ -84,11 +84,11 @@ const DICT: Record<Lang, Record<string, string>> = {
 };
 
 const ROLES: Record<Lang, Record<string, string>> = {
-  ar: { admin: "إدارة", assistant: "مساعد", specialist: "أخصائي", client: "عميل" },
-  fr: { admin: "Administration", assistant: "Assistant", specialist: "Spécialiste", client: "Client" },
-  en: { admin: "Admin", assistant: "Assistant", specialist: "Specialist", client: "Client" },
-  tr: { admin: "İdare", assistant: "Asistan", specialist: "Uzman", client: "Danışan" },
-  es: { admin: "Administración", assistant: "Asistente", specialist: "Especialista", client: "Cliente" },
+  ar: { admin: "إدارة", assistant: "مساعد", specialist: "أخصائي", trainer: "مكوّن", client: "عميل" },
+  fr: { admin: "Administration", assistant: "Assistant", specialist: "Spécialiste", trainer: "Formateur", client: "Client" },
+  en: { admin: "Admin", assistant: "Assistant", specialist: "Specialist", trainer: "Trainer", client: "Client" },
+  tr: { admin: "İdare", assistant: "Asistan", specialist: "Uzman", trainer: "Eğitmen", client: "Danışan" },
+  es: { admin: "Administración", assistant: "Asistente", specialist: "Especialista", trainer: "Formador", client: "Cliente" },
 };
 
 function csvCell(v: unknown): string {
@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
     const kindOf = (v: unknown) => (v === "art_therapy" ? t.art : t.psych);
 
     if (type === "clients") {
-      const users = await User.find({ role: { $in: ["client", "specialist", "assistant", "admin"] } })
+      const users = await User.find({ role: { $in: ["client", "specialist", "trainer", "assistant", "admin"] } })
         .sort({ createdAt: -1 })
         .lean<Record<string, unknown>[]>();
       const rows: (string | number)[][] = [
