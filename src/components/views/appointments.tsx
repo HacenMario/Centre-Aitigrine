@@ -28,7 +28,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarClock, Plus, Trash2, CheckCircle2, XCircle, CircleCheckBig, Info, UserRound, Star, Banknote, Coins, CalendarPlus, FileDown } from "lucide-react";
+import { CalendarClock, Plus, Trash2, CheckCircle2, XCircle, CircleCheckBig, Info, UserRound, Star, Banknote, Coins, CalendarPlus, FileDown, Tag } from "lucide-react";
 import { toast } from "sonner";
 import RatingsDialog from "@/components/ratings-dialog";
 import Pagination from "@/components/pagination";
@@ -284,10 +284,29 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
                   <span className="text-[11px] font-bold tabular-nums">{a.time}</span>
                 </div>
                 <div className="min-w-0 flex-1 space-y-1">
-                  <p className="font-bold text-sm sm:text-base break-words">
-                    {me.role === "client" ? a.specialistName : a.clientName}
-                    <span className="text-muted-foreground font-normal text-sm"> — {pickTri(a as unknown as Record<string, unknown>, "serviceTitle", lang) || t(`roles.${me.role === "client" ? "specialist" : "client"}`)}</span>
-                  </p>
+                  {/* ★ v3.15: للإدارة والمساعد — العميل أولاً ثم شريط الأخصائي المختار والخدمة المختارة من طرفه عند الحجز (لمتابعة أسهل) */}
+                  {isStaff ? (
+                    <>
+                      <p className="font-bold text-sm sm:text-base break-words">{a.clientName || "—"}</p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-primary/15 bg-primary/8 px-2 py-0.5 text-[11px] font-bold text-primary">
+                          <UserRound className="h-3 w-3 shrink-0" aria-hidden="true" />
+                          <span className="truncate">{t("appt.specialist")}: {a.specialistName || "—"}</span>
+                        </span>
+                        {!!pickTri(a as unknown as Record<string, unknown>, "serviceTitle", lang) && (
+                          <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-[11px] font-bold text-violet-700 dark:text-violet-400">
+                            <Tag className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            <span className="truncate">{t("appt.service")}: {pickTri(a as unknown as Record<string, unknown>, "serviceTitle", lang)}</span>
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="font-bold text-sm sm:text-base break-words">
+                      {me.role === "client" ? a.specialistName : a.clientName}
+                      <span className="text-muted-foreground font-normal text-sm"> — {pickTri(a as unknown as Record<string, unknown>, "serviceTitle", lang) || t(`roles.${me.role === "client" ? "specialist" : "client"}`)}</span>
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground" dir="ltr">
                     {a.date} · {a.time}
                   </p>

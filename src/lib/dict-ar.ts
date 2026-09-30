@@ -217,6 +217,7 @@ export const ar: Record<string, string> = {
   "appt.bookFor": "حجز لصالح",
   "appt.client": "العميل",
   "appt.specialist": "الأخصائي",
+  "appt.service": "الخدمة", /* ★ v3.15: عنوان شريط الخدمة في بطاقة موعد الإدارة */
 
   "srv.newService": "خدمة جديدة",
   "srv.editService": "تعديل الخدمة",
