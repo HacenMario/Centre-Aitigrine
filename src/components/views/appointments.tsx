@@ -5,7 +5,7 @@
  * الأخصائي: جلساته + تأكيد/إنهاء/إلغاء + تغيير وقت الموعد مع إشعار العميل ★ v3.12
  * الإدارة: كل مواعيد المركز + إدارة الحالات + حجز لعميل + تغيير الأوقات
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import BackButton from "@/components/back-button";
 import { PageSkeleton } from "@/components/brand-skeleton";
@@ -151,7 +151,7 @@ function statusBadge(s: string, t: (k: string) => string) {
 }
 
 export default function Appointments({ navigate }: { navigate: Navigate }) {
-  const { t, me, lang, viewId } = useApp();
+  const { t, me, lang, viewId, navSeq } = useApp();
   const DAYS = DAYS_BY_LANG[lang] || DAYS_BY_LANG.ar;
   const [appts, setAppts] = useState<Appt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -162,6 +162,17 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
   const [reschedFor, setReschedFor] = useState<Appt | null>(null);
   /* ترقيم الصفحات — الحالة قبل أي عائد مبكر (قواعد الـ hooks) */
   const [page, setPage] = useState(1);
+  /* ★ v3.13: أخصائي محدد مسبقاً — يأتي من زر «حجز موعد» في بطاقة الأخصائي (spec:<id>) */
+  const [presetSpec, setPresetSpec] = useState<string | null>(null);
+
+  /* ★ v3.13: وصول من بطاقة أخصائي — تُفتح نافذة الحجز فوراً والأخصائي محدد مسبقاً
+     (viewId يبدأ بـ spec: ولا يتصادم أبداً مع معرّفات المواعيد) */
+  useEffect(() => {
+    if (viewId && viewId.startsWith("spec:")) {
+      setPresetSpec(viewId.slice(5));
+      setOpen(true);
+    }
+  }, [viewId, navSeq]);
 
   const load = useCallback(async () => {
     try {
@@ -424,7 +435,23 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
 
       <Pagination page={page} pageCount={pageCount} onPage={setPage} total={appts.length} pageSize={PAGE_SIZE} />
 
-      <BookingDialog open={open} onClose={() => { setOpen(false); load(); }} />
+      <BookingDialog
+        open={open}
+        presetSpecId={presetSpec}
+        onClose={() => {
+          setOpen(false);
+          setPresetSpec(null);
+          /* ★ v3.13: تنظيف معرّف الحجز المسبق من العنوان بعد الإغلاق
+             حتى لا تُعاد فتح النافذة عند تحديث الصفحة بعد إتمام الحجز */
+          try {
+            if (viewId?.startsWith("spec:")) {
+              window.history.replaceState({ view: "appointments" }, "", "/?view=appointments");
+              sessionStorage.setItem("ait_last_view", JSON.stringify({ view: "appointments" }));
+            }
+          } catch {}
+          load();
+        }}
+      />
       {/* ★ v3.12: نافذة تغيير وقت الموعد */}
       <RescheduleDialog open={!!reschedFor} appt={reschedFor} onClose={() => { setReschedFor(null); load(); }} />
       {rateFor && (
@@ -460,8 +487,10 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
 /* ───────────────── نافذة الحجز (نمط طمأنينة) ─────────────────
  * خطوة ١: اختيار الأخصائي — خطوة ٢: اليوم والتوقيت — خطوة ٣: التأكيد
  * الأوقات المعروضة = ساعات الأخصائي الفعلية لذلك اليوم، المحجوز والماضي معطّل
+ * ★ v3.13: الأخصائي محدد مسبقاً (presetSpecId) عند الوصول من بطاقة الأخصائي —
+ *   العميل يقفز مباشرة لخطوة اليوم والتوقيت، والإدارة تبقى في الخطوة ١ لاختيار العميل
  */
-function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function BookingDialog({ open, onClose, presetSpecId }: { open: boolean; onClose: () => void; presetSpecId?: string | null }) {
   const { t, me, lang } = useApp();
   const DAYS = DAYS_BY_LANG[lang] || DAYS_BY_LANG.ar;
   const isStaff = me?.role === "admin" || me?.role === "assistant";
@@ -482,16 +511,22 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
   const [couponInfo, setCouponInfo] = useState<{ code: string; discount: number } | null>(null);
   const [couponErr, setCouponErr] = useState("");
   const [couponBusy, setCouponBusy] = useState(false);
+  /* ★ v3.13: حارس تطبيق التحديد المسبق — يمنع إعادة القفز عند كل تحديث لقائمة الأخصائيين */
+  const appliedPreset = useRef("");
+  /* ★ v3.14: تدفق البطاقة — الأخصائي مثبّت في شريط مضغوط بأعلى الخطوة ١ (مع اختيار الخدمة قبل الخطوة ٢)
+     زر «تغيير» يفكّ التثبيت ويُظهر القائمة الكاملة للاختيار اليدوي */
+  const [specLocked, setSpecLocked] = useState(false);
 
   const reset = () => {
     setStep(1);
     setSpecId(""); setClientId(""); setServiceId(""); setDate(""); setTime(""); setNotes("");
     setTaken([]);
     setCouponInput(""); setCouponInfo(null); setCouponErr("");
+    setSpecLocked(false);
   };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) { appliedPreset.current = ""; return; }
     reset();
     (async () => {
       /* قائمة الأخصائيين من نقطة النهاية العامة (تعمل للعميل والضيف — نمط طمأنينة) */
@@ -509,6 +544,22 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
       }
     })();
   }, [open, isStaff]);
+
+  /* ★ v3.13: تطبيق التحديد المسبق للأخصائي — بمجرد توفر القائمة:
+     يُحدد الأخصائي المطلوب تلقائياً ويُثبّت في شريط مضغوط أعمال خطوة ١
+     ليختار المستخدم خدمة من خدمات هذا الأخصائي حصراً قبل الانتقال للخطوة ٢ (اليوم والتوقيت) ★ v3.14.
+     إن لم يوجد الأخصائي في القائمة (معطّل/محذوف) تسير النافذة بالمسار العادي */
+  useEffect(() => {
+    if (!open || !presetSpecId || specialists.length === 0) return;
+    if (appliedPreset.current === presetSpecId) return;
+    const pre = specialists.find((s) => s._id === presetSpecId);
+    if (!pre) return;
+    appliedPreset.current = presetSpecId;
+    setSpecId(presetSpecId);
+    setServiceId(""); setDate(""); setTime("");
+    setSpecLocked(true);
+    setStep(1);
+  }, [open, presetSpecId, specialists, isStaff]);
 
   const spec = useMemo(() => specialists.find((s) => s._id === specId), [specId, specialists]);
   /* ★ v3.12: خدمات الأخصائي المختار حصراً — يختار العميل من بينها لا من كل خدمات العيادة */
@@ -694,7 +745,33 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
               )}
               <div className="space-y-2">
                 <Label>{t("appt.specialist")}</Label>
-                {specialists.length === 0 ? (
+                {/* ★ v3.14: تدفق البطاقة — شريط الأخصائي المحدد بدل القائمة الكاملة:
+                    يختار المستخدم خدمة من خدماته ثم «التالي» لليوم والتوقيت */}
+                {specLocked && spec ? (
+                  <div className="flex items-center gap-2.5 rounded-2xl border border-primary/25 bg-primary/5 p-2.5">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-primary">
+                      {spec.photoBase64 ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={spec.photoBase64} alt={spec.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <UserRound className="h-5 w-5" />
+                      )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold">{spec.name}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">{specTitle(spec)}</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSpecLocked(false)}
+                      className="h-9 shrink-0 rounded-full px-3 text-xs font-bold text-primary"
+                    >
+                      {t("appt.changeSpec")}
+                    </Button>
+                  </div>
+                ) : specialists.length === 0 ? (
                   <p className="rounded-xl bg-muted/60 p-4 text-sm text-muted-foreground text-center">
                     {t("appt.noSpecialists")}
                   </p>
@@ -763,6 +840,27 @@ function BookingDialog({ open, onClose }: { open: boolean; onClose: () => void }
           {/* ── الخطوة ٢: اليوم والتوقيت ── */}
           {step === 2 && (
             <>
+              {/* ★ v3.13: شريط الأخصائي المحدد — يظهر في خطوة اليوم والتوقيت
+                  (ضروري بعد القفز المباشر من بطاقة الأخصائي ليؤكد للعميل من يحجز لديه) */}
+              {spec && (
+                <div className="flex items-center gap-2.5 rounded-2xl border border-primary/20 bg-primary/5 p-2.5">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-primary">
+                    {spec.photoBase64 ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={spec.photoBase64} alt={spec.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <UserRound className="h-5 w-5" />
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold">{spec.name}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">{specTitle(spec)}</p>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setStep(1)} className="h-9 shrink-0 rounded-full px-3 text-xs font-bold text-primary">
+                    {t("appt.changeSpec")}
+                  </Button>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>{t("appt.chooseDate")}</Label>
                 <Input

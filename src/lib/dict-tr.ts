@@ -206,6 +206,8 @@ export const tr: Record<string, string> = {
   "appt.noSpecHours": "Bu uzman için kayıtlı görüşme saati yok — hesap ayarlarından eklenir",
   "appt.specDays": "Görüşme günleri",
   "appt.noSpecServices": "Bu uzmana henüz hizmet bağlanmadı — hizmet seçmeden devam edebilirsiniz",
+  /* ★ v3.13: زر تغيير الأخصائي في شريط الخطوة ٢ */
+  "appt.changeSpec": "Değiştir",
   "specialty.psychological": "Psikoloji",
   "specialty.art_therapy": "Dil terapisi",
   "specialty.both": "Psikoloji + Dil terapisi",

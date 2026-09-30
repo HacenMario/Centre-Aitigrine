@@ -189,7 +189,8 @@ export default function Specialists({ navigate }: { navigate?: (v: "appointments
                   <Button
                     size="sm"
                     className="rounded-xl font-bold shadow-md shadow-primary/20"
-                    onClick={() => navigate?.("appointments")}
+                    /* ★ v3.13: الحجز المباشر من البطاقة — يفتح نافذة الحجز والأخصائي محدد مسبقاً */
+                    onClick={() => navigate?.("appointments", `spec:${sp._id}`)}
                   >
                     <CalendarClock className="h-4 w-4" />
                     {t("spec.book")}

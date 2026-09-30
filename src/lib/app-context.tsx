@@ -137,6 +137,9 @@ type Ctx = {
   /** الصفحة الحالية (تطبيق صفحة واحدة) */
   view: ViewKey;
   viewId?: string;
+  /** ★ v3.13: عدّاد التنقّل — يزداد مع كل تنقّل (حتى لنفس الصفحة/المعرّف)
+   *  ليعاد إطلاق التأثيرات المعتمدة عليه مثل فتح نافذة الحجز من بطاقة أخصائي */
+  navSeq: number;
   /** التنقل الداخلي — يعمل من أي مكوّن دون تمرير خصائص */
   navigate: Navigate;
 };
@@ -228,6 +231,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [hidden, setHiddenState] = useState(false);
   const [ready, setReady] = useState(false);
   const [{ view, id: viewId }, setNav] = useState<{ view: ViewKey; id?: string }>({ view: "home" });
+  /* ★ v3.13: عدّاد التنقّل — يزداد مع كل حدث تنقّل فعلي */
+  const [navSeq, setNavSeq] = useState(0);
 
   /* تركيب غلاف fetch الموحّد + استرجاع الجلسة واللغة من التخزين المحلي */
   useEffect(() => {
@@ -291,7 +296,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   /* زر رجوع المتصفح يعمل مع التنقل الداخلي */
   useEffect(() => {
-    const onPop = () => setNav(viewFromUrl());
+    const onPop = () => { setNav(viewFromUrl()); setNavSeq((n) => n + 1); };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -412,6 +417,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /** التنقل الداخلي — ينقل ويصعد للأعلى ويحدّث العنوان (SPA كامل) */
   const navigate = useCallback<Navigate>((v, id) => {
     setNav({ view: v, id });
+    setNavSeq((n) => n + 1); /* ★ v3.13 */
     pushUrl(v, id);
     try {
       sessionStorage.setItem("ait_last_view", JSON.stringify({ view: v, id }));
@@ -430,6 +436,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const d = e.data as { type?: string; view?: ViewKey; id?: string } | null;
       if (d && d.type === "ait-navigate" && d.view) {
         setNav({ view: d.view as ViewKey, id: d.id });
+        setNavSeq((n) => n + 1); /* ★ v3.13 */
         pushUrl(d.view as ViewKey, d.id);
         try {
           sessionStorage.setItem("ait_last_view", JSON.stringify({ view: d.view, id: d.id }));
@@ -465,9 +472,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ready,
       view,
       viewId,
+      navSeq,
       navigate,
     }),
-    [lang, setLang, t, fontScale, fontUp, fontDown, me, setMe, setSession, logout, settings, refreshSettings, hidden, ready, view, viewId, navigate]
+    [lang, setLang, t, fontScale, fontUp, fontDown, me, setMe, setSession, logout, settings, refreshSettings, hidden, ready, view, viewId, navSeq, navigate]
   );
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

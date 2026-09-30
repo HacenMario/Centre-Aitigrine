@@ -206,6 +206,8 @@ export const ar: Record<string, string> = {
   "appt.noSpecHours": "لا توجد أوقات استقبال محفوظة لهذا الأخصائي — تُضاف من إعدادات الحساب",
   "appt.specDays": "أيام الاستقبال",
   "appt.noSpecServices": "لم تُربط خدمات بهذا الأخصائي بعد — يمكنك المتابعة دون اختيار خدمة",
+  /* ★ v3.13: زر تغيير الأخصائي في شريط الخطوة ٢ */
+  "appt.changeSpec": "تغيير",
   "specialty.psychological": "علم نفس",
   "specialty.art_therapy": "أرطفونيا",
   "specialty.both": "نفسي + أرطوفوني",

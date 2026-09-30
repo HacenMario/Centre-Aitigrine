@@ -206,6 +206,8 @@ export const fr: Record<string, string> = {
   "appt.noSpecHours": "Aucune heure de consultation enregistrée pour ce spécialiste — à définir dans les paramètres du compte",
   "appt.specDays": "Jours de consultation",
   "appt.noSpecServices": "Aucun service n'est encore lié à ce spécialiste — vous pouvez continuer sans choisir de service",
+  /* ★ v3.13: زر تغيير الأخصائي في شريط الخطوة ٢ */
+  "appt.changeSpec": "Changer",
   "specialty.psychological": "Psychologie",
   "specialty.art_therapy": "Orthophonie",
   "specialty.both": "Psycho + Orthophonie",

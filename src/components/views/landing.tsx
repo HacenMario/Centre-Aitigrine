@@ -313,7 +313,8 @@ export default function Landing({ navigate }: { navigate: Navigate }) {
                     </div>
                     {specBio(sp) && <p className="text-xs leading-relaxed text-muted-foreground break-words whitespace-normal">{specBio(sp)}</p>}
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => navigate("appointments")} className="mt-auto gap-1.5 rounded-full">
+                  {/* ★ v3.13: الحجز المباشر من البطاقة — يفتح نافذة الحجز والأخصائي محدد مسبقاً */}
+                  <Button variant="outline" size="sm" onClick={() => navigate("appointments", `spec:${sp._id}`)} className="mt-auto gap-1.5 rounded-full">
                     <CalendarCheck2 className="h-4 w-4" />
                     {t("landing.teamBook")}
                   </Button>
