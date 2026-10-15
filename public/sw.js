@@ -1,4 +1,4 @@
-/* مركز أيت تقرين — Service Worker v3.8
+/* مركز أيت تقرين — Service Worker v3.19.1
  * ★ جديد: وضع عدم الاتصال — تصفح الصفحات الأساسية بلا إنترنت
  *   - الصفحات والواجهات: network-first مع رجوع للنسخة المخزنة (تحديث محتوى عند العودة للاتصال)
  *   - الصور/الوسائط والملفات الثابتة: cache-first (سرعة فائقة وتوفير باقة)
@@ -6,7 +6,7 @@
  *   - صفحة offline أنيقة داخلية بلا ملف خارجي (تعمل حتى إن لم تُخزن مسبقاً)
  * Push — يظهر الإشعار حتى والموقع مغلق — ثلاثي اللغة حسب لغة الجهاز (كما هو)
  */
-const CACHE = "ait-tegrine-v3.10.0";
+const CACHE = "ait-tegrine-v3.19.1";
 const ASSETS = ["/", "/manifest.webmanifest", "/logo.png", "/logo.svg"];
 
 self.addEventListener("install", (e) => {

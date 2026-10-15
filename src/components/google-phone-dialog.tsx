@@ -131,7 +131,9 @@ export default function GooglePhoneDialog() {
               <SelectTrigger id="gp-blood" className="h-12" aria-label={t("blood.title")}>
                 <SelectValue placeholder={t("blood.select")} />
               </SelectTrigger>
-              <SelectContent>
+              {/* ★ v3.19.1: z-[710] — بوابة Select تُرسَم في نهاية body بـ z-50 افتراضياً
+                  فكانت تسقط خلف النافذة z-[700]؛ رفعها فوقها يُبقي القائمة ظاهرة دائماً */}
+              <SelectContent className="z-[710]" position="popper">
                 <SelectItem value="none" disabled>{t("blood.select")}</SelectItem>
                 {BLOOD_TYPES.map((bt) => (
                   <SelectItem key={bt} value={bt} dir="ltr" className="font-bold">{bt}</SelectItem>
