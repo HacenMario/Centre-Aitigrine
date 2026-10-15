@@ -6,7 +6,7 @@
  * بدون حقول حساسة (لا هاتف ولا كلمات مرور ولا حسابات الطاقم)
  */
 import { NextRequest } from "next/server";
-import { ok, handle } from "@/lib/api-helpers";
+import { ok, handle, PUBLIC_EDGE_CACHE } from "@/lib/api-helpers";
 import { Rating, Service, Specialty, User } from "@/lib/models";
 import { mapToObj } from "@/lib/map";
 
@@ -106,7 +106,8 @@ export async function GET(req: NextRequest) {
       ])
     );
 
-    return ok({
+    /* ★ v3.17: كاش حافة قصير — الاستجابة عامة واحدة للجميع (بلا تباين حسب المستخدم) */
+    const res = ok({
       specialists: rows.map((u) => {
         const arr = Array.isArray(u.specialties) ? u.specialties : [];
         const linked = arr
@@ -137,5 +138,7 @@ export async function GET(req: NextRequest) {
         };
       }),
     });
+    res.headers.set("Cache-Control", PUBLIC_EDGE_CACHE);
+    return res;
   });
 }

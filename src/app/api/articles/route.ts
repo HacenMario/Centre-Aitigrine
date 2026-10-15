@@ -7,7 +7,7 @@
  *       إدارة تنشر → إشعار العملاء والأخصائيين (عدا الكاتب)
  */
 import { NextRequest } from "next/server";
-import { ok, fail, handle } from "@/lib/api-helpers";
+import { ok, fail, handle, PUBLIC_EDGE_CACHE } from "@/lib/api-helpers";
 import { Article, User } from "@/lib/models";
 import { currentUser, isStaff, requireUser } from "@/lib/auth";
 import { notifyStaff, notifyUser } from "@/lib/push";
@@ -31,7 +31,10 @@ export async function GET(req: NextRequest) {
       .select(LIST_PROJECTION)
       .sort({ createdAt: -1 })
       .lean();
-    return ok({ articles });
+    /* ★ v3.17: كاش حافة على القائمة العامة فقط — عناوين الإدارة/مقالاتي بلا كاش */
+    const res = ok({ articles });
+    if (!all && !mineOnly) res.headers.set("Cache-Control", PUBLIC_EDGE_CACHE);
+    return res;
   });
 }
 

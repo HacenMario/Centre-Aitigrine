@@ -4,7 +4,7 @@
  * PUT: الإدارة — { key, lang?, items }
  */
 import { NextRequest } from "next/server";
-import { ok, fail, handle } from "@/lib/api-helpers";
+import { ok, fail, handle, PUBLIC_EDGE_CACHE } from "@/lib/api-helpers";
 import { PageContent } from "@/lib/models";
 import { requireUser } from "@/lib/auth";
 import { PAGE_DEFAULTS } from "@/lib/page-defaults";
@@ -46,7 +46,10 @@ export async function GET(req: NextRequest) {
         itemsFr?: Item[];
         itemsEn?: Item[];
       } | null>();
-      return ok({ key, lang, items: byLang(p, key, lang) });
+      /* ★ v3.17: كاش حافة قصير — محتوى الصفحة نفسه لكل الزوار لكل (key,lang) */
+      const res = ok({ key, lang, items: byLang(p, key, lang) });
+      res.headers.set("Cache-Control", PUBLIC_EDGE_CACHE);
+      return res;
     }
     const all = await PageContent.find().lean<{
       key: string;
@@ -59,7 +62,9 @@ export async function GET(req: NextRequest) {
       const doc = all.find((p) => p.key === k) || null;
       map[k] = byLang(doc, k, "ar");
     });
-    return ok({ pages: map });
+    const res2 = ok({ pages: map });
+    res2.headers.set("Cache-Control", PUBLIC_EDGE_CACHE);
+    return res2;
   });
 }
 

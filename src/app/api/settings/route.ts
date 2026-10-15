@@ -57,6 +57,15 @@ export async function GET() {
     let s = await Settings.findOne({ key: "center" });
     if (!s) s = await Settings.create({ key: "center" });
     const pub = publicSettings(s) as Record<string, unknown>;
+    /* ★ v3.17: تقليم الحمولة العامة — بيانات base64 القديمة لا تُنقل للزوار
+       إذا كان للعنصر رابط ملف حديث (/api/media/...) — الواجهة تُظهر url أولاً أصلاً
+       (m.url || m.data) فلا أي تغيير بصري، لكن كل تحميل صفحة يوفر نقل mega-bytes مهدورة
+       (كانت تُعاد مع كل زائر وكل تحميل لأن النداء بـ cache: no-store) */
+    if (Array.isArray(pub.sliderMedia)) {
+      pub.sliderMedia = (pub.sliderMedia as { url?: string; data?: string }[]).map((m) =>
+        m.url ? { ...m, data: "" } : m
+      );
+    }
     /* تطبيع التصنيفات القديمة (نصوص) إلى كائنات ثلاثية اللغة */
     const opts = (pub.options ?? {}) as Record<string, unknown>;
     pub.options = {

@@ -4,6 +4,11 @@
  *   الملفات القديمة على القرص تُقرأ كخطة بديلة تلقائياً — الروابط بلا تغيير.
  * يدعم Content-Type الصحيح + Range requests (تمرير داخل الفيديو على الجوال)
  * عام للجميع (المعرض في الرئيسية للزوار)
+ * ★ v3.17: أسماء الملفات فريدة أبداً لا تُستبدل بمحتوى مختلف (timestamp + random)
+ *   ⇒ تخزين حافة كامل: s-maxage يجعل Vercel Edge تخزّن الملف بعد أول طلب في المنطقة
+ *   وتخدمه بعدها من الـ CDN بلا استدعاء الدالة ولا قراءة GridFS —
+ *   هذا هو الإصلاح الجذري لاستهلاك Fast Origin Transfer على Vercel
+ *   (max-age وحده يخزّن في متصفح الزائر فقط ولا يفيد الزوار الجدد ولا الروبوتات)
  */
 import { NextRequest } from "next/server";
 import { fail } from "@/lib/api-helpers";
@@ -33,7 +38,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ file: strin
   const commonHeaders: Record<string, string> = {
     "Content-Type": mime,
     "Accept-Ranges": "bytes",
-    "Cache-Control": "public, max-age=31536000, immutable",
+    /* ★ v3.17: s-maxage = تخزين حافة Vercel (أسماء فريدة ⇒ آمن 100%) + SWR يحجب الاندفاعات */
+    "Cache-Control":
+      "public, max-age=31536000, immutable, s-maxage=31536000, stale-while-revalidate=86400",
   };
 
   /* تحديد المصدر: GridFS أولاً ثم القرص (توافق الملفات القديمة) */

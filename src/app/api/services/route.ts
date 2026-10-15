@@ -2,7 +2,7 @@
  * الخدمات — GET للجميع (المفعّلة فقط للعميل) — POST للإدارة
  */
 import { NextRequest } from "next/server";
-import { ok, fail, handle } from "@/lib/api-helpers";
+import { ok, fail, handle, PUBLIC_EDGE_CACHE } from "@/lib/api-helpers";
 import { Service } from "@/lib/models";
 import { currentUser, isStaff, requireUser } from "@/lib/auth";
 
@@ -13,7 +13,10 @@ export async function GET(req: NextRequest) {
     const all = searchParams.get("all") === "1" && me && isStaff(me.role);
     const q = all ? {} : { active: true };
     const services = await Service.find(q).sort({ order: 1, createdAt: -1 }).lean();
-    return ok({ services });
+    /* ★ v3.17: كاش حافة قصير — القائمة العامة نفسها للجميع؛ ?all=1 للطاقم عنوان مختلف بلا كاش */
+    const res = ok({ services });
+    if (!all) res.headers.set("Cache-Control", PUBLIC_EDGE_CACHE);
+    return res;
   });
 }
 

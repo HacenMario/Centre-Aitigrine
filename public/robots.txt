@@ -1,14 +1,6 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
+# مركز أيت تقرين — v3.17
+# الصفحة الرئيسية والواجهات العامة تبقى قابلة للفهرسة والمعاينة (واتساب/تويتر/فيسبوك)
+# مسارات /api/ كلها ديناميكية (دوال Serverless) — زحف الروبوتات عليها يستهلك نطاق
+# الاستضافة مجاناً بلا فائدة SEO (محتواها بيانات خام/وسائط) ⇒ محجوبة على الجميع
 User-agent: *
-Allow: /
+Disallow: /api/

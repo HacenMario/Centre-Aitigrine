@@ -1,13 +1,16 @@
 "use client";
 /**
  * حقل رفع وسائط v3 — صور وفيديو مع شريط تقدم حقيقي
- * ★ الرفع فوري إلى /api/media (قرص الخادم) — الحفظ في الإعدادات يمرر رابطاً خفيفاً فقط
+ * ★ الرفع فوري إلى /api/media (GridFS في MongoDB) — الحفظ في الإعدادات يمرر رابطاً خفيفاً فقط
  *   (يقتل جذرياً فشل "رفع وحفظ الصور والفيديوهات" الذي كان بسبب base64 في مستند 16MB)
+ * ★ v3.17: الصور تُضغط في المتصفح قبل الرفع (image-compress.ts) — الفيديو والصور الصغيرة
+ *   تمر كما هي — يقلص حجم قاعدة البيانات وبايتات Origin على الاستضافة بلا أي فرق بصري
  */
 import { useRef, useState } from "react";
 import { Film, ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/app-context";
+import { compressImageFile } from "@/lib/image-compress";
 
 export default function MediaInput({
   value,
@@ -30,12 +33,13 @@ export default function MediaInput({
       ? true
       : value.startsWith("data:video");
 
-  const upload = (file?: File) => {
+  const upload = async (file?: File) => {
     if (!file) return;
     setErr("");
     setProgress(0);
     const fd = new FormData();
-    fd.append("file", file);
+    /* ★ v3.17: ضغط الصور في المتصفح — أي فشل يعيد الملف الأصلي (لا يتعطل الرفع أبداً) */
+    fd.append("file", await compressImageFile(file));
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/media");
     xhr.upload.onprogress = (e) => {
@@ -149,7 +153,7 @@ export function MediaPicker({
 
   const canUpload = !!me && (me.role === "admin" || me.role === "assistant");
 
-  const upload = (files?: FileList | null) => {
+  const upload = async (files?: FileList | null) => {
     if (!files || !files.length) return;
     const room = max - value.length;
     const list = Array.from(files).slice(0, Math.max(0, room));
@@ -163,7 +167,8 @@ export function MediaPicker({
     const urls: string[] = [];
     for (const file of list) {
       const fd = new FormData();
-      fd.append("file", file);
+      /* ★ v3.17: ضغط الصور في المتصفح قبل الرفع */
+      fd.append("file", await compressImageFile(file));
       const xhr = new XMLHttpRequest();
       xhr.open("POST", "/api/media");
       xhr.onload = () => {
