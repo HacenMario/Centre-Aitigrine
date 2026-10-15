@@ -977,4 +977,12 @@ export const es: Record<string, string> = {
   "media.usedInvoice": "Factura de cita",
   "media.delTitle": "¿Borrar este archivo permanentemente?",
   "media.empty": "Aún no hay medios almacenados",
+  "media.empty": "Aún no hay medios almacenados",
+
+  /* ── ★ v3.19: Grupo sanguíneo ── */
+  "acc.assistantLimit": "Permisos del asistente: solo puede editar el grupo sanguíneo y la activación — el resto lo gestiona la administración",
+  "blood.title": "Grupo sanguíneo",
+  "blood.select": "Selecciona el grupo sanguíneo",
+  "blood.required": "El grupo sanguíneo es obligatorio — elige el tuyo",
+  "blood.note": "Necesario para tu expediente médico y los documentos del centro — podrá actualizarlo después la administración o tu especialista",
 };

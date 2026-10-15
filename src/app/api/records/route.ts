@@ -11,6 +11,7 @@ import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
 import { Appointment, MedicalRecord, User } from "@/lib/models";
 import { requireUser, toSafeUser } from "@/lib/auth";
+import { normalizeBloodType } from "@/lib/blood";
 
 /* ★ v3.11: الأخصائي أو المكوّن — كلاهما يرى مرضاه المعيّنين فقط */
 const isCareProvider = (role: string) => role === "specialist" || role === "trainer";
@@ -118,6 +119,18 @@ export async function PUT(req: NextRequest) {
     if (isCareProvider(me.role)) {
       const mine = await patientsOfSpecialist(String(me._id));
       if (!mine.includes(patientId)) return fail(403, "هذا المريض ليس ضمن ملفاتك — وصول مرفوض");
+    }
+
+    /* ★ v3.19: زمرة الدم تُحفظ في حساب العميل (مصدر الحقيقة) — تُعدّل هنا من الملف الطلبي
+       بالصلاحيات نفسها المفروضة أعلاه: الإدارة/المساعد أو الأخصائي المعالج لمرضاه فقط */
+    if (b.bloodType !== undefined) {
+      let bt: string | null;
+      try {
+        bt = normalizeBloodType(b.bloodType);
+      } catch {
+        return fail(400, "زمرة الدم غير صحيحة — اختر إحدى الفصائل الثماني");
+      }
+      await User.findByIdAndUpdate(patientId, { $set: { bloodType: bt } });
     }
 
     const existing = await MedicalRecord.findOne({ patientId });

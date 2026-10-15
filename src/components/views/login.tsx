@@ -13,9 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogIn, ShieldCheck, Phone, KeyRound, UserRound, Info, UserPlus, LifeBuoy, Send, Eye, EyeOff, Stethoscope, HeartHandshake } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { LogIn, ShieldCheck, Phone, KeyRound, UserRound, Info, UserPlus, LifeBuoy, Send, Eye, EyeOff, Stethoscope, HeartHandshake, Droplet } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { BLOOD_TYPES } from "@/lib/blood";
 
 type Tab = "login" | "register" | "forgot";
 type Portal = "client" | "specialist" | "admin";
@@ -78,6 +82,7 @@ export default function Login({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState("");
   const [confirm, setConfirm] = useState("");
   const [recoveryPhrase, setRecoveryPhrase] = useState("");
+  const [bloodType, setBloodType] = useState(""); /* ★ v3.19: زمرة الدم إلزامية للتسجيل */
   const [newPass, setNewPass] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -127,12 +132,17 @@ export default function Login({ onDone }: { onDone: () => void }) {
       toast.error(t("auth.passMismatch"));
       return;
     }
+    /* ★ v3.19: زمرة الدم إلزامية عند إنشاء حساب عميل */
+    if (!bloodType) {
+      toast.error(t("blood.required"));
+      return;
+    }
     setBusy(true);
     try {
       const r = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, password, recoveryPhrase }),
+        body: JSON.stringify({ name, phone, password, recoveryPhrase, bloodType }),
       });
       const j = await r.json();
       if (r.ok && j.user && j.token) {
@@ -357,6 +367,27 @@ export default function Login({ onDone }: { onDone: () => void }) {
                       required minLength={6} className={inputCls} autoComplete="new-password" />
                   </div>
                 </div>
+              </div>
+              {/* ★ v3.19: زمرة الدم — إلزامية عند إنشاء حساب عميل (تُستعمل في الملف الطلبي والوثائق) */}
+              <div className="space-y-2 rounded-xl border border-primary/15 bg-primary/5 p-3">
+                <Label htmlFor="rblood" className="flex items-center gap-2">
+                  <Droplet className="h-4 w-4 text-primary" />
+                  {t("blood.title")} <span className="text-destructive">*</span>
+                </Label>
+                <Select value={bloodType || "none"} onValueChange={(v) => setBloodType(v === "none" ? "" : v)}>
+                  <SelectTrigger id="rblood" className="h-12 rounded-xl" aria-label={t("blood.title")}>
+                    <SelectValue placeholder={t("blood.select")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" disabled>{t("blood.select")}</SelectItem>
+                    {BLOOD_TYPES.map((bt) => (
+                      <SelectItem key={bt} value={bt} dir="ltr" className="font-bold">
+                        {bt}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11.5px] leading-relaxed text-muted-foreground">{t("blood.note")}</p>
               </div>
               {/* عبارة الاسترجاع — إلزامية (نمط طمأنينة): بها يستعيد العميل حسابه فورياً */}
               <div className="space-y-2 rounded-xl border border-primary/15 bg-primary/5 p-3">

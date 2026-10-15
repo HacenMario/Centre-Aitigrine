@@ -977,4 +977,12 @@ export const tr: Record<string, string> = {
   "media.usedInvoice": "Randevu faturası",
   "media.delTitle": "Bu dosya kalıcı olarak silinsin mi?",
   "media.empty": "Henüz depolanmış medya yok",
+  "media.empty": "Henüz depolanmış medya yok",
+
+  /* ── ★ v3.19: Kan grubu ── */
+  "acc.assistantLimit": "Asistan yetkisi: yalnızca kan grubunu ve etkinleştirmeyi düzenleyebilir — geri kalanı yönetimdedir",
+  "blood.title": "Kan grubu",
+  "blood.select": "Kan grubu seçin",
+  "blood.required": "Kan grubu zorunludur — lütfen seçin",
+  "blood.note": "Tıbbi dosyanız ve merkez belgeleri için gereklidir — daha sonra yönetim veya uzmanınız tarafından güncellenebilir",
 };

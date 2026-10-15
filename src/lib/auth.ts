@@ -37,6 +37,8 @@ export type SafeUser = {
   photoBase64: string;
   weeklyHours: Record<string, string[]>;
   assignedSpecialistId: string | null;
+  /** ★ v3.19: زمرة الدم — رمز عالمي (A+/A-/…) أو null للمسجّلين سابقاً قبل الإضافة */
+  bloodType: string | null;
   active: boolean;
 };
 
@@ -76,6 +78,7 @@ export function toSafeUser(u: UserDoc): SafeUser {
     photoBase64: u.photoBase64 ?? "",
     weeklyHours,
     assignedSpecialistId: u.assignedSpecialistId ? String(u.assignedSpecialistId) : null,
+    bloodType: (u as { bloodType?: string | null }).bloodType ?? null,
     active: u.active ?? true,
   };
 }

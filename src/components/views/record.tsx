@@ -25,11 +25,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   UserRound, Cake, VenusAndMars, Home as HomeIcon, Users, HeartPulse, Brain,
-  MessageCircleQuestion, Stethoscope, ClipboardList, NotebookPen, Plus, Trash2, Save, Lock, CalendarDays,
+  MessageCircleQuestion, Stethoscope, ClipboardList, NotebookPen, Plus, Trash2, Save, Lock, CalendarDays, Droplet,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Navigate } from "@/lib/nav";
 import { TriInput, TriTextarea, type Tri , TRI3 } from "@/components/tri-input";
+import { BLOOD_TYPES } from "@/lib/blood";
 
 type RecordData = {
   patientId: string;
@@ -120,8 +121,10 @@ export default function RecordEditor({ patientId, onBack, navigate }: { patientI
 
 function RecordEditorInner({ patientId, onBack, navigate }: { patientId: string; onBack?: () => void; navigate: Navigate }) {
   const { t } = useApp();
-  const [patient, setPatient] = useState<{ name: string; phone: string } | null>(null);
+  const [patient, setPatient] = useState<{ name: string; phone: string; bloodType?: string | null } | null>(null);
   const [data, setData] = useState<RecordData | null>(null);
+  /* ★ v3.19: زمرة الدم — من حساب العميل (مصدر الحقيقة) وتُحفظ فيه عبر نفس PUT الملف */
+  const [bloodType, setBloodType] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [delNote, setDelNote] = useState<number | null>(null);
@@ -133,6 +136,7 @@ function RecordEditorInner({ patientId, onBack, navigate }: { patientId: string;
         const j = await r.json();
         if (r.ok) {
           setPatient(j.patient);
+          setBloodType(j.patient?.bloodType ?? null);
           setData({ ...EMPTY, ...(j.record || {}), patientId });
         } else {
           toast.error(j.error || t("common.error"));
@@ -161,7 +165,7 @@ function RecordEditorInner({ patientId, onBack, navigate }: { patientId: string;
     try {
       const r = await fetch("/api/records", {
         method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, bloodType }),
       });
       const j = await r.json();
       if (r.ok) {
@@ -221,6 +225,19 @@ function RecordEditorInner({ patientId, onBack, navigate }: { patientId: string;
                 <SelectItem value="none">{t("common.none")}</SelectItem>
                 <SelectItem value="male">{t("pat.male")}</SelectItem>
                 <SelectItem value="female">{t("pat.female")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {/* ★ v3.19: زمرة الدم — تُعدّل من الملف الطلبي (الإدارة/المساعد/الأخصائي المعالج لمرضاه) وتُحفظ في حساب العميل */}
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5"><Droplet className="h-3.5 w-3.5 text-primary" /> {t("blood.title")}</Label>
+            <Select value={bloodType || "none"} onValueChange={(v) => setBloodType(v === "none" ? null : v)}>
+              <SelectTrigger className="h-11" aria-label={t("blood.title")}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{t("common.none")}</SelectItem>
+                {BLOOD_TYPES.map((bt) => (
+                  <SelectItem key={bt} value={bt} dir="ltr" className="font-bold">{bt}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

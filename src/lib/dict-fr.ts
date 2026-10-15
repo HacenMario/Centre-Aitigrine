@@ -977,4 +977,12 @@ export const fr: Record<string, string> = {
   "media.usedInvoice": "Facture de rendez-vous",
   "media.delTitle": "Supprimer définitivement ce fichier ?",
   "media.empty": "Aucun média stocké pour le moment",
+  "media.empty": "Aucun média stocké pour le moment",
+
+  /* ── ★ v3.19: Groupe sanguin ── */
+  "acc.assistantLimit": "Permissions de l’assistant : modifier uniquement le groupe sanguin et l’activation — le reste relève de l’administration",
+  "blood.title": "Groupe sanguin",
+  "blood.select": "Choisir le groupe sanguin",
+  "blood.required": "Le groupe sanguin est obligatoire — choisissez le vôtre",
+  "blood.note": "Nécessaire à votre dossier médical et aux documents du centre — modifiable ensuite par l'administration ou votre spécialiste",
 };

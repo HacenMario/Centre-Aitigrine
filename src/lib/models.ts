@@ -47,6 +47,13 @@ const UserSchema = new Schema(
     weeklyHours: { type: Map, of: [String], default: {} },
     /** الأخصائي المعالج للعميل (يضبطه الأدمين) */
     assignedSpecialistId: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    /** ★ v3.19: زمرة الدم — إلزامية عند إنشاء حساب عميل جديد (تسجيل ذاتي / إكمال Google)؛
+     *  للمسجَّلين سابقاً تضيفها/تعدّلها: الإدارة أو المساعد أو الأخصائي المعالج (من حساب العميل أو ملفه الطلبي) */
+    bloodType: {
+      type: String,
+      enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
+      default: null,
+    },
     /** عبارة الاسترجاع (نمط طمأنينة) — تُحفظ مشفّرة SHA-256 + ملح، لا تُرسل أبداً للواجهة
      *  العميل يستعيد حسابه فورياً بها دون انتظار الإدارة */
     recoveryHash: { type: String, default: null },

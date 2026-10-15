@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { UserRound, KeyRound, Phone, BadgeCheck, EyeOff, ShieldCheck, Trash2 } from "lucide-react";
+import { UserRound, KeyRound, Phone, BadgeCheck, EyeOff, ShieldCheck, Trash2, Droplet } from "lucide-react";
 import { toast } from "sonner";
 import { getQuickHideConfig, saveQuickHideConfig } from "@/lib/quick-hide";
 import type { Navigate } from "@/lib/nav";
@@ -117,6 +117,13 @@ export default function Profile({ navigate }: { navigate: Navigate }) {
               <p className="font-black text-lg break-words">{me.name}</p>
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className="border-primary/30 text-primary">{t(`roles.${me.role}`)}</Badge>
+                {/* ★ v3.19: زمرة الدم — عرض فقط في ملفي (التعديل من الإدارة/المساعد/الأخصائي المعالج) */}
+                {me.role === "client" && me.bloodType && (
+                  <Badge variant="outline" className="border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-400 gap-1">
+                    <Droplet className="h-3 w-3" aria-hidden="true" />
+                    <span dir="ltr" className="font-bold tabular-nums">{me.bloodType}</span>
+                  </Badge>
+                )}
                 <span className="text-sm text-muted-foreground flex items-center gap-1" dir="ltr">
                   <Phone className="h-3.5 w-3.5" /> {me.phone}
                 </span>

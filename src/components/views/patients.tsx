@@ -14,14 +14,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, FolderHeart, FilePlus2, FileText, Phone, Stethoscope, RefreshCw, AlertTriangle } from "lucide-react";
+import { Search, FolderHeart, FilePlus2, FileText, Phone, Stethoscope, RefreshCw, AlertTriangle, Droplet } from "lucide-react";
 import Pagination from "@/components/pagination";
 import type { Navigate } from "@/lib/nav";
 
 const PAT_PAGE_SIZE = 12;
 
 type PatientRow = {
-  user: { _id: string; name: string; phone: string; photoBase64?: string; assignedSpecialistId?: string | null };
+  user: { _id: string; name: string; phone: string; photoBase64?: string; assignedSpecialistId?: string | null; bloodType?: string | null };
   hasRecord: boolean;
   diagnosis: string;
   birthDate: string;
@@ -125,9 +125,18 @@ export default function Patients({ navigate }: { navigate: Navigate }) {
                 </span>
                 <div className="min-w-0 flex-1 space-y-1">
                   <p className="font-bold text-sm break-words whitespace-normal leading-snug">{p.user.name}</p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1.5" dir="ltr">
-                    <Phone className="h-3 w-3" /> {p.user.phone}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5" dir="ltr">
+                      <Phone className="h-3 w-3" /> {p.user.phone}
+                    </p>
+                    {/* ★ v3.19: زمرة الدم — بجانب معلومات العميل في قائمة المرضى */}
+                    {p.user.bloodType && (
+                      <Badge variant="outline" className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25 gap-0.5 px-1.5 py-0">
+                        <Droplet className="h-2.5 w-2.5" aria-hidden="true" />
+                        <span dir="ltr" className="text-[10px] font-bold tabular-nums">{p.user.bloodType}</span>
+                      </Badge>
+                    )}
+                  </div>
                   {p.diagnosis && (
                     <p className="text-xs text-muted-foreground break-words">
                       <span className="font-semibold text-foreground/70">{t("pat.diagnosis")}: </span>

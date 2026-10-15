@@ -48,6 +48,8 @@ export default function Documents({ navigate }: { navigate: Navigate }) {
   const [docType, setDocType] = useState<DocType>("compte_rendu");
   const [rec, setRec] = useState<Rec | null>(null);
   const [specialist, setSpecialist] = useState<Specialist | null>(null);
+  /* ★ v3.19: زمرة الدم — تظهر في الوثائق بجانب معلومات العميل */
+  const [bloodType, setBloodType] = useState<string | null>(null);
   /** ★ v3.5: اسم العميل في الوثيقة قابل للتعديل — الإدارة تختار العميل ثم تعدّل الاسم
    *  حسب لغة الوثيقة و حسب ما يريد العميل */
   const [displayName, setDisplayName] = useState("");
@@ -79,6 +81,7 @@ export default function Documents({ navigate }: { navigate: Navigate }) {
     setRec(null);
     setSpecialist(null);
     setDisplayName("");
+    setBloodType(null);
     if (!pid) return;
     try {
       const r = await fetch(`/api/records?patientId=${pid}`, { cache: "no-store" });
@@ -88,6 +91,7 @@ export default function Documents({ navigate }: { navigate: Navigate }) {
         setSpecialist(j.specialist || null);
         /* الاسم الحقيقي للعميل يملأ حقل الاسم المعروض في الوثيقة — قابل للتعديل */
         setDisplayName(j.patient?.name || "");
+        setBloodType(j.patient?.bloodType ?? null);
       }
     } catch {}
   }, []);
@@ -250,6 +254,8 @@ export default function Documents({ navigate }: { navigate: Navigate }) {
               <p className="font-bold">
                 {t("doc.concerns")} : <span className="font-black">{displayName.trim() || patient.name}</span>
                 {age !== null ? ` — ${age} ${t("pat.years")}` : ""}
+                {/* ★ v3.19: زمرة الدم — بجانب معلومات العميل في كل الوثائق */}
+                {bloodType ? <span className="inline-flex items-center gap-1"> — {t("blood.title")}: <span dir="ltr" className="font-black">{bloodType}</span></span> : ""}
               </p>
 
               {Array.isArray(body) && body.map((sec, i) =>

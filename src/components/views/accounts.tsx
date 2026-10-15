@@ -28,12 +28,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Power, Search, UsersRound, Phone, KeyRound, BellRing, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Power, Search, UsersRound, Phone, KeyRound, BellRing, X, Droplet, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { TriInput, TriTextarea, flattenTri, triFrom, triName, TRI3, pickTri } from "@/components/tri-input";
 import { FullAvatar } from "@/components/full-image";
 import Pagination from "@/components/pagination";
 import { cn } from "@/lib/utils";
+import { BLOOD_TYPES } from "@/lib/blood";
 import type { Navigate } from "@/lib/nav";
 
 const ACC_PAGE_SIZE = 12;
@@ -48,6 +49,8 @@ type Account = {
   serviceIds?: string[];
   photoBase64?: string;
   weeklyHours?: Record<string, string[]>; assignedSpecialistId?: string | null; active: boolean;
+  /** ★ v3.19: زمرة الدم — للعملاء؛ تُضبط من الإدارة/المساعد هنا أو من الأخصائي المعالج في الملف الطلبي */
+  bloodType?: string | null;
 };
 
 type SpecialtyRow = { _id: string; ar: string; fr: string; en: string; builtin: boolean };
@@ -233,6 +236,13 @@ export default function Accounts({ navigate }: { navigate: Navigate }) {
                   </p>
                 </div>
                 <Badge variant="outline" className={ROLE_BADGE[a.role]}>{t(`roles.${a.role}`)}</Badge>
+                {/* ★ v3.19: شارة زمرة الدم للعملاء — dir=ltr للرمز العالمي */}
+                {a.role === "client" && a.bloodType && (
+                  <Badge variant="outline" className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25 gap-1">
+                    <Droplet className="h-3 w-3" aria-hidden="true" />
+                    <span dir="ltr" className="font-bold tabular-nums">{a.bloodType}</span>
+                  </Badge>
+                )}
                 {a.role === "specialist" && a.specialty && (
                   <span className="text-xs text-muted-foreground">
                     {a.specialty === "art_therapy" ? t("acc.art") : a.specialty === "both" ? t("acc.both") : t("acc.psycho")}
@@ -243,7 +253,8 @@ export default function Accounts({ navigate }: { navigate: Navigate }) {
                 )}
                 {!a.active && <Badge variant="secondary">{t("common.inactive")}</Badge>}
                 <div className="flex items-center gap-1 ms-auto flex-wrap">
-                  {isAdmin && (
+                  {/* ★ v3.19: زر التعديل متاح للمساعد أيضاً — نمط مقيّد (زمرة الدم والتفعيل فقط) */}
+                  {(isAdmin || me?.role === "assistant") && (
                     <Button size="sm" variant="ghost" className="gap-1.5 text-xs" onClick={() => setEditing(a)}>
                       <Pencil className="h-3.5 w-3.5" /> {t("common.edit")}
                     </Button>
@@ -342,8 +353,10 @@ function AccountForm({
   onChange: (v: (Partial<Account> & { password?: string }) | null) => void;
   onDone: () => void;
 }) {
-  const { t, lang } = useApp();
+  const { t, lang, me } = useApp();
   const [busy, setBusy] = useState(false);
+  /* ★ v3.19: المساعد — نمط مقيّد: زمرة الدم للعملاء + التفعيل فقط */
+  const isAssistant = me?.role === "assistant";
   /* ★ v3.12: قائمة الخدمات لربطها بالأخصائي */
   const [serviceRows, setServiceRows] = useState<ServiceRow[]>([]);
   const upd = (patch: Partial<Account> & { password?: string }) => onChange({ ...value, ...patch });
@@ -379,6 +392,21 @@ function AccountForm({
       return;
     }
     setBusy(true);
+    /* ★ v3.19: المساعد يرسل زمرة الدم والتفعيل فقط — الخادم يرفض الباقي أصلاً */
+    if (isAssistant) {
+      const bodyA: Record<string, unknown> = {};
+      if (value?.role === "client") bodyA.bloodType = value?.bloodType ?? null;
+      if (!isNew && typeof value?.active === "boolean") bodyA.active = value.active;
+      const rA = await fetch(`/api/accounts/${value._id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bodyA),
+      });
+      const jA = await rA.json().catch(() => ({}));
+      setBusy(false);
+      if (rA.ok) { toast.success(t("toast.accountSaved")); onDone(); }
+      else toast.error(jA.error || t("common.error"));
+      return;
+    }
     const { password, ...rest } = value;
     const body = isNew ? value : { ...rest, ...(password ? { password } : {}) };
     const r = await fetch(isNew ? "/api/accounts" : `/api/accounts/${value._id}`, {
@@ -397,6 +425,47 @@ function AccountForm({
     const next = cur.includes(l) ? cur.filter((x) => x !== l) : [...cur, l];
     upd({ langs: next.length ? next : ["ar"] });
   };
+
+  /* ★ v3.19: نمط المساعد المقيّد — بلا حقول الحساب الكاملة */
+  if (isAssistant) {
+    return (
+      <div className="space-y-4">
+        <p className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+          <Lock className="h-4 w-4 shrink-0 mt-0.5" />
+          {t("acc.assistantLimit")}
+        </p>
+        {value?.role === "client" && (
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <Droplet className="h-3.5 w-3.5 text-primary" />
+              {t("blood.title")}
+            </Label>
+            <Select
+              value={value?.bloodType || "none"}
+              onValueChange={(v) => upd({ bloodType: v === "none" ? null : v })}
+            >
+              <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{t("common.none")}</SelectItem>
+                {BLOOD_TYPES.map((bt) => (
+                  <SelectItem key={bt} value={bt} dir="ltr" className="font-bold">{bt}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {!isNew && (
+          <label className="flex items-center justify-between rounded-xl border p-3">
+            <span className="text-sm font-semibold">{t("common.active")}</span>
+            <Switch checked={value?.active !== false} onCheckedChange={(v) => upd({ active: v })} />
+          </label>
+        )}
+        <Button onClick={save} disabled={busy} className="w-full h-12 rounded-xl text-base">
+          {busy ? t("common.saving") : t("common.save")}
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -559,18 +628,39 @@ function AccountForm({
       )}
 
       {value?.role === "client" && (
-        <div className="space-y-2">
-          <Label>{t("acc.assignSpecialist")}</Label>
-          <Select value={value?.assignedSpecialistId || "none"} onValueChange={(v) => upd({ assignedSpecialistId: v === "none" ? null : v })}>
-            <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">{t("common.none")}</SelectItem>
-              {specialists.map((s) => (
-                <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <>
+          {/* ★ v3.19: زمرة الدم — تضيفها/تعدّلها الإدارة (والمساعد عبر نفس النموذج) */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <Droplet className="h-3.5 w-3.5 text-primary" />
+              {t("blood.title")}
+            </Label>
+            <Select
+              value={value?.bloodType || "none"}
+              onValueChange={(v) => upd({ bloodType: v === "none" ? null : v })}
+            >
+              <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{t("common.none")}</SelectItem>
+                {BLOOD_TYPES.map((bt) => (
+                  <SelectItem key={bt} value={bt} dir="ltr" className="font-bold">{bt}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>{t("acc.assignSpecialist")}</Label>
+            <Select value={value?.assignedSpecialistId || "none"} onValueChange={(v) => upd({ assignedSpecialistId: v === "none" ? null : v })}>
+              <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{t("common.none")}</SelectItem>
+                {specialists.map((s) => (
+                  <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
       )}
 
       <TriTextarea langs={TRI3}

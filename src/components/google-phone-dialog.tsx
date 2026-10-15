@@ -16,8 +16,12 @@ import { useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Phone, ShieldCheck, Loader2 } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Phone, ShieldCheck, Loader2, Droplet } from "lucide-react";
 import { toast } from "sonner";
+import { BLOOD_TYPES } from "@/lib/blood";
 
 /** هل الهاتف ما يزال الصيغة الداخلية لحساب Google (g-<sub>)؟ */
 export function isPlaceholderPhone(phone?: string | null): boolean {
@@ -27,6 +31,7 @@ export function isPlaceholderPhone(phone?: string | null): boolean {
 export default function GooglePhoneDialog() {
   const { t, me, setMe, ready } = useApp();
   const [value, setValue] = useState("");
+  const [bloodType, setBloodType] = useState(""); /* ★ v3.19: إلزامية في إكمال حساب Google */
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
@@ -35,10 +40,16 @@ export default function GooglePhoneDialog() {
 
   const digits = value.replace(/[\s.\-()]/g, "");
   const valid = /^\+?\d{9,15}$/.test(digits);
+  /* ★ v3.19: لا حفظ دون زمرة دم صحيحة — إكمال الحساب يتطلب الاثنين */
+  const bloodOk = BLOOD_TYPES.includes(bloodType as (typeof BLOOD_TYPES)[number]);
 
   const save = async () => {
     if (!valid) {
       setErr(t("gauth.phoneInvalid"));
+      return;
+    }
+    if (!bloodOk) {
+      setErr(t("blood.required"));
       return;
     }
     setBusy(true);
@@ -47,7 +58,7 @@ export default function GooglePhoneDialog() {
       const r = await fetch("/api/auth/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: digits }),
+        body: JSON.stringify({ phone: digits, bloodType }),
       });
       const j = await r.json().catch(() => null);
       if (r.ok && j?.user) {
@@ -110,7 +121,26 @@ export default function GooglePhoneDialog() {
             )}
           </div>
 
-          <Button onClick={save} disabled={busy || !valid} className="h-12 w-full rounded-xl gap-2 text-base font-bold">
+          {/* ★ v3.19: زمرة الدم — إلزامية لإكمال حساب عميل Google (مصدرها نفس قاعدة التسجيل الذاتي) */}
+          <div className="space-y-1.5">
+            <label htmlFor="gp-blood" className="flex items-center gap-1.5 text-sm font-bold">
+              <Droplet className="h-3.5 w-3.5 text-primary" />
+              {t("blood.title")} *
+            </label>
+            <Select value={bloodType || "none"} onValueChange={(v) => { setBloodType(v === "none" ? "" : v); setErr(""); }}>
+              <SelectTrigger id="gp-blood" className="h-12" aria-label={t("blood.title")}>
+                <SelectValue placeholder={t("blood.select")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none" disabled>{t("blood.select")}</SelectItem>
+                {BLOOD_TYPES.map((bt) => (
+                  <SelectItem key={bt} value={bt} dir="ltr" className="font-bold">{bt}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button onClick={save} disabled={busy || !valid || !bloodOk} className="h-12 w-full rounded-xl gap-2 text-base font-bold">
             {busy ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : <Phone className="h-4.5 w-4.5" />}
             {busy ? t("common.saving") : t("gauth.phoneSave")}
           </Button>

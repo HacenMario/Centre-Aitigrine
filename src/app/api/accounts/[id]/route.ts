@@ -5,6 +5,7 @@ import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
 import { Service, Specialty, User } from "@/lib/models";
 import { hashPassword, requireUser, toSafeUser } from "@/lib/auth";
+import { normalizeBloodType } from "@/lib/blood";
 import { logAudit } from "@/lib/audit";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -13,17 +14,40 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   return handle(async () => {
     const me = await requireUser(["admin", "assistant"]);
     const { id } = await ctx.params;
-    const target = await User.findById(id).lean<{ active?: boolean } | null>();
+    const target = await User.findById(id).lean<{ active?: boolean; role?: string } | null>();
     if (!target) return fail(404, "الحساب غير موجود");
     const b = await req.json().catch(() => ({}));
+    /* ★ v3.19: زمرة الدم لحسابات العملاء فقط (مواصفة الميزة) */
+    const bloodGuard = () => {
+      if (target.role !== "client") return fail(400, "زمرة الدم تُضبط لحسابات العملاء فقط");
+      return null;
+    };
 
-    /* المساعد: يغيّر التفعيل فقط */
+    /* المساعد: يغيّر التفعيل فقط + ★ v3.19: إضافة/تعديل زمرة الدم لحساب العميل */
     if (me.role === "assistant") {
-      if (typeof b.active === "boolean") {
-        const u = await User.findByIdAndUpdate(id, { $set: { active: b.active } }, { new: true }).lean();
-        return ok({ user: u ? toSafeUser(u) : null });
+      const $setA: Record<string, unknown> = {};
+      if (typeof b.active === "boolean") $setA.active = b.active;
+      if (b.bloodType !== undefined) {
+        const g = bloodGuard();
+        if (g) return g;
+        try {
+          $setA.bloodType = normalizeBloodType(b.bloodType);
+        } catch {
+          return fail(400, "زمرة الدم غير صحيحة — اختر إحدى الفصائل الثماني");
+        }
       }
-      return fail(403, "المساعد يغيّر التفعيل فقط");
+      if (!Object.keys($setA).length) return fail(403, "المساعد يغيّر التفعيل وزمرة الدم فقط");
+      const u = await User.findByIdAndUpdate(id, { $set: $setA }, { new: true }).lean();
+      if ($setA.bloodType !== undefined) {
+        await logAudit(
+          { _id: me._id, name: me.name, role: me.role },
+          "accounts.blood",
+          `حساب: ${(u as { name?: string; phone?: string } | null)?.name || id}`,
+          `زمرة الدم: ${String($setA.bloodType || "حذف")}`,
+          id
+        );
+      }
+      return ok({ user: u ? toSafeUser(u) : null });
     }
 
     /* الإدارة: تعديل شامل — findOneAndUpdate (u.save لا يحفظ تعيين Map بشكل موثوق) */
@@ -61,6 +85,16 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     else if (b.photoBase64 === "") $unset.photoBase64 = "";
     if (b.weeklyHours !== undefined) $set.weeklyHours = b.weeklyHours;
     if (b.assignedSpecialistId !== undefined) $set.assignedSpecialistId = b.assignedSpecialistId || null;
+    /* ★ v3.19: زمرة الدم — للإدارة على حسابات العملاء؛ الفراغ = حذف (غير محددة) */
+    if (b.bloodType !== undefined) {
+      const g = bloodGuard();
+      if (g) return g;
+      try {
+        $set.bloodType = normalizeBloodType(b.bloodType);
+      } catch {
+        return fail(400, "زمرة الدم غير صحيحة — اختر إحدى الفصائل الثماني");
+      }
+    }
     if (typeof b.active === "boolean") $set.active = b.active;
 
     if (!Object.keys($set).length && !Object.keys($unset).length)

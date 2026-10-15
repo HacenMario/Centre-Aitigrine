@@ -7,6 +7,7 @@ import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
 import { User } from "@/lib/models";
 import { hashPassword, hashSecret, issueToken, toSafeUser } from "@/lib/auth";
+import { normalizeBloodType } from "@/lib/blood";
 import { notifyStaff, notifyUser } from "@/lib/push";
 import { welcomeText, newClientText } from "@/lib/notify-text";
 
@@ -17,6 +18,15 @@ export async function POST(req: NextRequest) {
     const phone = String(body.phone || "").trim();
     const password = String(body.password || "");
     const recoveryPhrase = String(body.recoveryPhrase || "").trim();
+
+    /* ★ v3.19: زمرة الدم إلزامية عند إنشاء حساب عميل — تحقق صارم قبل أي شيء آخر */
+    let bloodType: string | null;
+    try {
+      bloodType = normalizeBloodType(body.bloodType);
+    } catch {
+      return fail(400, "زمرة الدم غير صحيحة — اختر إحدى الفصائل الثماني");
+    }
+    if (!bloodType) return fail(400, "زمرة الدم إلزامية عند إنشاء الحساب");
 
     if (name.length < 3) return fail(400, "يرجى إدخال الاسم الكامل");
     if (!/^[0-9+\s-]{8,15}$/.test(phone)) return fail(400, "رقم الهاتف غير صحيح");
@@ -35,6 +45,7 @@ export async function POST(req: NextRequest) {
       recoverySalt: rec.salt,
       role: "client",
       langs: ["ar"],
+      bloodType, /* ★ v3.19 */
       active: true,
     });
 

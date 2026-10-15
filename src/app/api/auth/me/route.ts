@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
 import { User } from "@/lib/models";
 import { hashPassword, requireUser, toSafeUser, verifyPassword } from "@/lib/auth";
+import { normalizeBloodType } from "@/lib/blood";
 
 export async function GET() {
   return handle(async () => {
@@ -15,7 +16,7 @@ export async function PATCH(req: NextRequest) {
   return handle(async () => {
     const me = await requireUser();
     const body = await req.json().catch(() => ({}));
-    const { oldPass, newPass, name, bio, title, langs, photoBase64, phone } = body;
+    const { oldPass, newPass, name, bio, title, langs, photoBase64, phone, bloodType } = body;
 
     const $set: Record<string, unknown> = {};
     const $unset: Record<string, string> = {};
@@ -47,6 +48,20 @@ export async function PATCH(req: NextRequest) {
       const dup = await User.findOne({ phone: normalized, _id: { $ne: me._id } }).lean().catch(() => null);
       if (dup) return fail(409, "رقم الهاتف مستعمل مسبقاً بحساب آخر");
       $set.phone = normalized;
+    }
+
+    /* ★ v3.19: زمرة الدم — تُقبل ذاتياً فقط في نافذة إكمال حساب Google (الهاتف لا يزال g-<sub>)
+       أي «إنشاء حساب عميل»؛ بعد اكتمال الملف يصبح التعديل من الإدارة/المساعد/الأخصائي المعالج حصراً */
+    if (bloodType !== undefined) {
+      const isGoogleCompletion = /^g-[A-Za-z0-9_-]{6,}$/.test(String(me.phone || ""));
+      if (!isGoogleCompletion || me.role !== "client")
+        return fail(403, "تعديل زمرة الدم يتم من الإدارة أو المساعد أو الأخصائي المعالج");
+      try {
+        $set.bloodType = normalizeBloodType(bloodType);
+      } catch {
+        return fail(400, "زمرة الدم غير صحيحة — اختر إحدى الفصائل الثماني");
+      }
+      if (!$set.bloodType) return fail(400, "زمرة الدم إلزامية عند إنشاء الحساب");
     }
 
     if (!Object.keys($set).length && !Object.keys($unset).length)

@@ -977,4 +977,12 @@ export const en: Record<string, string> = {
   "media.usedInvoice": "Appointment invoice",
   "media.delTitle": "Delete this file permanently?",
   "media.empty": "No stored media yet",
+  "media.empty": "No stored media yet",
+
+  /* ── ★ v3.19: Blood type ── */
+  "acc.assistantLimit": "Assistant permissions: can only edit blood type and activation — the rest is managed by the administration",
+  "blood.title": "Blood type",
+  "blood.select": "Select blood type",
+  "blood.required": "Blood type is required — please choose yours",
+  "blood.note": "Needed for your medical file and center documents — can later be updated by the administration or your specialist",
 };
