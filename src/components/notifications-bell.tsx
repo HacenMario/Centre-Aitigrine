@@ -119,6 +119,8 @@ export default function NotificationsBell() {
     course: "courses",
     /* إجابة عميل على كتاب → صفحة الكتب الإلكترونية حيث تُعرض الإجابات */
     ebook: "ebooks",
+    /* ★ v3.20: طلبات شراء الكتب — للإدارة/المساعد صفحة الطلبات، وللعميل صفحة الكتب */
+    ebook_order: "orders",
     feedback: "feedback",
     welcome: "home",
   };

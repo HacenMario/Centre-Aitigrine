@@ -660,3 +660,79 @@ export function articlePublishedText(opts: {
     },
   };
 }
+
+/* ─────────── طلبات شراء الكتب الإلكترونية (v3.20) ───────────
+ * staff: عميل طلب شراء كتاب مدفوع → إشعار فريق الإدارة (نافذة الطلبات)
+ * accepted: الإدارة قبِلت الطلب → إشعار العميل بالتواصل عبر واتساب لتأكيد الدفع
+ * paid: تأكيد الدفع → إشعار العميل بتفعيل الكتاب مع توجيه مباشر لصفحة الكتب */
+export function ebookOrderStaffText(opts: {
+  clientName: string;
+  clientPhone: string;
+  bookTitle: string;
+  price: number;
+}): PentaNotification {
+  const { clientName, clientPhone, bookTitle, price } = opts;
+  return {
+    titles: {
+      ar: "طلب شراء كتاب إلكتروني",
+      fr: "Demande d'achat d'un e-book",
+      en: "E-book purchase request",
+      tr: "E-kitap satın alma talebi",
+      es: "Solicitud de compra de un e-book",
+    },
+    bodies: {
+      ar: `العميل ${clientName} (${clientPhone}) يطلب شراء الكتاب «${bookTitle}» بسعر ${price} دج — راجع طلبات الكتب لقبوله.`,
+      fr: `Le client ${clientName} (${clientPhone}) demande à acheter l'e-book « ${bookTitle} » à ${price} DA — consultez les demandes de livres pour l'accepter.`,
+      en: `Client ${clientName} (${clientPhone}) requests to buy the e-book "${bookTitle}" for ${price} DZD — check book orders to accept it.`,
+      tr: `Müşteri ${clientName} (${clientPhone}), «${bookTitle}» e-kitabını ${price} DZD karşılığında satın almak istiyor — kabul etmek için kitap taleplerine bakın.`,
+      es: `El cliente ${clientName} (${clientPhone}) solicita comprar el e-book «${bookTitle}» por ${price} DZD — revise los pedidos de libros para aceptarlo.`,
+    },
+  };
+}
+
+export function ebookOrderAcceptedText(opts: {
+  bookTitle: string;
+  price: number;
+  whatsapp: string;
+}): PentaNotification {
+  const { bookTitle, price, whatsapp } = opts;
+  const wa = whatsapp ? ` (واتساب: ${whatsapp})` : "";
+  const waFr = whatsapp ? ` (WhatsApp : ${whatsapp})` : "";
+  const waEn = whatsapp ? ` (WhatsApp: ${whatsapp})` : "";
+  return {
+    titles: {
+      ar: "تم قبول طلب شراء الكتاب",
+      fr: "Votre demande d'achat a été acceptée",
+      en: "Your purchase request was accepted",
+      tr: "Satın alma talebiniz kabul edildi",
+      es: "Su solicitud de compra fue aceptada",
+    },
+    bodies: {
+      ar: `قُبل طلبك لشراء الكتاب «${bookTitle}» بسعر ${price} دج. تواصل مع إدارة المركز عبر واتساب${wa} لتأكيد دفع مستحقات الكتاب واستلامه.`,
+      fr: `Votre demande d'achat de l'e-book « ${bookTitle} » (${price} DA) a été acceptée. Contactez l'administration du centre via WhatsApp${waFr} pour confirmer le paiement et recevoir le livre.`,
+      en: `Your request to buy the e-book "${bookTitle}" (${price} DZD) was accepted. Contact the center administration via WhatsApp${waEn} to confirm payment and receive the book.`,
+      tr: `«${bookTitle}» e-kitabı satın alma talebiniz (${price} DZD) kabul edildi. Ödemeyi onaylamak ve kitabı almak için merkez yönetimiyle WhatsApp üzerinden iletişime geçin${waEn}.`,
+      es: `Su solicitud de compra del e-book «${bookTitle}» (${price} DZD) fue aceptada. Contacte con la administración del centro por WhatsApp${waEn} para confirmar el pago y recibir el libro.`,
+    },
+  };
+}
+
+export function ebookPaidText(opts: { bookTitle: string }): PentaNotification {
+  const { bookTitle } = opts;
+  return {
+    titles: {
+      ar: "تم تفعيل كتابك الإلكتروني",
+      fr: "Votre e-book est activé",
+      en: "Your e-book is now active",
+      tr: "E-kitabınız etkinleştirildi",
+      es: "Su e-book está activado",
+    },
+    bodies: {
+      ar: `مبروك! تم تأكيد دفع الكتاب «${bookTitle}» وتفعيله — يمكنك الآن قراءته وفتح رابط Google Drive الخاص به من صفحة الكتب الإلكترونية.`,
+      fr: `Félicitations ! Le paiement de l'e-book « ${bookTitle} » est confirmé et il est activé — vous pouvez maintenant le lire et ouvrir son lien Google Drive depuis la page E-books.`,
+      en: `Congratulations! Payment for the e-book "${bookTitle}" is confirmed and it is now active — you can read it and open its Google Drive link from the E-books page.`,
+      tr: `Tebrikler! «${bookTitle}» e-kitabının ödemesi onaylandı ve etkinleştirildi — artık E-kitaplar sayfasından okuyabilir ve Google Drive bağlantısını açabilirsiniz.`,
+      es: `¡Felicidades! El pago del e-book «${bookTitle}» fue confirmado y está activado — ya puede leerlo y abrir su enlace de Google Drive desde la página de E-books.`,
+    },
+  };
+}

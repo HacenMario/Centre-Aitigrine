@@ -1,11 +1,13 @@
 "use client";
 /**
- * الكتب الإلكترونية
- * • للجميع: العنوان + النبذة + الغلاف
- * • القراءة داخل الموقع فقط — لا تحميل (بدون قوائم حفظ، ومحتوى عبر API للمسجّلين فقط)
- * • أسطر إجابات تفاعلية يجيب فيها العميل ويحفظ
+ * الكتب الإلكترونية — v3.20
+ * • للجميع: العنوان + النبذة + الغلاف (+ السعر)
+ * • ★ v3.20: المجاني يظهر محتواه لجميع المستخدمين — والمدفوع يظهر عنوانه وغلافه
+ *   ونبذته فقط مع زر شراء يصل طلب فوراً لحساب الإدارة (إشعار + نافذة بالصوت)
+ * • ★ v3.20: رابط Google Drive قابل للضغط يظهر للمستحقين (PDF منظّم بالصور والجداول)
+ * • القراءة داخل الموقع فقط — أسطر إجابات تفاعلية يحفظها العميل
  * • الإجابات تظهر للإدارة وللأخصائي المعالج فقط
- * • الإدارة وحدها تضيف/تعدّل/تعطّل/تحذف
+ * • الإدارة والمساعد يضيفان/يعدلان/يعطلان — والحذف للإدارة
  */
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/lib/app-context";
@@ -27,22 +29,31 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  BookOpenText, Plus, Pencil, Trash2, Power, PenLine, Lock, ArrowRight, ArrowLeft, ShieldCheck, MessagesSquare, X,
+  BookOpenText, Plus, Pencil, Trash2, Power, PenLine, Lock, ArrowRight, ArrowLeft, ShieldCheck,
+  MessagesSquare, X, ExternalLink, ShoppingCart, Wallet, CircleAlert, Check, Clock3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { TriInput, TriTextarea, triFrom, flattenTri, pickTri, TRI3 } from "@/components/tri-input";
 import FullImage from "@/components/full-image";
 import Pagination from "@/components/pagination";
+import { WhatsAppGlyph } from "@/components/whatsapp-button";
 import { cn } from "@/lib/utils";
 import type { Navigate } from "@/lib/nav";
 
 const PAGE_SIZE = 9;
 
 type Block = { type: "text" | "answer"; text: string; lines: number };
-type Ebook = { _id: string; title: string; titleFr?: string; titleEn?: string; summary: string; summaryFr?: string; summaryEn?: string; author: string; coverBase64: string; blocks: Block[]; active: boolean };
+type Ebook = {
+  _id: string; title: string; titleFr?: string; titleEn?: string;
+  summary: string; summaryFr?: string; summaryEn?: string;
+  author: string; coverBase64: string; blocks: Block[]; active: boolean;
+  /** ★ v3.20 */
+  price?: number; driveLink?: string; driveHas?: boolean;
+  myOrder?: "pending" | "accepted" | "paid" | null;
+};
 
 export default function Ebooks({ navigate }: { navigate: Navigate }) {
-  const { t, me, lang } = useApp();
+  const { t, me, lang, settings } = useApp();
   const isStaff = me?.role === "admin" || me?.role === "assistant";
   const [ebooks, setEbooks] = useState<Ebook[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +61,7 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
   const [editing, setEditing] = useState<Partial<Ebook> | null>(null);
   const [delId, setDelId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [buying, setBuying] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -79,6 +91,74 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
     if (r.ok) { toast.success(e.active ? t("common.inactive") : t("common.active")); load(); }
   };
 
+  /* ★ v3.20: طلب شراء كتاب مدفوع — يصل للإدارة فوراً (إشعار + نافذة بالصوت) */
+  const buy = async (e: Ebook) => {
+    if (!me) {
+      toast.info(t("eb.loginToBuy"), { duration: 6000 });
+      navigate("login", "client");
+      return;
+    }
+    if (me.role !== "client") {
+      toast.info(t("eb.clientOnlyBuy"), { duration: 5000 });
+      return;
+    }
+    setBuying(e._id);
+    try {
+      const r = await fetch("/api/ebook-orders", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ebookId: e._id }),
+      });
+      const j = await r.json().catch(() => null);
+      if (r.ok) {
+        toast.success(t("eb.orderSent"), { duration: 8000 });
+        load();
+      } else {
+        toast.error(j?.error || t("common.error"), { duration: 6000 });
+      }
+    } catch {
+      toast.error(t("err.conn"));
+    }
+    setBuying("");
+  };
+
+  const waNum = (settings?.whatsapp || settings?.phone || "").replace(/[^\d]/g, "");
+  const waHref = (e: Ebook) =>
+    `https://wa.me/${waNum}?text=${encodeURIComponent(`${t("ord.waMsg")} «${titleOf(e)}» — ${e.price || 0} ${t("eb.dzd")}`)}`;
+
+  /* شارة السعر على البطاقة */
+  const priceBadge = (e: Ebook) =>
+    (e.price || 0) > 0 ? (
+      <Badge className="border-0 bg-amber-100 text-amber-900 hover:bg-amber-100 gap-1 shadow">
+        <Wallet className="h-3 w-3" /> {e.price} {t("eb.dzd")}
+      </Badge>
+    ) : (
+      <Badge className="border-0 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 gap-1 shadow">
+        <Check className="h-3 w-3" /> {t("eb.free")}
+      </Badge>
+    );
+
+  /* شارة حالة طلبي على البطاقة */
+  const orderChip = (e: Ebook) => {
+    if (!e.myOrder) return null;
+    if (e.myOrder === "pending")
+      return (
+        <Badge className="border-0 bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-50 gap-1">
+          <Clock3 className="h-3 w-3" /> {t("eb.orderPending")}
+        </Badge>
+      );
+    if (e.myOrder === "accepted")
+      return (
+        <Badge className="border-0 bg-sky-50 text-sky-700 ring-1 ring-sky-200 hover:bg-sky-50 gap-1">
+          <CircleAlert className="h-3 w-3" /> {t("eb.orderAccepted")}
+        </Badge>
+      );
+    return (
+      <Badge className="border-0 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-50 gap-1">
+        <Check className="h-3 w-3" /> {t("eb.orderPaid")}
+      </Badge>
+    );
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -87,7 +167,7 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
           <h1 className="text-xl sm:text-2xl font-black">{t("nav.ebooks")}</h1>
         </div>
         {isStaff && (
-          <Button onClick={() => setEditing({ title: "", summary: "", author: "", coverBase64: "", blocks: [], active: true })}
+          <Button onClick={() => setEditing({ title: "", summary: "", author: "", coverBase64: "", blocks: [], active: true, price: 0, driveLink: "" })}
             className="gap-2 rounded-xl shadow-md shadow-primary/20">
             <Plus className="h-4.5 w-4.5" /> {t("eb.newEbook")}
           </Button>
@@ -106,7 +186,7 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
       ) : ebooks.length === 0 ? (
         <Card className="rounded-3xl border-dashed">
           <CardContent className="py-14 text-center text-muted-foreground">
-            {isStaff ? t("eb.noEbooks") : t("eb.noEbooks")}
+            {t("eb.noEbooks")}
           </CardContent>
         </Card>
       ) : (
@@ -122,9 +202,14 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
                     ) : (
                       <span className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/15 to-accent/15 text-4xl"><BookOpenText className="h-14 w-14 text-primary/50" /></span>
                     )}
-                    <Badge className="absolute top-3 end-3 bg-background/90 text-primary border-0 shadow gap-1">
-                      <Lock className="h-3 w-3" /> {t("eb.readOnlyInSite")}
-                    </Badge>
+                    <div className="absolute top-3 end-3 flex flex-col items-end gap-1.5">
+                      {priceBadge(e)}
+                      {(e.price || 0) === 0 && (
+                        <Badge className="bg-background/90 text-primary border-0 shadow gap-1">
+                          <Lock className="h-3 w-3" /> {t("eb.readOnlyInSite")}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <CardContent className="flex-1 space-y-2 p-5">
                     <h3 className="font-black leading-snug break-words whitespace-normal">{titleOf(e)}</h3>
@@ -140,9 +225,38 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
                           {e.blocks.length} {t("eb.sections")}
                         </span>
                       )}
+                      {orderChip(e)}
                     </div>
                   </CardContent>
                 </button>
+                {/* ★ v3.20: شريط الفعل — شراء/واتساب/فتح Drive حسب الحالة */}
+                {(e.price || 0) > 0 && !isStaff && (
+                  <CardContent className="border-t bg-muted/20 px-4 py-3">
+                    {e.myOrder === "paid" ? (
+                      <p className="flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+                        <Check className="h-4 w-4" /> {t("eb.unlockedHint")}
+                      </p>
+                    ) : e.myOrder === "accepted" ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="flex min-w-0 flex-1 items-center gap-1.5 text-xs font-bold text-sky-700">{t("eb.contactWaHint")}</p>
+                        {waNum && (
+                          <a href={waHref(e)} target="_blank" rel="noopener noreferrer"
+                            className="flex h-9 items-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-xs font-bold text-white transition-transform hover:scale-[1.03]" dir="ltr">
+                            <WhatsAppGlyph className="h-4 w-4" /> WhatsApp
+                          </a>
+                        )}
+                      </div>
+                    ) : e.myOrder === "pending" ? (
+                      <p className="flex items-center gap-1.5 text-xs font-bold text-amber-700">{t("eb.pendingHint")}</p>
+                    ) : (
+                      <Button onClick={() => buy(e)} disabled={buying === e._id}
+                        className="h-11 w-full gap-2 rounded-xl text-sm font-bold shadow-md shadow-primary/20">
+                        <ShoppingCart className="h-4.5 w-4.5" />
+                        {buying === e._id ? t("common.saving") : t("eb.buy")}
+                      </Button>
+                    )}
+                  </CardContent>
+                )}
                 {isStaff && (
                   <CardContent className="flex items-center gap-1 border-t py-2 px-2 flex-wrap">
                     <Button size="sm" variant="ghost" className="text-xs gap-1.5" onClick={() => setEditing(e)}>
@@ -167,7 +281,7 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
 
       {/* القارئ الداخلي */}
       {reading && (
-        <EbookReader ebook={reading} onClose={() => { setReading(null); load(); }} />
+        <EbookReader ebook={reading} onClose={() => { setReading(null); load(); }} buy={buy} waHref={waHref} />
       )}
 
       {/* المحرر الإداري */}
@@ -204,11 +318,20 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
 }
 
 /* ───────────────── القارئ — داخل الموقع فقط ───────────────── */
-function EbookReader({ ebook, onClose }: { ebook: Ebook; onClose: () => void }) {
-  const { t, me } = useApp();
+function EbookReader({
+  ebook, onClose, buy, waHref,
+}: {
+  ebook: Ebook;
+  onClose: () => void;
+  buy: (e: Ebook) => void;
+  waHref: (e: Ebook) => string;
+}) {
+  const { t, me, lang, settings } = useApp();
   const isClient = me?.role === "client";
   const isStaff = me?.role === "admin" || me?.role === "assistant";
   const isSpec = me?.role === "specialist";
+  const [book, setBook] = useState<Ebook>(ebook);
+  const [unlocked, setUnlocked] = useState<boolean | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [staffAnswers, setStaffAnswers] = useState<{ clientId: string; clientName: string; answers: Record<string, string> }[]>([]);
   const [answersVisible, setAnswersVisible] = useState(false);
@@ -218,36 +341,41 @@ function EbookReader({ ebook, onClose }: { ebook: Ebook; onClose: () => void }) 
   const dir = document.documentElement.getAttribute("dir");
   const NavIcon = dir === "rtl" ? ArrowRight : ArrowLeft;
   const viewClient = staffAnswers.find((sa) => sa.clientId === viewClientId) || null;
+  const waNum = (settings?.whatsapp || settings?.phone || "").replace(/[^\d]/g, "");
 
-  /* منع التحويل/القص — قراءة داخلية فقط */
+  /* ★ v3.20: جلب الكتاب منفرداً — الخادم يطبق قواعد الوصول (مجاني/مدفوع/مفعّل) */
   useEffect(() => {
-    const block = (e: Event) => e.preventDefault();
-    document.addEventListener("copy", block);
-    document.addEventListener("cut", block);
-    document.addEventListener("contextmenu", block);
-    return () => {
-      document.removeEventListener("copy", block);
-      document.removeEventListener("cut", block);
-      document.removeEventListener("contextmenu", block);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!me) return;
+    let alive = true;
     (async () => {
-      if (isClient) {
-        const r = await fetch(`/api/ebooks/${ebook._id}/answers`);
-        if (r.ok) { const j = await r.json(); setAnswers(j.answers || {}); }
-      } else if (isStaff || isSpec) {
-        const r = await fetch(`/api/ebooks/${ebook._id}`);
+      try {
+        const r = await fetch(`/api/ebooks/${ebook._id}`, { cache: "no-store" });
+        if (!alive) return;
         if (r.ok) {
           const j = await r.json();
-          setAnswersVisible(j.answersVisible || false);
-          setStaffAnswers(j.answersList || []);
+          setBook({ ...ebook, ...j.ebook, blocks: j.ebook.blocks || [] });
+          setUnlocked(!!j.unlocked);
+          if (j.ebook.answersVisible || j.answersVisible) {
+            setAnswersVisible(!!j.answersVisible);
+            setStaffAnswers(j.answersList || []);
+          }
+        } else {
+          /* زائر غير مسجل: 401 — تعريف فقط من بطاقة القائمة */
+          setUnlocked(false);
         }
+      } catch {
+        if (alive) setUnlocked(false);
       }
     })();
-  }, [ebook._id, me, isClient, isStaff, isSpec]);
+    return () => { alive = false; };
+  }, [ebook._id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!me || !unlocked || !isClient) return;
+    (async () => {
+      const r = await fetch(`/api/ebooks/${ebook._id}/answers`);
+      if (r.ok) { const j = await r.json(); setAnswers(j.answers || {}); }
+    })();
+  }, [ebook._id, me, isClient, unlocked]);
 
   const saveAnswers = async () => {
     setBusy(true);
@@ -264,6 +392,10 @@ function EbookReader({ ebook, onClose }: { ebook: Ebook; onClose: () => void }) 
   const answeredCount = (sa: { answers: Record<string, string> }) =>
     Object.values(sa.answers).filter((v) => v && v.trim()).length;
 
+  const title = pickTri(book as unknown as Record<string, unknown>, "title", lang) || book.title;
+  const summary = pickTri(book as unknown as Record<string, unknown>, "summary", lang);
+  const isPaid = (book.price || 0) > 0;
+
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       {/* v3.6: showCloseButton=false — زر الإغلاق المدمج كان يغطي زر الرجوع؛
@@ -273,10 +405,14 @@ function EbookReader({ ebook, onClose }: { ebook: Ebook; onClose: () => void }) 
         <DialogHeader className="sticky top-0 z-10 -mx-1 bg-background/95 px-1 pb-3 pt-1 backdrop-blur border-b">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <DialogTitle className="text-start break-words whitespace-normal leading-relaxed">{ebook.title}</DialogTitle>
-              <DialogDescription className="text-start mt-1 flex items-center gap-1.5">
-                <Lock className="h-3.5 w-3.5 shrink-0 text-primary" />
-                {t("eb.readOnlyInSite")}
+              <DialogTitle className="text-start break-words whitespace-normal leading-relaxed">{title}</DialogTitle>
+              <DialogDescription className="text-start mt-1 flex flex-wrap items-center gap-2">
+                {isPaid ? priceTag(book.price || 0, t) : (
+                  <span className="flex items-center gap-1.5">
+                    <Lock className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    {t("eb.readOnlyInSite")}
+                  </span>
+                )}
               </DialogDescription>
             </div>
             {/* زرا الرجوع والإغلاق — مجموعة أزرار متماسكة في سطر واحد */}
@@ -299,120 +435,208 @@ function EbookReader({ ebook, onClose }: { ebook: Ebook; onClose: () => void }) 
           </div>
         </DialogHeader>
 
-        {/* ★ عرض إجابات عميل محدد — الإدارة والأخصائي */}
-        {viewClient && (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-primary/30 bg-primary/[0.05] px-4 py-3">
-            <p className="font-black text-sm text-primary flex items-center gap-2">
-              <MessagesSquare className="h-4 w-4" />
-              {t("eb.answersOf", { name: viewClient.clientName })}
-            </p>
-            <Button size="sm" variant="outline" onClick={() => setViewClientId(null)} className="gap-1.5 rounded-full">
-              <BookOpenText className="h-4 w-4" /> {t("eb.viewBookOnly")}
-            </Button>
+        {/* ★ v3.20: كتاب مدفوع لم يُفعّل بعد — تعريف + شراء/متابعة الطلب */}
+        {unlocked === false && (
+          <div className="space-y-4">
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <div className="h-52 w-full shrink-0 overflow-hidden rounded-2xl bg-muted/30 sm:w-40">
+                {book.coverBase64 ? (
+                  <FullImage src={book.coverBase64} alt={title} className="h-52 w-full sm:h-52" />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center"><BookOpenText className="h-12 w-12 text-primary/40" /></span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1 space-y-3">
+                {book.author && <p className="text-sm text-muted-foreground">✍ {book.author}</p>}
+                {summary && <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line break-words">{summary}</p>}
+                {isPaid && priceTag(book.price || 0, t, "lg")}
+                {!me && (
+                  <p className="flex items-center gap-2 rounded-xl bg-primary/6 border border-primary/15 px-3 py-2 text-xs text-primary">
+                    <Lock className="h-3.5 w-3.5 shrink-0" /> {t("eb.loginToRead")}
+                  </p>
+                )}
+                {me && isClient && book.myOrder !== "paid" && (
+                  <div className="space-y-2">
+                    {book.myOrder === "accepted" ? (
+                      <>
+                        <p className="flex items-center gap-2 rounded-xl bg-sky-50 border border-sky-200 px-3 py-2 text-xs font-bold text-sky-800">
+                          <CircleAlert className="h-3.5 w-3.5 shrink-0" /> {t("eb.contactWaHint")}
+                        </p>
+                        {waNum && (
+                          <a href={waHref(book)} target="_blank" rel="noopener noreferrer"
+                            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] text-sm font-bold text-white transition-transform hover:scale-[1.02]" dir="ltr">
+                            <WhatsAppGlyph className="h-5 w-5" /> WhatsApp
+                          </a>
+                        )}
+                      </>
+                    ) : book.myOrder === "pending" ? (
+                      <p className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs font-bold text-amber-800">
+                        <Clock3 className="h-3.5 w-3.5 shrink-0" /> {t("eb.pendingHint")}
+                      </p>
+                    ) : (
+                      <Button onClick={() => buy(book)} className="h-12 w-full gap-2 rounded-xl text-sm font-bold shadow-md shadow-primary/20">
+                        <ShoppingCart className="h-4.5 w-4.5" /> {t("eb.buy")}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
-        <div className="space-y-6 pb-4">
-          {ebook.author && <p className="text-sm text-muted-foreground">✍ {ebook.author}</p>}
-          {ebook.blocks.map((b, i) => {
-            if (b.type === "text") {
-              return (
-                <p key={i} className="text-[0.95rem] leading-loose whitespace-pre-wrap text-foreground/90">
-                  {b.text}
-                </p>
-              );
-            }
-            const myKey = String(i);
-            const label = `${t("eb.myAnswer")} ${++answerIdx}`;
+        {/* ★ v3.20: المستحق — زر رابط Google Drive قابل للضغط أعلى المحتوى */}
+        {unlocked && book.driveLink && (
+          <a
+            href={book.driveLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            dir="ltr"
+            className="flex items-center gap-2 rounded-2xl border-2 border-primary/25 bg-primary/[0.04] px-4 py-3 transition-colors hover:bg-primary/[0.08]"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <BookOpenText className="h-4.5 w-4.5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-bold text-primary">{t("eb.driveOpen")}</span>
+              <span className="block truncate text-[11px] text-muted-foreground">{book.driveLink}</span>
+            </span>
+            <ExternalLink className="h-4 w-4 shrink-0 text-primary" />
+          </a>
+        )}
 
-            /* عرض إجابات العميل المختار — مدمجة في مواقعها داخل الكتاب */
-            if (viewClient) {
-              const val = (viewClient.answers[myKey] || "").trim();
-              return (
-                <div key={i} className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/[0.03] p-4 space-y-2">
-                  <Label className="flex items-center gap-2 text-primary">
-                    <PenLine className="h-4 w-4" /> {label}
-                  </Label>
-                  <p className="whitespace-pre-wrap rounded-xl bg-background p-3 text-sm leading-relaxed ring-1 ring-border min-h-10">
-                    {val || "—"}
+        {/* المحتوى — للمستحق فقط */}
+        {unlocked && (
+          <>
+            {/* ★ عرض إجابات عميل محدد — الإدارة والأخصائي */}
+            {viewClient && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-primary/30 bg-primary/[0.05] px-4 py-3">
+                <p className="font-black text-sm text-primary flex items-center gap-2">
+                  <MessagesSquare className="h-4 w-4" />
+                  {t("eb.answersOf", { name: viewClient.clientName })}
+                </p>
+                <Button size="sm" variant="outline" onClick={() => setViewClientId(null)} className="gap-1.5 rounded-full">
+                  <BookOpenText className="h-4 w-4" /> {t("eb.viewBookOnly")}
+                </Button>
+              </div>
+            )}
+
+            <div className="space-y-6 pb-4">
+              {book.author && <p className="text-sm text-muted-foreground">✍ {book.author}</p>}
+              {(book.blocks || []).map((b, i) => {
+                if (b.type === "text") {
+                  return (
+                    <p key={i} className="text-[0.95rem] leading-loose whitespace-pre-wrap text-foreground/90">
+                      {b.text}
+                    </p>
+                  );
+                }
+                const myKey = String(i);
+                const label = `${t("eb.myAnswer")} ${++answerIdx}`;
+
+                /* عرض إجابات العميل المختار — مدمجة في مواقعها داخل الكتاب */
+                if (viewClient) {
+                  const val = (viewClient.answers[myKey] || "").trim();
+                  return (
+                    <div key={i} className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/[0.03] p-4 space-y-2">
+                      <Label className="flex items-center gap-2 text-primary">
+                        <PenLine className="h-4 w-4" /> {label}
+                      </Label>
+                      <p className="whitespace-pre-wrap rounded-xl bg-background p-3 text-sm leading-relaxed ring-1 ring-border min-h-10">
+                        {val || "—"}
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={i} className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/[0.03] p-4 space-y-2">
+                    <Label className="flex items-center gap-2 text-primary">
+                      <PenLine className="h-4 w-4" /> {label}
+                    </Label>
+                    {isClient ? (
+                      <Textarea
+                        value={answers[myKey] || ""}
+                        onChange={(e) => setAnswers({ ...answers, [myKey]: e.target.value })}
+                        rows={Math.max(2, b.lines)}
+                        placeholder={t("eb.writeHere")}
+                        className="bg-background"
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        {t("eb.linesCount", { n: b.lines })}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* حفظ إجابات العميل */}
+              {isClient && (book.blocks || []).some((b) => b.type === "answer") && (
+                <div className="space-y-2">
+                  <Button onClick={saveAnswers} disabled={busy} className="w-full h-12 rounded-xl text-base">
+                    {busy ? t("common.saving") : t("eb.saveAnswers")}
+                  </Button>
+                  <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                    {t("eb.answersPrivate")}
                   </p>
                 </div>
-              );
-            }
+              )}
 
-            return (
-              <div key={i} className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/[0.03] p-4 space-y-2">
-                <Label className="flex items-center gap-2 text-primary">
-                  <PenLine className="h-4 w-4" /> {label}
-                </Label>
-                {isClient ? (
-                  <Textarea
-                    value={answers[myKey] || ""}
-                    onChange={(e) => setAnswers({ ...answers, [myKey]: e.target.value })}
-                    rows={Math.max(2, b.lines)}
-                    placeholder={t("eb.writeHere")}
-                    className="bg-background"
-                  />
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    {t("eb.linesCount", { n: b.lines })}
+              {/* ★ الإجابات للإدارة والأخصائي المعالج — كل عميل في بطاقة مستقلة */}
+              {!viewClient && answersVisible && (isStaff || isSpec) && (
+                <div className="space-y-3 rounded-2xl border bg-muted/30 p-4">
+                  <p className="font-bold text-sm flex items-center gap-2">
+                    <MessagesSquare className="h-4 w-4 text-primary" /> {t("eb.clientsAnswers")}
                   </p>
-                )}
-              </div>
-            );
-          })}
-
-          {/* حفظ إجابات العميل */}
-          {isClient && (
-            <div className="space-y-2">
-              <Button onClick={saveAnswers} disabled={busy} className="w-full h-12 rounded-xl text-base">
-                {busy ? t("common.saving") : t("eb.saveAnswers")}
-              </Button>
-              <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1.5">
-                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                {t("eb.answersPrivate")}
-              </p>
-            </div>
-          )}
-
-          {/* ★ الإجابات للإدارة والأخصائي المعالج — كل عميل في بطاقة مستقلة */}
-          {!viewClient && answersVisible && (isStaff || isSpec) && (
-            <div className="space-y-3 rounded-2xl border bg-muted/30 p-4">
-              <p className="font-bold text-sm flex items-center gap-2">
-                <MessagesSquare className="h-4 w-4 text-primary" /> {t("eb.clientsAnswers")}
-              </p>
-              {staffAnswers.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("eb.noAnsweredYet")}</p>
-              ) : (
-                <>
-                  <p className="text-xs text-muted-foreground">{t("eb.pickClient")}</p>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {staffAnswers.map((sa) => (
-                      <button
-                        key={sa.clientId}
-                        type="button"
-                        onClick={() => setViewClientId(sa.clientId)}
-                        className="flex items-center justify-between gap-2 rounded-xl bg-background p-3 text-start ring-1 ring-border transition-all hover:ring-primary/50 hover:shadow-md"
-                      >
-                        <span className="min-w-0">
-                          <span className="block break-words whitespace-normal font-bold text-sm leading-snug">{sa.clientName}</span>
-                          <span className="text-[11px] text-muted-foreground">
-                            {t("eb.answeredCount", { n: answeredCount(sa) })}
-                          </span>
-                        </span>
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <NavIcon className="h-4 w-4 rtl:-scale-x-100" />
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </>
+                  {staffAnswers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">{t("eb.noAnsweredYet")}</p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-muted-foreground">{t("eb.pickClient")}</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {staffAnswers.map((sa) => (
+                          <button
+                            key={sa.clientId}
+                            type="button"
+                            onClick={() => setViewClientId(sa.clientId)}
+                            className="flex items-center justify-between gap-2 rounded-xl bg-background p-3 text-start ring-1 ring-border transition-all hover:ring-primary/50 hover:shadow-md"
+                          >
+                            <span className="min-w-0">
+                              <span className="block break-words whitespace-normal font-bold text-sm leading-snug">{sa.clientName}</span>
+                              <span className="text-[11px] text-muted-foreground">
+                                {t("eb.answeredCount", { n: answeredCount(sa) })}
+                              </span>
+                            </span>
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                              <NavIcon className="h-4 w-4 rtl:-scale-x-100" />
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** شارة السعر — دينار جزائري بلغة الواجهة */
+function priceTag(price: number, t: (k: string) => string, size: "sm" | "lg" = "sm") {
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-1 rounded-full bg-amber-100 font-black text-amber-900",
+      size === "lg" ? "px-4 py-1.5 text-base" : "px-2.5 py-0.5 text-xs"
+    )}>
+      <Wallet className={size === "lg" ? "h-4 w-4" : "h-3 w-3"} />
+      {price} {t("eb.dzd")}
+    </span>
   );
 }
 
@@ -420,46 +644,106 @@ function EbookReader({ ebook, onClose }: { ebook: Ebook; onClose: () => void }) 
 function EbookEditor({ ebook, onChange, onDone }: { ebook: Partial<Ebook> | null; onChange: (e: Partial<Ebook> | null) => void; onDone: () => void }) {
   const { t } = useApp();
   const [busy, setBusy] = useState(false);
-  const upd = (patch: Partial<Ebook>) => onChange({ ...ebook, ...patch });
+  const [full, setFull] = useState<Partial<Ebook> | null>(ebook);
+
+  /* ★ v3.20: تعديل كتاب موجود = جلب كامل أولاً (القائمة خالية من blocks عمداً) */
+  useEffect(() => {
+    setFull(ebook);
+    if (!ebook?._id) return;
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch(`/api/ebooks/${ebook._id}`, { cache: "no-store" });
+        if (r.ok && alive) {
+          const j = await r.json();
+          setFull({ ...ebook, ...j.ebook, blocks: j.ebook.blocks || [] });
+        }
+      } catch {}
+    })();
+    return () => { alive = false; };
+  }, [ebook?._id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const e = full;
+  const upd = (patch: Partial<Ebook>) => {
+    setFull({ ...e, ...patch });
+    onChange({ ...e, ...patch });
+  };
   const updBlock = (i: number, patch: Partial<Block>) =>
-    upd({ blocks: (ebook?.blocks || []).map((b, k) => (k === i ? { ...b, ...patch } : b)) });
+    upd({ blocks: (e?.blocks || []).map((b, k) => (k === i ? { ...b, ...patch } : b)) });
+
+  const isPaid = (e?.price || 0) > 0;
 
   const save = async () => {
-    if (!ebook?.title?.trim()) { toast.error(t("err.required")); return; }
+    if (!e?.title?.trim()) { toast.error(t("err.required")); return; }
     setBusy(true);
-    const isNew = !ebook._id;
-    const r = await fetch(isNew ? "/api/ebooks" : `/api/ebooks/${ebook._id}`, {
+    const isNew = !e._id;
+    const r = await fetch(isNew ? "/api/ebooks" : `/api/ebooks/${e._id}`, {
       method: isNew ? "POST" : "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(ebook),
+      body: JSON.stringify(e),
     });
     setBusy(false);
     if (r.ok) { toast.success(t("toast.ebookSaved")); onDone(); }
-    else toast.error(t("common.error"));
+    else {
+      const j = await r.json().catch(() => null);
+      toast.error(j?.error || t("common.error"));
+    }
   };
 
   return (
     <div className="space-y-4">
       <TriInput langs={TRI3}
         label={t("common.title")}
-        value={triFrom(ebook as Record<string, unknown>, "title")}
+        value={triFrom(e as Record<string, unknown>, "title")}
         onChange={(v) => upd({ ...flattenTri("title", v) } as Partial<Ebook>)}
       />
       <div className="grid sm:grid-cols-2 gap-3">
         <TriTextarea langs={TRI3}
           label={t("eb.summary")}
-          value={triFrom(ebook as Record<string, unknown>, "summary")}
+          value={triFrom(e as Record<string, unknown>, "summary")}
           onChange={(v) => upd({ ...flattenTri("summary", v) } as Partial<Ebook>)}
           rows={2}
         />
         <div className="space-y-2">
           <Label>{t("acc.title")}</Label>
-          <Input value={ebook?.author || ""} onChange={(e) => upd({ author: e.target.value })} className="h-11" />
+          <Input value={e?.author || ""} onChange={(ev) => upd({ author: ev.target.value })} className="h-11" />
         </div>
       </div>
       <div className="space-y-2">
         <Label>{t("eb.cover")}</Label>
-        <ImageInput value={ebook?.coverBase64 || ""} onChange={(v) => upd({ coverBase64: v })} />
+        <ImageInput value={e?.coverBase64 || ""} onChange={(v) => upd({ coverBase64: v })} />
+      </div>
+
+      {/* ★ v3.20: السعر — مجاني/مدفوع بالدينار الجزائري */}
+      <div className="space-y-3 rounded-2xl border bg-muted/20 p-4">
+        <label className="flex items-center justify-between gap-3">
+          <span className="min-w-0">
+            <span className="flex items-center gap-1.5 text-sm font-bold"><Wallet className="h-4 w-4 text-amber-600" /> {t("eb.pricing")}</span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">{t("eb.pricingHint")}</span>
+          </span>
+          <Switch checked={isPaid} onCheckedChange={(v) => upd({ price: v ? Math.max(1, e?.price || 0) : 0 })} />
+        </label>
+        {isPaid && (
+          <div className="space-y-1.5">
+            <Label htmlFor="eb-price">{t("eb.priceLabel")} *</Label>
+            <div className="flex items-center gap-2">
+              <Input id="eb-price" type="number" min={1} max={999999} inputMode="numeric" dir="ltr"
+                value={e?.price || ""} onChange={(ev) => upd({ price: Math.max(0, Math.round(Number(ev.target.value) || 0)) })}
+                className="h-11 text-center text-lg font-bold tracking-wider" />
+              <span className="shrink-0 rounded-xl bg-amber-100 px-3 py-2 text-sm font-black text-amber-900">{t("eb.dzd")}</span>
+            </div>
+          </div>
+        )}
+        {/* ★ v3.20: رابط Google Drive — قابل للضغط للمستحقين */}
+        <div className="space-y-1.5">
+          <Label htmlFor="eb-drive" className="flex items-center gap-1.5"><ExternalLink className="h-3.5 w-3.5 text-primary" /> {t("eb.driveLabel")}</Label>
+          <Input id="eb-drive" dir="ltr" inputMode="url" placeholder="https://drive.google.com/…"
+            value={e?.driveLink || ""} onChange={(ev) => upd({ driveLink: ev.target.value })} className="h-11 text-sm" />
+          <p className="text-xs leading-relaxed text-muted-foreground">{t("eb.driveHelp")}</p>
+          {e?.driveLink && !/^https?:\/\/\S+$/i.test(e.driveLink) && (
+            <p className="text-xs font-bold text-destructive">{t("eb.driveInvalid")}</p>
+          )}
+        </div>
       </div>
 
       {/* الكتل: نص / أسطر إجابة */}
@@ -468,16 +752,16 @@ function EbookEditor({ ebook, onChange, onDone }: { ebook: Partial<Ebook> | null
           <Label>{t("eb.content")}</Label>
           <div className="flex gap-2">
             <Button type="button" size="sm" variant="outline" className="gap-1.5"
-              onClick={() => upd({ blocks: [...(ebook?.blocks || []), { type: "text", text: "", lines: 1 }] })}>
+              onClick={() => upd({ blocks: [...(e?.blocks || []), { type: "text", text: "", lines: 1 }] })}>
               <Plus className="h-4 w-4" /> {t("eb.addText")}
             </Button>
             <Button type="button" size="sm" variant="outline" className="gap-1.5 border-dashed border-primary/40 text-primary"
-              onClick={() => upd({ blocks: [...(ebook?.blocks || []), { type: "answer", text: "", lines: 2 }] })}>
+              onClick={() => upd({ blocks: [...(e?.blocks || []), { type: "answer", text: "", lines: 2 }] })}>
               <PenLine className="h-4 w-4" /> {t("eb.addAnswer")}
             </Button>
           </div>
         </div>
-        {(ebook?.blocks || []).map((b, i) => (
+        {(e?.blocks || []).map((b, i) => (
           <div key={i} className={cn(
             "rounded-2xl border p-3 space-y-2",
             b.type === "answer" ? "border-primary/30 bg-primary/[0.03]" : "bg-muted/20"
@@ -489,25 +773,31 @@ function EbookEditor({ ebook, onChange, onDone }: { ebook: Partial<Ebook> | null
               {b.type === "answer" && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   {t("eb.answerLines")}
-                  <Input type="number" min={1} max={10} value={b.lines} onChange={(e) => updBlock(i, { lines: Number(e.target.value) })}
+                  <Input type="number" min={1} max={10} value={b.lines} onChange={(ev) => updBlock(i, { lines: Number(ev.target.value) })}
                     className="h-8 w-16 text-center" />
                 </div>
               )}
-              <button type="button" onClick={() => upd({ blocks: (ebook?.blocks || []).filter((_, k) => k !== i) })}
+              <button type="button" onClick={() => upd({ blocks: (e?.blocks || []).filter((_, k) => k !== i) })}
                 className="ms-auto flex h-8 w-8 items-center justify-center rounded-lg text-destructive hover:bg-destructive/10" aria-label={t("common.delete")}>
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
             {b.type === "text" && (
-              <Textarea value={b.text} onChange={(e) => updBlock(i, { text: e.target.value })} rows={3} placeholder={t("eb.blockText")} />
+              <Textarea value={b.text} onChange={(ev) => updBlock(i, { text: ev.target.value })} rows={3} placeholder={t("eb.blockText")} />
             )}
           </div>
         ))}
+        {isPaid && (
+          <p className="flex items-start gap-1.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs leading-relaxed text-amber-800">
+            <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            {t("eb.paidContentHint")}
+          </p>
+        )}
       </div>
 
       <label className="flex items-center justify-between rounded-xl border p-3">
         <span className="text-sm font-semibold">{t("common.active")}</span>
-        <Switch checked={ebook?.active !== false} onCheckedChange={(v) => upd({ active: v })} />
+        <Switch checked={e?.active !== false} onCheckedChange={(v) => upd({ active: v })} />
       </label>
       <Button onClick={save} disabled={busy} className="w-full h-12 rounded-xl text-base">
         {busy ? t("common.saving") : t("common.save")}

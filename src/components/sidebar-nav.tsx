@@ -27,6 +27,7 @@ import {
   LayoutDashboard,
   ClipboardPlus,
   FileBadge2,
+  ShoppingBag,
   LogIn,
   LogOut,
   UserRound,
@@ -62,6 +63,7 @@ const ICONS: Record<string, LucideIcon> = {
   LayoutDashboard,
   ClipboardPlus,
   FileBadge2,
+  ShoppingBag,
 };
 
 export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {

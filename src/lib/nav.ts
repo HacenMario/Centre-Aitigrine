@@ -20,6 +20,7 @@ export type ViewKey =
   | "settings"
   | "dashboard"
   | "documents"
+  | "orders"
   | "record"
   | "feedback"
   | "contact"
@@ -66,6 +67,8 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "settings", label: "nav.settings", icon: "Settings", roles: ["admin", "assistant"] },
   /* إدارة الوثائق: صفحة خاصة بالقائمة الجانبية تظهر لحساب الإدارة فقط — طلب المستخدم */
   { key: "documents", label: "nav.documents", icon: "FileBadge2", roles: ["admin"], divider: true },
+  /* v3.20: طلبات شراء الكتب الإلكترونية — إدارة ومساعد */
+  { key: "orders", label: "nav.orders", icon: "ShoppingBag", roles: ["admin", "assistant"] },
   { key: "specialists", label: "nav.specialists", icon: "Stethoscope", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"] },
   { key: "services", label: "nav.services", icon: "Sparkles", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"] },
   { key: "courses", label: "nav.courses", icon: "GraduationCap", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"] },

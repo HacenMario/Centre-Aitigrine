@@ -757,3 +757,9 @@ img, video, iframe {
     print-color-adjust: economy !important;
   }
 }
+
+/* ★ v3.20: شريط تقدم نافذة الإثبات الاجتماعي — 10 ثوانٍ حتى الإغلاق التلقائي */
+@keyframes ait-sp-progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}

@@ -3,7 +3,7 @@
  */
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
-import { Course, User } from "@/lib/models";
+import { Course, User, ActivityLog } from "@/lib/models";
 import { requireUser } from "@/lib/auth";
 import { notifyStaff } from "@/lib/push";
 import { enrollRequestText } from "@/lib/notify-text";
@@ -22,6 +22,19 @@ export async function POST(_req: NextRequest, ctx: Ctx) {
     if (c.capacity > 0 && ids.length >= c.capacity) return fail(409, "اكتملت مقاعد هذا التكوين");
     c.enrolledIds = [...(ids.map((x) => x)), me._id] as never;
     await c.save();
+    /* ★ v3.20: نبضة إثبات اجتماعي — مقعد تكوين جديد (اسم أول فقط) */
+    ActivityLog.create({
+      userId: me._id,
+      kind: "course",
+      name: me.name.trim().split(/\s+/)[0] || "",
+      labels: {
+        ar: c.title,
+        fr: c.titleFr || c.title,
+        en: c.titleEn || c.title,
+        tr: c.titleEn || c.title,
+        es: c.titleEn || c.title,
+      },
+    }).catch(() => {});
     notifyStaff(
       enrollRequestText({ clientName: me.name, clientPhone: me.phone, courseTitle: c.title }),
       "courses",

@@ -384,6 +384,10 @@ const EbookSchema = new Schema(
         lines: { type: Number, default: 1 }, // عدد أسطر الإجابة
       },
     ],
+    /** ★ v3.20: السعر بالدينار الجزائري — 0 = مجاني يظهر محتواه للجميع، > 0 = مدفوع يظهر عنوانه وغلافه ونبذته فقط */
+    price: { type: Number, default: 0, min: 0 },
+    /** ★ v3.20: رابط الكتاب على Google Drive (PDF منظّم بالصور والجداول) — يظهر كرابط قابل للضغط للمستحقين فقط */
+    driveLink: { type: String, default: "" },
     active: { type: Boolean, default: true },
   },
   { timestamps: true }
@@ -391,6 +395,62 @@ const EbookSchema = new Schema(
 export type EbookDoc = InferSchemaType<typeof EbookSchema> & { _id: mongoose.Types.ObjectId };
 export const Ebook: Model<EbookDoc> =
   (mongoose.models.Ebook as Model<EbookDoc>) || mongoose.model<EbookDoc>("Ebook", EbookSchema);
+
+/* ─────────────── طلبات شراء الكتب الإلكترونية (v3.20) ───────────────
+ * العميل يطلب شراء كتاب مدفوع ← الطلب يصل للإدارة (إشعار + نافذة بالصوت)
+ * قبول الإدارة ← إشعار للعميل بالتواصل عبر واتساب لتأكيد الدفع
+ * تأكيد الدفع (الإدارة بعد التواصل) ← تفعيل الكتاب للعميل + إشعار موجه للكتاب
+ */
+const EbookOrderSchema = new Schema(
+  {
+    ebookId: { type: Schema.Types.ObjectId, ref: "Ebook", required: true, index: true },
+    clientId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    /** سعر الكتاب لحظة الطلب — توثيق تاريخي حتى لو تغير سعر الكتاب لاحقاً */
+    price: { type: Number, default: 0, min: 0 },
+    /** pending = بانتظار مراجعة الإدارة → accepted = قبِلت الإدارة (تواصل واتساب) → paid = مؤكد ومفعّل */
+    status: {
+      type: String,
+      enum: ["pending", "accepted", "paid"],
+      default: "pending",
+      index: true,
+    },
+    acceptedAt: { type: Date, default: null },
+    paidAt: { type: Date, default: null },
+  },
+  { timestamps: true }
+);
+EbookOrderSchema.index({ ebookId: 1, clientId: 1 });
+export type EbookOrderDoc = InferSchemaType<typeof EbookOrderSchema> & { _id: mongoose.Types.ObjectId };
+export const EbookOrder: Model<EbookOrderDoc> =
+  (mongoose.models.EbookOrder as Model<EbookOrderDoc>) ||
+  mongoose.model<EbookOrderDoc>("EbookOrder", EbookOrderSchema);
+
+/* ─────────────── سجل الأنشطة العامة للإثبات الاجتماعي (v3.20) ───────────────
+ * نبضات حقيقية تظهر في نافذة التحفيز: حجز موعد / مقعد تكوين / شراء كتاب
+ * تحفظ لقطة اسم العميل (الكلمة الأولى فقط — خصوصية) وتفاصيل النشاط بخمس لغات
+ * تُحتفظ بآخر 300 نبضة فقط (تنظيف مع كل كتابة)
+ */
+const ActivityLogSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", index: true },
+    /** appointment = حجز موعد | course = مقعد تكوين | ebook = شراء كتاب */
+    kind: { type: String, enum: ["appointment", "course", "ebook"], required: true },
+    name: { type: String, default: "" }, // لقطة الاسم المعروض (الكلمة الأولى)
+    /** تفاصيل النشاط بخمس لغات عند توفرها */
+    labels: {
+      ar: { type: String, default: "" },
+      fr: { type: String, default: "" },
+      en: { type: String, default: "" },
+      tr: { type: String, default: "" },
+      es: { type: String, default: "" },
+    },
+  },
+  { timestamps: true }
+);
+export type ActivityLogDoc = InferSchemaType<typeof ActivityLogSchema> & { _id: mongoose.Types.ObjectId };
+export const ActivityLog: Model<ActivityLogDoc> =
+  (mongoose.models.ActivityLog as Model<ActivityLogDoc>) ||
+  mongoose.model<ActivityLogDoc>("ActivityLog", ActivityLogSchema);
 
 /* إجابات العميل على أسطر الكتاب — تظهر للإدارة وللأخصائي المعالج فقط */
 const EbookAnswerSchema = new Schema(

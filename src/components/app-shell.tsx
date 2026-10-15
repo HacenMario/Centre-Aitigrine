@@ -20,6 +20,8 @@ import BackToTop from "@/components/back-to-top";
 import FloatingAd from "@/components/floating-ad";
 import ChatbotWidget from "@/components/chatbot-widget";
 import GooglePhoneDialog from "@/components/google-phone-dialog";
+import EbookOrderPopup from "@/components/ebook-order-popup";
+import SocialProofPopup from "@/components/social-proof-popup";
 import Landing from "@/components/views/landing";
 import Login from "@/components/views/login";
 import Appointments from "@/components/views/appointments";
@@ -38,11 +40,12 @@ import Contact from "@/components/views/contact";
 import Dashboard from "@/components/views/dashboard";
 import Patients from "@/components/views/patients";
 import Documents from "@/components/views/documents";
+import EbookOrders from "@/components/views/ebook-orders";
 import Record from "@/components/views/record";
 import Testimonials from "@/components/views/testimonials";
 import BrandSkeleton from "@/components/brand-skeleton";
 
-const STAFF_ONLY: ViewKey[] = ["accounts", "settings", "dashboard", "patients", "record"];
+const STAFF_ONLY: ViewKey[] = ["accounts", "settings", "dashboard", "patients", "record", "orders"];
 /* إدارة الوثائق: صفحة خاصة بحساب الإدارة فقط — طلب المستخدم */
 const ADMIN_ONLY: ViewKey[] = ["documents"];
 
@@ -137,6 +140,8 @@ function Shell() {
             {view === "dashboard" && <Dashboard navigate={navigate} />}
             {view === "patients" && <Patients navigate={navigate} />}
             {view === "documents" && <Documents navigate={navigate} />}
+            {/* v3.20: طلبات شراء الكتب — إدارة ومساعد */}
+            {view === "orders" && <EbookOrders navigate={navigate} />}
             {view === "record" && <Record patientId={viewId} navigate={navigate} />}
             {view === "settings" && <CenterSettings navigate={navigate} />}
             {view === "feedback" && <Feedback navigate={navigate} />}
@@ -159,6 +164,10 @@ function Shell() {
       </div>
       {/* نافذة لحظة اطمئنان — تظهر مرة واحدة في الجلسة عند ولوج الرئيسية */}
       <ReassurancePopup />
+      {/* ★ v3.20: نافذة طلبات شراء الكتب للإدارة — صوت + قبول/تخطي فوق كل شيء */}
+      <EbookOrderPopup />
+      {/* ★ v3.20: نافذة الإثبات الاجتماعي — تحفيز لطيف للجميع (كل 5 دقائق، 10 ثوانٍ) */}
+      <SocialProofPopup />
       {/* ★ v3.10: نافذة الهاتف الإلزامية لحسابات Google — أول مرة فقط، بلا تجاوز ممكن */}
       <GooglePhoneDialog />
       {/* الإعلان العائم — للعملاء والأخصائيين (نمط طمأنينة) */}

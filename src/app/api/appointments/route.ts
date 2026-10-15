@@ -7,7 +7,7 @@
  */
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
-import { Appointment, Coupon, Service, User } from "@/lib/models";
+import { ActivityLog, Appointment, Coupon, Service, User } from "@/lib/models";
 import { currentUser, requireUser } from "@/lib/auth";
 import { notifyStaff, notifyUser } from "@/lib/push";
 import { mapToObj } from "@/lib/map";
@@ -191,6 +191,23 @@ export async function POST(req: NextRequest) {
       createdBy: me._id,
     });
     await logAudit({ _id: me._id, name: me.name, role: me.role }, "appointment.create", `موعد: ${date} ${time}`, `${couponCode ? `كوبون=${couponCode} خصم=${discount}` : "بلا كوبون"}`, String(a._id));
+
+    /* ★ v3.20: نبضة إثبات اجتماعي — حجز موعد حقيقي يدخل نافذة التحفيز (اسم أول فقط) */
+    const bookerName = me.role === "client" ? me.name : clientName;
+    if (bookerName) {
+      ActivityLog.create({
+        userId: clientId,
+        kind: "appointment",
+        name: bookerName.trim().split(/\s+/)[0] || "",
+        labels: {
+          ar: svcTitle,
+          fr: svcTitleFr || svcTitle,
+          en: svcTitleEn || svcTitle,
+          tr: svcTitleEn || svcTitle,
+          es: svcTitleEn || svcTitle,
+        },
+      }).catch(() => {});
+    }
 
     /* إشعارات ثلاثية اللغة — لكل طرف نصه الخاص فقط:
      * العميل يرى حجزه، الأخصائي يرى موعده الجديد، والإدارة توقّع ملخصاً إدارياً
