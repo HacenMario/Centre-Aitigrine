@@ -73,6 +73,45 @@ export async function openMedia(
   return Readable.toWeb(node) as unknown as ReadableStream;
 }
 
+/* ─────────────── v3.18: إدارة الوسائط المخزنة ─────────────── */
+
+export type MediaFileRow = {
+  name: string;
+  size: number;
+  contentType: string;
+  date: string; // ISO
+};
+
+/** قائمة كل ملفات GridFS مرتبة من الأكبر — تبويب «الوسائط المخزنة» */
+export async function listMedia(): Promise<MediaFileRow[]> {
+  const bucket = await mediaBucket();
+  const files = await bucket.find({}).sort({ length: -1 }).toArray();
+  return files.map((f) => ({
+    name: f.filename,
+    size: f.length || 0,
+    contentType: f.contentType || "",
+    date: f.uploadDate ? new Date(f.uploadDate).toISOString() : "",
+  }));
+}
+
+/**
+ * حذف ملف من GridFS باسمه — v3.18
+ * bucket.delete الرسمي ينظف media.files + كل قطعه في media.chunks معاً بلا بقايا.
+ * يعيد البايتات المحررة، أو null إن لم يوجد الملف.
+ * ⛔ الاستدعاء مسؤولية المسار: يجب فحص scanMediaUsage أولاً ورفض الملفات المستخدمة.
+ */
+export async function deleteMediaByName(name: string): Promise<number | null> {
+  const bucket = await mediaBucket();
+  const files = await bucket.find({ filename: name }).toArray();
+  if (!files.length) return null;
+  let freed = 0;
+  for (const f of files) {
+    freed += f.length || 0;
+    await bucket.delete(f._id);
+  }
+  return freed;
+}
+
 /* ───────── خطة بديلة: الملفات القديمة على القرص (توافق رجعي فقط) ───────── */
 
 export function diskMediaStat(name: string): fs.Stats | null {

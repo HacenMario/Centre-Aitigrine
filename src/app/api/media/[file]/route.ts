@@ -10,9 +10,12 @@
  *   هذا هو الإصلاح الجذري لاستهلاك Fast Origin Transfer على Vercel
  *   (max-age وحده يخزّن في متصفح الزائر فقط ولا يفيد الزوار الجدد ولا الروبوتات)
  */
-import { NextRequest } from "next/server";
-import { fail } from "@/lib/api-helpers";
-import { mediaMeta, openMedia, diskMediaStat, openDiskMedia } from "@/lib/media-store";
+import { NextRequest, NextResponse } from "next/server";
+import { fail, ok, handle } from "@/lib/api-helpers";
+import { requireUser } from "@/lib/auth";
+import { mediaMeta, openMedia, diskMediaStat, openDiskMedia, deleteMediaByName } from "@/lib/media-store";
+import { scanMediaUsage, type MediaUsageKind } from "@/lib/media-usage";
+import { logAudit, auditTarget } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -91,5 +94,39 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ file: strin
   return new Response(body, {
     status: 200,
     headers: { ...commonHeaders, "Content-Length": String(size) },
+  });
+}
+
+/**
+ * DELETE /api/media/<name> — حذف آمن لملف وسائط — v3.18
+ * صلاحيات: الإدارة والمساعد
+ * ⛔ الحماية: فحص استخدام إلزامي قبل الحذف — الملف المستخدم (سلايدر/إعلان/
+ *   تكوين/فاتورة/…) يُرفض بـ 409 مع قائمة مواضع استخدامه ولا يُمسّ إطلاقاً.
+ *   تعذر الفحص = لا حذف (503 محافظ).
+ * التنظيف عبر آلية GridFS الرسمية bucket.delete: media.files + media.chunks معاً.
+ */
+export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ file: string }> }) {
+  return handle(async () => {
+    const me = await requireUser(["admin", "assistant"]);
+    const { file } = await ctx.params;
+    /* نفس قاعدة GET: اسم ملف بسيط فقط — منع اجتياز المسارات */
+    if (!/^[A-Za-z0-9._-]+$/.test(file)) return fail(400, "اسم ملف غير صالح");
+
+    let usage: MediaUsageKind[];
+    try {
+      usage = (await scanMediaUsage([file])).get(file) || [];
+    } catch (e) {
+      console.error("media usage scan failed (delete):", (e as Error)?.message);
+      return fail(503, "تعذر فحص استخدام الملف — لن يُحذف شيء الآن، أعد المحاولة");
+    }
+    if (usage.length) {
+      return NextResponse.json({ error: "MEDIA_IN_USE", usage }, { status: 409 });
+    }
+
+    const freed = await deleteMediaByName(file);
+    if (freed === null) return fail(404, "الملف غير موجود");
+
+    await logAudit(me, "media.delete", auditTarget("media", file), `freed=${freed}`);
+    return ok({ ok: true, freed });
   });
 }

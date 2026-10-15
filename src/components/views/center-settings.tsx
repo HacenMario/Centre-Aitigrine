@@ -21,7 +21,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import AdminTools from "@/components/views/admin-tools";
-import { Plus, Trash2, X, Building2, Save, Images, MapPin, Share2, Languages, SlidersHorizontal, FileStack, Stethoscope, Sparkles, Pencil, Quote as QuoteIcon, Clock, Copy, DatabaseBackup } from "lucide-react";
+import MediaManager from "@/components/views/media-manager";
+import { Plus, Trash2, X, Building2, Save, Images, MapPin, Share2, Languages, SlidersHorizontal, FileStack, Stethoscope, Sparkles, Pencil, Quote as QuoteIcon, Clock, Copy, DatabaseBackup, HardDrive } from "lucide-react";
 import { toast } from "sonner";
 import type { Navigate } from "@/lib/nav";
 
@@ -119,6 +120,8 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
           <TabsTrigger value="pages" className="gap-1.5"><FileStack className="h-4 w-4" />{t("set.legal")}</TabsTrigger>
           {/* v3.8: أدوات الإدارة — تصدير + نسخ احتياطي + كوبونات + سجل تدقيق */}
           <TabsTrigger value="tools" className="gap-1.5"><DatabaseBackup className="h-4 w-4" />{t("tools.tab")}</TabsTrigger>
+          {/* v3.18: الوسائط المخزنة — قائمة GridFS + حماية المستخدم + تنظيف اليتيمة */}
+          <TabsTrigger value="stored-media" className="gap-1.5"><HardDrive className="h-4 w-4" />{t("media.tab")}</TabsTrigger>
         </TabsList>
 
         {/* ── معلومات عامة (ثلاثية اللغة) ── */}
@@ -387,6 +390,11 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
         {/* ── v3.8: أدوات الإدارة — تصدير، نسخ احتياطي، كوبونات، سجل تدقيق ── */}
         <TabsContent value="tools" className="mt-4">
           <AdminTools />
+        </TabsContent>
+
+        {/* ── v3.18: الوسائط المخزنة — حماية المستخدم + تنظيف اليتيمة بضغطة ── */}
+        <TabsContent value="stored-media" className="mt-4">
+          <MediaManager />
         </TabsContent>
       </Tabs>
     </div>
