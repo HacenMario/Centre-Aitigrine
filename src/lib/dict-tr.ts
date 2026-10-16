@@ -1060,4 +1060,6 @@ export const tr: Record<string, string> = {
   "shr.step1": "Instagram boyutundaki hazır görseli indirin",
   "shr.step2": "Paylaşımı kopyalayın (başlık, özet ve bağlantı)",
   "shr.step3": "Instagram'ı açın, yeni gönderi oluşturun ve yapıştırın — bağlantı içeriği doğrudan açar",
+  "shr.by.author": "Yazar: {name}",
+  "shr.by.trainer": "Eğitmen: {name}",
 };

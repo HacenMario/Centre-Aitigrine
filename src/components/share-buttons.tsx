@@ -1,12 +1,15 @@
 "use client";
 /**
- * v3.21.0 — أزرار «نشر على انستغرام» و «نشر على فايسبوك»
+ * v3.21.0 / v3.21.1 — أزرار «نشر على انستغرام» و «نشر على فايسبوك»
  * ─────────────────────────────────────────────────────────────
  * الهدف: يمكّن المستخدمين من نشر كتاب/مقال/تكوين/إعلان أعجبهم مع أصحابهم ومتابعيهم.
+ * ★ v3.21.1: الزران للإدارة والمساعد فقط — يختفيان ذاتياً عن غيرهما.
  *
  * انستغرام (لا يملك رابط مشاركة ويب مباشر — المنطق الاحترافي المعتمد عالمياً):
  *   1) توليد صورة بمقاس انستغرام 1080×1350 (4:5) محلياً في المتصفح (Canvas):
- *      شعار المركز + نوع العنصر + صورته + عنوانه + نبذته + رابط الموقع المباشر.
+ *      شعار المركز واسمه بحجم واضح + شارة نوع العنصر بجانبها المؤلف/المكوِّن بصورته
+ *      + صورة العنصر + العنوان فقط + «اقرأ المزيد على موقعنا» و أسفلها 🔗 دومين الموقع.
+ *      ★ كل نصوص الصورة بلغة الواجهة الحالية — وتُولَّد من جديد عند كل تغيير للغة.
  *   2) على الهاتف: زر «مشاركة مباشرة» عبر Web Share API — تُفتح ورقة مشاركة النظام
  *      فتُرسل الصورة والنص إلى انستغرام بلمسة واحدة (ستوري/منشور/رسالة).
  *   3) أينما لا يتوفر ذلك: تحميل الصورة + نسخ المنشور (العنوان والنبذة والرابط والوسوم)
@@ -40,6 +43,8 @@ export type ShareTarget = {
   summary?: string;
   /** غلاف/صورة العنصر — data URL أو /api/media/… (نفس الأصل ⇒ Canvas آمن) */
   image?: string;
+  /** ★ v3.21.1: اسم المؤلف/المكوِّن — يظهر في صورة انستغرام بجانب شارة النوع مع صورته */
+  author?: string;
 };
 
 const VIEW_OF: Record<ShareKind, string> = {
@@ -59,7 +64,10 @@ export function itemShareUrl(kind: ShareKind, id: string): string {
 }
 
 /** وسم العلامة ثابت — عربي + لاتيني يليق بكل اللغات */
-const HASHTAGS = "#مركز_آيت_تقرين #AitTegrine";
+const HASHTAGS = "#مركز_آيت_تقرين #AitTegrineCenter";
+
+/** ★ v3.21.1: دومين الموقع الرسمي — يظهر في أسفل الصورة المولّدة تحت عبارة الدعوة */
+const SITE_DOMAIN = "centreaitigrine.com";
 
 function clip(s: string, max: number): string {
   const t = (s || "").replace(/\s+/g, " ").trim();
@@ -165,12 +173,22 @@ async function ensureFonts(): Promise<void> {
 const KIND_EMOJI: Record<ShareKind, string> = { article: "📰", ebook: "📚", course: "🎓", ad: "📣" };
 
 /**
- * توليد صورة المشاركة 1080×1350 — كل النصوص بلغة المستخدم الحالية
+ * توليد صورة المشاركة 1080×1350 — كل النصوص بلغة الواجهة الحالية
+ * ★ v3.21.1: شعار واسم المركز بحجم أوضح + شارة النوع مع المؤلف بصورته
+ *   + العنوان فقط دون التفاصيل + «اقرأ المزيد على موقعنا» يليها 🔗 SITE_DOMAIN.
  * ترجع dataURL للعرض + Blob للتحميل/المشاركة، أو null عند تعذر الرسم
  */
 async function renderShareImage(
   target: ShareTarget,
-  texts: { siteName: string; kindLabel: string; cta: string; url: string }
+  texts: {
+    siteName: string;
+    kindLabel: string;
+    cta: string;
+    /** «بقلم/بتأطير {name}» جاهزة بالاسم — فارغة إن لا مؤلف (الإعلانات) */
+    byLine: string;
+    /** صورة المؤلف data URL — فارغة ⇒ يُرسم حرف الاسم الأول بدلها */
+    authorPhoto: string;
+  }
 ): Promise<{ dataUrl: string; blob: Blob } | null> {
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -196,12 +214,12 @@ async function renderShareImage(
   const rtl = RTL_RE.test(texts.siteName) || RTL_RE.test(target.title);
   const MX = 64; /* هامش جانبي */
 
-  /* ── الرأس: الشعار + اسم المركز ── */
-  let topY = 96;
+  /* ── الرأس: شعار كبير + اسم المركز بحجم واضح (★ v3.21.1) ── */
+  const topY = 124; /* المركز العمودي للشعار واسم المركز */
   const logo = await loadImage("/logo.png");
-  const logoSize = 84;
+  const logoSize = 132;
   if (logo) {
-    roundRect(ctx, rtl ? W - MX - logoSize : MX, topY - logoSize / 2, logoSize, logoSize, 20);
+    roundRect(ctx, rtl ? W - MX - logoSize : MX, topY - logoSize / 2, logoSize, logoSize, 28);
     ctx.save();
     ctx.clip();
     /* خلفية بيضاء خلف الشعار (الشعار قد يكون شفافاً) */
@@ -215,29 +233,92 @@ async function renderShareImage(
     );
     ctx.restore();
   }
+  /* اسم المركز — يتقلص تلقائياً إن كان طويلاً كي لا يُقطع */
+  const nameGap = 28;
+  const nameAvail = W - MX * 2 - (logo ? logoSize + nameGap : 0);
+  let nameFs = 58;
+  ctx.font = `900 ${nameFs}px Cairo, sans-serif`;
+  while (ctx.measureText(texts.siteName).width > nameAvail && nameFs > 34) {
+    nameFs -= 2;
+    ctx.font = `900 ${nameFs}px Cairo, sans-serif`;
+  }
   ctx.fillStyle = BRAND;
-  ctx.font = "900 46px Cairo, sans-serif";
   ctx.textBaseline = "middle";
   ctx.textAlign = rtl ? "right" : "left";
-  const nameX = rtl ? W - MX - (logo ? logoSize + 24 : 0) : MX + (logo ? logoSize + 24 : 0);
+  const nameX = rtl ? W - MX - (logo ? logoSize + nameGap : 0) : MX + (logo ? logoSize + nameGap : 0);
   ctx.fillText(texts.siteName, nameX, topY);
 
-  /* ── شارة نوع العنصر ── */
-  const pillY = 196;
-  ctx.font = "700 34px Cairo, sans-serif";
+  /* ── شارة النوع + المؤلف بصورته بجانبها (★ v3.21.1) ── */
+  const rowY = 226;
+  const rowH = 72;
+  ctx.font = "700 36px Cairo, sans-serif";
   const kw = ctx.measureText(texts.kindLabel).width;
-  const padX = 30, pillW = kw + padX * 2, pillH = 64;
+  const padX = 32, pillW = kw + padX * 2, pillH = rowH;
   const pillX = rtl ? W - MX - pillW : MX;
   ctx.fillStyle = BRAND;
-  roundRect(ctx, pillX, pillY, pillW, pillH, 999);
+  roundRect(ctx, pillX, rowY, pillW, pillH, 999);
   ctx.fill();
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "center";
-  ctx.fillText(texts.kindLabel, pillX + pillW / 2, pillY + pillH / 2 + 2);
+  ctx.fillText(texts.kindLabel, pillX + pillW / 2, rowY + rowH / 2 + 2);
+
+  /* المؤلف: صورته في دائرة بجانب الشارة + عبارة «بقلم/بتأطير فلان» بلغة الواجهة */
+  if (texts.byLine) {
+    const AV = rowH;
+    const avX = rtl ? pillX - 22 - AV : pillX + pillW + 22;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(avX + AV / 2, rowY + rowH / 2, AV / 2, 0, Math.PI * 2);
+    ctx.clip();
+    const avImg = texts.authorPhoto ? await loadImage(texts.authorPhoto) : null;
+    if (avImg) {
+      /* صورة المؤلف تغطي الدائرة كاملة */
+      const ir = avImg.width / avImg.height;
+      let sw = avImg.width, sh = avImg.height, sx = 0, sy = 0;
+      if (ir > 1) {
+        sw = avImg.height;
+        sx = (avImg.width - sw) / 2;
+      } else {
+        sh = avImg.width;
+        sy = (avImg.height - sh) / 2;
+      }
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(avX, rowY, AV, AV);
+      ctx.drawImage(avImg, sx, sy, sw, sh, avX, rowY, AV, AV);
+    } else {
+      /* بلا صورة: دائرة بلون العلامة وحرف الاسم الأول */
+      ctx.fillStyle = BRAND;
+      ctx.fillRect(avX, rowY, AV, AV);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 40px Cairo, sans-serif";
+      const initial = Array.from((target.author || "").trim())[0] || "•";
+      ctx.textAlign = "center";
+      ctx.fillText(initial, avX + AV / 2, rowY + rowH / 2 + 3);
+    }
+    ctx.restore();
+    ctx.strokeStyle = "rgba(13,122,111,0.30)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(avX + AV / 2, rowY + rowH / 2, AV / 2 - 1.5, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.font = "700 36px Cairo, sans-serif";
+    ctx.fillStyle = "#344054";
+    ctx.textBaseline = "middle";
+    ctx.textAlign = rtl ? "right" : "left";
+    const tX = rtl ? avX - 18 : avX + AV + 18;
+    const tAvail = rtl ? tX - MX : W - MX - tX;
+    let line = texts.byLine;
+    if (ctx.measureText(line).width > tAvail) {
+      while (line.length > 1 && ctx.measureText(`${line}…`).width > tAvail) line = line.slice(0, -1);
+      line = `${line}…`;
+    }
+    ctx.fillText(line, tX, rowY + rowH / 2);
+  }
 
   /* ── صورة العنصر (cover داخل إطار دائري) ── */
-  const imgY = pillY + pillH + 34;
-  const imgH = 560;
+  const imgY = rowY + rowH + 44;
+  const imgH = 550;
   const cover = target.image ? await loadImage(target.image) : null;
   if (cover) {
     drawCover(ctx, cover, MX, imgY, W - MX * 2, imgH, 32);
@@ -259,32 +340,21 @@ async function renderShareImage(
     ctx.fillText(KIND_EMOJI[target.kind], W / 2, imgY + imgH / 2);
   }
 
-  /* ── العنوان ── */
-  let ty = imgY + imgH + 66;
+  /* ── العنوان فقط دون التفاصيل (★ v3.21.1) — بحجم أوضح ويتمركز عمودياً في فراغه ── */
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = rtl ? "right" : "left";
   const tx = rtl ? W - MX : MX;
-  ctx.font = "900 58px Cairo, sans-serif";
+  ctx.font = "900 62px Cairo, sans-serif";
   ctx.fillStyle = "#101828";
   const titleLines = wrap(ctx, target.title, W - MX * 2, 3);
+  const lh = 76;
+  let ty = imgY + imgH + 78 + Math.floor(((3 - titleLines.length) * lh) / 2);
   for (const line of titleLines) {
     ctx.fillText(line, tx, ty);
-    ty += 74;
+    ty += lh;
   }
 
-  /* ── النبذة ── */
-  if (target.summary) {
-    ty += 12;
-    ctx.font = "600 36px Cairo, sans-serif";
-    ctx.fillStyle = "#475467";
-    const sumLines = wrap(ctx, target.summary, W - MX * 2, 3);
-    for (const line of sumLines) {
-      ctx.fillText(line, tx, ty);
-      ty += 52;
-    }
-  }
-
-  /* ── الشريط السفلي: الدعوة + الرابط ── */
+  /* ── الشريط السفلي: الدعوة + أسفلها 🔗 دومين الموقع الرسمي (★ v3.21.1) ── */
   const fy = H - 176;
   ctx.fillStyle = BRAND;
   roundRect(ctx, MX, fy, W - MX * 2, 112, 28);
@@ -293,10 +363,10 @@ async function renderShareImage(
   ctx.fillStyle = "#ffffff";
   ctx.font = "900 36px Cairo, sans-serif";
   ctx.fillText(texts.cta, W / 2, fy + 46);
-  ctx.font = "700 31px Cairo, sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.92)";
-  const urlShort = texts.url.replace(/^https?:\/\//, "");
-  ctx.fillText(urlShort.length > 52 ? `${urlShort.slice(0, 51)}…` : urlShort, W / 2, fy + 88);
+  /* الإيموجي مع دومين الموقع الرسمي — خطوط الإيموجي احتياطاً لكل الأنظمة */
+  ctx.font = '700 32px Cairo, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+  ctx.fillStyle = "rgba(255,255,255,0.95)";
+  ctx.fillText(`🔗 ${SITE_DOMAIN}`, W / 2, fy + 89);
 
   /* ── التصدير ── */
   try {
@@ -320,16 +390,41 @@ function buildCaption(target: ShareTarget, url: string): string {
   return parts.join("\n");
 }
 
+/* ═══════════════════ المؤلف/المكوِّن ═══════════════════ */
+
+/**
+ * ★ v3.21.1: اسم وصورة المؤلف/المكوِّن من الخادم — للعناصر المنشورة فقط.
+ * الصورة غير متاحة في بيانات البطاقة (تُحفظ في حساب المستخدم) — تُجلب لحظة التوليد فقط.
+ * صمت تام عند أي خطأ: يُرسم حرف الاسم الأول بدل الصورة.
+ */
+async function fetchAuthor(kind: ShareKind, id: string): Promise<{ name: string; photo: string }> {
+  try {
+    const ctrl = new AbortController();
+    const tm = setTimeout(() => ctrl.abort(), 3500);
+    const r = await fetch(`/api/share-author?view=${VIEW_OF[kind]}&id=${id}`, { signal: ctrl.signal });
+    clearTimeout(tm);
+    if (!r.ok) return { name: "", photo: "" };
+    const j = (await r.json()) as { name?: string; photo?: string };
+    return {
+      name: typeof j?.name === "string" ? j.name : "",
+      photo: typeof j?.photo === "string" ? j.photo : "",
+    };
+  } catch {
+    return { name: "", photo: "" };
+  }
+}
+
 /* ═══════════════════ المكوّن ═══════════════════ */
 
 export default function ShareButtons({ target, className }: { target: ShareTarget; className?: string }) {
-  const { t } = useApp();
+  const { t, me, lang } = useApp();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [shot, setShot] = useState<{ dataUrl: string; blob: Blob } | null>(null);
   const [copied, setCopied] = useState(false);
   const urlRef = useRef("");
+  const shotLang = useRef<string>("");
 
   const url = itemShareUrl(target.kind, target.id);
   urlRef.current = url;
@@ -340,26 +435,49 @@ export default function ShareButtons({ target, className }: { target: ShareTarge
   )}`;
 
   const generate = useCallback(async () => {
-    if (shot) return;
     setBusy(true);
     setFailed(false);
-    const out = await renderShareImage(target, {
-      siteName: t("app.name"),
-      kindLabel: t(`shr.kind.${target.kind}`),
-      cta: t("shr.imageCta"),
-      url,
-    });
+    try {
+      /* اسم وصورة المؤلف/المكوِّن — تُجلب لحظة التوليد فقط (★ v3.21.1) */
+      const auth = await fetchAuthor(target.kind, target.id);
+      const name = (target.author || auth.name || "").trim();
+      const byLine =
+        target.kind === "ad" || !name
+          ? ""
+          : target.kind === "course"
+            ? t("shr.by.trainer", { name })
+            : t("shr.by.author", { name });
+      const out = await renderShareImage(target, {
+        siteName: t("app.name"),
+        kindLabel: t(`shr.kind.${target.kind}`),
+        cta: t("shr.imageCta"),
+        byLine,
+        authorPhoto: auth.photo,
+      });
+      if (out) setShot(out);
+      else setFailed(true);
+    } catch {
+      setFailed(true);
+    }
     setBusy(false);
-    if (out) setShot(out);
-    else setFailed(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target, t, url, shot]);
+  }, [target, t]);
 
-  /* عند فتح النافذة: جهّز الصورة فوراً (المشاركة المباشرة تحتاجها جاهزة داخل لمسة المستخدم) */
+  /* عند فتح النافذة: تُولَّد الصورة بلغة الواجهة الحالية —
+     ★ v3.21.1: تُعاد التوليد تلقائياً عند كل تغيير للغة (كانت تُخبّأ بالعربية دائماً)،
+     وتُعاد الاستخدام فوراً ما دامت بنفس اللغة */
   useEffect(() => {
-    if (open) void generate();
+    if (!open) return;
+    if (shot && shotLang.current === lang) return;
+    shotLang.current = lang;
+    setShot(null);
+    void generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, lang]);
+
+  /* ★ v3.21.1: الزران للإدارة والمساعد فقط — يختفيان ذاتياً عن أي دور آخر والزوار */
+  const isStaff = !!me && (me.role === "admin" || me.role === "assistant");
+  if (!isStaff) return null;
 
   const close = () => {
     setOpen(false);

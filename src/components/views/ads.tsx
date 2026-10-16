@@ -495,18 +495,20 @@ export default function Ads({ navigate }: { navigate: Navigate }) {
                   </div>
                 )}
               </CardContent>
-              {/* ★ v3.21: نشر الإعلان على انستغرام/فايسبوك — للجميع */}
-              <CardContent className="border-t px-4 py-2.5">
-                <ShareButtons
-                  target={{
-                    kind: "ad",
-                    id: a.id,
-                    title: a.title,
-                    summary: a.body,
-                    image: a.media.find((m) => !isVideo(m)) || "",
-                  }}
-                />
-              </CardContent>
+              {/* ★ v3.21/3.21.1: نشر الإعلان على انستغرام/فايسبوك — للإدارة والمساعد فقط (إعلان المركز بلا مؤلف) */}
+              {isStaff && (
+                <CardContent className="border-t px-4 py-2.5">
+                  <ShareButtons
+                    target={{
+                      kind: "ad",
+                      id: a.id,
+                      title: a.title,
+                      summary: a.body,
+                      image: a.media.find((m) => !isVideo(m)) || "",
+                    }}
+                  />
+                </CardContent>
+              )}
             </Card>
           ))}
         </div>

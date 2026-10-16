@@ -268,18 +268,21 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
                   <SeatsBar c={c} />
                 </CardContent>
               </button>
-              {/* ★ v3.21: نشر التكوين على انستغرام/فايسبوك — للجميع */}
-              <CardContent className="border-t px-3 py-2">
-                <ShareButtons
-                  target={{
-                    kind: "course",
-                    id: c._id,
-                    title: titleOf(c),
-                    summary: descOf(c) || "",
-                    image: c.coverBase64 || "",
-                  }}
-                />
-              </CardContent>
+              {/* ★ v3.21/3.21.1: نشر التكوين على انستغرام/فايسبوك — للإدارة والمساعد فقط */}
+              {isStaff && (
+                <CardContent className="border-t px-3 py-2">
+                  <ShareButtons
+                    target={{
+                      kind: "course",
+                      id: c._id,
+                      title: titleOf(c),
+                      summary: descOf(c) || "",
+                      image: c.coverBase64 || "",
+                      author: c.trainerName || "",
+                    }}
+                  />
+                </CardContent>
+              )}
               <CardContent className="mt-auto flex items-center gap-1 border-t py-2 px-3 flex-wrap">
                 <Button size="sm" variant="ghost" className="text-xs" onClick={() => setDetails(c)}>
                   {t("common.details")}

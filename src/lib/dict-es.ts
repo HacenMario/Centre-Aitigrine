@@ -1060,4 +1060,6 @@ export const es: Record<string, string> = {
   "shr.step1": "Descarga la imagen lista en tamaño de Instagram",
   "shr.step2": "Copia la publicación (título, resumen y enlace)",
   "shr.step3": "Abre Instagram, crea una nueva publicación y pega — el enlace abre el contenido directamente",
+  "shr.by.author": "por {name}",
+  "shr.by.trainer": "impartido por {name}",
 };

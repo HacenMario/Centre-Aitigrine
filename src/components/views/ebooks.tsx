@@ -252,18 +252,21 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
                     </div>
                   </CardContent>
                 </button>
-                {/* ★ v3.21: نشر الكتاب على انستغرام/فايسبوك — للجميع */}
-                <CardContent className="border-t px-3 py-2">
-                  <ShareButtons
-                    target={{
-                      kind: "ebook",
-                      id: e._id,
-                      title: titleOf(e),
-                      summary: summaryOf(e) || "",
-                      image: e.coverBase64 || "",
-                    }}
-                  />
-                </CardContent>
+                {/* ★ v3.21/3.21.1: نشر الكتاب على انستغرام/فايسبوك — للإدارة والمساعد فقط */}
+                {isStaff && (
+                  <CardContent className="border-t px-3 py-2">
+                    <ShareButtons
+                      target={{
+                        kind: "ebook",
+                        id: e._id,
+                        title: titleOf(e),
+                        summary: summaryOf(e) || "",
+                        image: e.coverBase64 || "",
+                        author: e.author || "",
+                      }}
+                    />
+                  </CardContent>
+                )}
                 {/* ★ v3.20: شريط الفعل — شراء/واتساب/فتح Drive حسب الحالة */}
                 {(e.price || 0) > 0 && !isStaff && (
                   <CardContent className="border-t bg-muted/20 px-4 py-3">

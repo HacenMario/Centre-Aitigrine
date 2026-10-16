@@ -300,18 +300,21 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
                     </div>
                   </CardContent>
                 </button>
-                {/* ★ v3.21: نشر المقال على انستغرام/فايسبوك — للجميع */}
-                <CardContent className="border-t px-3 py-2">
-                  <ShareButtons
-                    target={{
-                      kind: "article",
-                      id: a._id,
-                      title: titleOf(a),
-                      summary: summaryOf(a) || "",
-                      image: a.coverBase64 || "",
-                    }}
-                  />
-                </CardContent>
+                {/* ★ v3.21/3.21.1: نشر المقال على انستغرام/فايسبوك — للإدارة والمساعد فقط */}
+                {isStaff && (
+                  <CardContent className="border-t px-3 py-2">
+                    <ShareButtons
+                      target={{
+                        kind: "article",
+                        id: a._id,
+                        title: titleOf(a),
+                        summary: summaryOf(a) || "",
+                        image: a.coverBase64 || "",
+                        author: a.authorName || "",
+                      }}
+                    />
+                  </CardContent>
+                )}
                 {canManage(a) && (
                   <CardContent className="flex items-center gap-1 border-t py-2 px-2 flex-wrap">
                     <Button size="sm" variant="ghost" className="text-xs gap-1.5" onClick={() => setEditing(a)}>
