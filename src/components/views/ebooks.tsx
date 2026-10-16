@@ -9,8 +9,9 @@
  * • الإجابات تظهر للإدارة وللأخصائي المعالج فقط
  * • الإدارة والمساعد يضيفان/يعدلان/يعطلان — والحذف للإدارة
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
+import ShareButtons from "@/components/share-buttons";
 import BackButton from "@/components/back-button";
 import { CardsSkeleton } from "@/components/brand-skeleton";
 import ImageInput from "@/components/image-input";
@@ -53,7 +54,7 @@ type Ebook = {
 };
 
 export default function Ebooks({ navigate }: { navigate: Navigate }) {
-  const { t, me, lang, settings } = useApp();
+  const { t, me, lang, settings, viewId } = useApp();
   const isStaff = me?.role === "admin" || me?.role === "assistant";
   const [ebooks, setEbooks] = useState<Ebook[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +75,28 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { setPage(1); }, [ebooks.length]);
+
+  /* ★ v3.21: الرابط المنشور يفتح الكتاب نفسه مباشرة — ?view=ebooks&id=…
+     (القارئ يجلب المحتوى الكامل بالمعرف بنفسه، فالفتح من القائمة أو الجلب الفردي كافٍ) */
+  const deepDone = useRef(false);
+  useEffect(() => {
+    if (!viewId || deepDone.current || loading) return;
+    deepDone.current = true;
+    const found = ebooks.find((e) => e._id === viewId);
+    if (found) {
+      setReading(found);
+      return;
+    }
+    (async () => {
+      try {
+        const r = await fetch(`/api/ebooks/${viewId}`, { cache: "no-store" });
+        if (r.ok) {
+          const j = await r.json();
+          if (j.ebook) setReading(j.ebook);
+        }
+      } catch {}
+    })();
+  }, [viewId, ebooks, loading]);
 
   /* بطاقة الكتاب بلغة المستخدم */
   const titleOf = (e: Ebook) => pickTri(e as unknown as Record<string, unknown>, "title", lang) || e.title;
@@ -229,6 +252,18 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
                     </div>
                   </CardContent>
                 </button>
+                {/* ★ v3.21: نشر الكتاب على انستغرام/فايسبوك — للجميع */}
+                <CardContent className="border-t px-3 py-2">
+                  <ShareButtons
+                    target={{
+                      kind: "ebook",
+                      id: e._id,
+                      title: titleOf(e),
+                      summary: summaryOf(e) || "",
+                      image: e.coverBase64 || "",
+                    }}
+                  />
+                </CardContent>
                 {/* ★ v3.20: شريط الفعل — شراء/واتساب/فتح Drive حسب الحالة */}
                 {(e.price || 0) > 0 && !isStaff && (
                   <CardContent className="border-t bg-muted/20 px-4 py-3">

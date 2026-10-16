@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getToken } from "@/lib/client-api";
 import { MediaPicker } from "@/components/media-input";
+import ShareButtons from "@/components/share-buttons";
 import FullImage from "@/components/full-image";
 import Pagination from "@/components/pagination";
 import type { Navigate } from "@/lib/nav";
@@ -122,7 +123,7 @@ function AdMediaCarousel({ media, title }: { media: string[]; title: string }) {
 }
 
 export default function Ads({ navigate }: { navigate: Navigate }) {
-  const { t, me } = useApp();
+  const { t, me, viewId } = useApp();
   const isStaff = me?.role === "admin" || me?.role === "assistant";
   const canReact = !!me && ["client", "specialist"].includes(me.role);
 
@@ -174,6 +175,22 @@ export default function Ads({ navigate }: { navigate: Navigate }) {
     loadPublic();
     loadStaff();
   }, [loadPublic, loadStaff]);
+
+  /* ★ v3.21: الرابط المنشور يوجه مباشرة إلى الإعلان نفسه — ?view=ads&id=…
+     تمرير سلس + إبراز مؤقت (الإعلان كله معروض في البطاقة أصلًا) */
+  const deepDone = useRef(false);
+  const [highlight, setHighlight] = useState<string | null>(null);
+  useEffect(() => {
+    if (!viewId || deepDone.current || loading) return;
+    if (!ads.some((a) => a.id === viewId)) return;
+    deepDone.current = true;
+    document
+      .querySelector(`[data-ad-id="${viewId}"]`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlight(viewId);
+    const tm = setTimeout(() => setHighlight(null), 3200);
+    return () => clearTimeout(tm);
+  }, [viewId, ads, loading]);
 
   /* تسجيل مشاهدة أول إعلان — مرة واحدة لكل إعلان في الجلسة */
   const viewedRef = useRef<Set<string>>(new Set());
@@ -395,7 +412,14 @@ export default function Ads({ navigate }: { navigate: Navigate }) {
         <>
         <div className="grid gap-4">
           {ads.slice((page - 1) * ADS_PAGE_SIZE, page * ADS_PAGE_SIZE).map((a) => (
-            <Card key={a.id} className="overflow-hidden rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+            <Card
+              key={a.id}
+              data-ad-id={a.id}
+              className={cn(
+                "overflow-hidden rounded-3xl shadow-sm hover:shadow-md transition-shadow",
+                highlight === a.id && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+              )}
+            >
               <CardContent className="space-y-3.5 p-5">
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="min-w-0 text-lg font-black leading-snug">{a.title}</h2>
@@ -470,6 +494,18 @@ export default function Ads({ navigate }: { navigate: Navigate }) {
                     )}
                   </div>
                 )}
+              </CardContent>
+              {/* ★ v3.21: نشر الإعلان على انستغرام/فايسبوك — للجميع */}
+              <CardContent className="border-t px-4 py-2.5">
+                <ShareButtons
+                  target={{
+                    kind: "ad",
+                    id: a.id,
+                    title: a.title,
+                    summary: a.body,
+                    image: a.media.find((m) => !isVideo(m)) || "",
+                  }}
+                />
               </CardContent>
             </Card>
           ))}

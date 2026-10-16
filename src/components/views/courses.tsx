@@ -4,8 +4,9 @@
  * بطاقات ثلاثية اللغة (عربي/فرنسي/إنجليزي) + شريط تقدم المقاعد وعددها المتبقي
  * الإدارة: إضافة/تعديل/حذف/تفعيل بحقول ثلاثية اللغة — منطق أوقات الحصص
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
+import ShareButtons from "@/components/share-buttons";
 import BackButton from "@/components/back-button";
 import { PageSkeleton } from "@/components/brand-skeleton";
 import ImageInput from "@/components/image-input";
@@ -53,7 +54,7 @@ const EMPTY: Partial<Course> = { title: "", description: "", category: "", train
 type SpecOption = { _id: string; name: string; title?: string; kind: "specialist" | "trainer" };
 
 export default function Courses({ navigate }: { navigate: Navigate }) {
-  const { t, lang, me, settings } = useApp();
+  const { t, lang, me, settings, viewId } = useApp();
   const isStaff = me?.role === "admin" || me?.role === "assistant";
   const [courses, setCourses] = useState<Course[]>([]);
   const [page, setPage] = useState(1);
@@ -80,6 +81,17 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
   }, [isStaff]);
 
   useEffect(() => { load(); }, [load]);
+
+  /* ★ v3.21: الرابط المنشور يفتح التكوين نفسه مباشرة — ?view=courses&id=…
+     (القائمة تحمل كل ما تحتاجه نافذة التفاصيل: الوصف والصور والحصص) */
+  const deepDone = useRef(false);
+  useEffect(() => {
+    if (!viewId || deepDone.current || loading) return;
+    const found = courses.find((c) => c._id === viewId);
+    if (!found) return;
+    deepDone.current = true;
+    setDetails(found);
+  }, [viewId, courses, loading]);
 
   /* ★ v3.11: جلب أخصائيي المركز + المكوِّنين النشطين — للإدارة فقط (تظهر القائمة في نافذة التكوين) */
   useEffect(() => {
@@ -256,6 +268,18 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
                   <SeatsBar c={c} />
                 </CardContent>
               </button>
+              {/* ★ v3.21: نشر التكوين على انستغرام/فايسبوك — للجميع */}
+              <CardContent className="border-t px-3 py-2">
+                <ShareButtons
+                  target={{
+                    kind: "course",
+                    id: c._id,
+                    title: titleOf(c),
+                    summary: descOf(c) || "",
+                    image: c.coverBase64 || "",
+                  }}
+                />
+              </CardContent>
               <CardContent className="mt-auto flex items-center gap-1 border-t py-2 px-3 flex-wrap">
                 <Button size="sm" variant="ghost" className="text-xs" onClick={() => setDetails(c)}>
                   {t("common.details")}

@@ -9,8 +9,9 @@
  * • الإدارة تعدّل أي مقال — الأخصائي يعدّل مقالاته هو فقط
  * • الحذف: الأدمين أي مقال — الأخصائي مقاله هو فقط (نمط الكتب الإلكترونية)
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
+import ShareButtons from "@/components/share-buttons";
 import BackButton from "@/components/back-button";
 import { CardsSkeleton } from "@/components/brand-skeleton";
 import ImageInput from "@/components/image-input";
@@ -81,7 +82,7 @@ function fmtDate(iso: string, lang: "ar" | "fr" | "en"): string {
 }
 
 export default function Articles({ navigate }: { navigate: Navigate }) {
-  const { t, me, lang } = useApp();
+  const { t, me, lang, viewId } = useApp();
   const isStaff = me?.role === "admin" || me?.role === "assistant";
   /** ★ v3.11: الأخصائي والمكوّن — كلاهما ينشر المقالات */
   const isAuthor = me?.role === "specialist" || me?.role === "trainer";
@@ -124,6 +125,28 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { setPage(1); }, [filter, articles.length]);
+
+  /* ★ v3.21: الرابط المنشور (انستغرام/فايسبوك) يفتح المقال نفسه مباشرة — ?view=articles&id=…
+     المقال في القائمة ⇒ فتح فوري؛ غير موجود (معطل/محذوف للزائر) ⇒ محاولة جلب فردي صامتة */
+  const deepDone = useRef(false);
+  useEffect(() => {
+    if (!viewId || deepDone.current || loading) return;
+    deepDone.current = true;
+    const found = articles.find((a) => a._id === viewId);
+    if (found) {
+      setReading(found);
+      return;
+    }
+    (async () => {
+      try {
+        const r = await fetch(`/api/articles/${viewId}`, { cache: "no-store" });
+        if (r.ok) {
+          const j = await r.json();
+          if (j.article) setReading(j.article);
+        }
+      } catch {}
+    })();
+  }, [viewId, articles, loading]);
 
   const titleOf = (a: Article) => pickTri(a as unknown as Record<string, unknown>, "title", lang) || a.title;
   const summaryOf = (a: Article) => pickTri(a as unknown as Record<string, unknown>, "summary", lang);
@@ -277,6 +300,18 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
                     </div>
                   </CardContent>
                 </button>
+                {/* ★ v3.21: نشر المقال على انستغرام/فايسبوك — للجميع */}
+                <CardContent className="border-t px-3 py-2">
+                  <ShareButtons
+                    target={{
+                      kind: "article",
+                      id: a._id,
+                      title: titleOf(a),
+                      summary: summaryOf(a) || "",
+                      image: a.coverBase64 || "",
+                    }}
+                  />
+                </CardContent>
                 {canManage(a) && (
                   <CardContent className="flex items-center gap-1 border-t py-2 px-2 flex-wrap">
                     <Button size="sm" variant="ghost" className="text-xs gap-1.5" onClick={() => setEditing(a)}>
