@@ -827,6 +827,8 @@ export const tr: Record<string, string> = {
   "tools.tab": "Araçlar",
   "tools.dataTitle": "Veriler — dışa aktarma ve yedekleme",
   "tools.backup": "Tam yedekleme",
+  "tools.backupBuild": "Yedek oluşturuluyor…",
+  "tools.backupFetch": "İndiriliyor",
   "tools.backupSub": "Tüm veritabanını (JSON) ve tüm merkez medyasını içeren ZIP dosyası — düzenli olarak güvenli bir yere kaydedin.",
   "tools.backupBtn": "Yedeği indir (ZIP)",
   "tools.exportDone": "Dışa aktarma başarılı",

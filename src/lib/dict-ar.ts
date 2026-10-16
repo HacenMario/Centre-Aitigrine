@@ -827,6 +827,8 @@ export const ar: Record<string, string> = {
   "tools.tab": "الأدوات",
   "tools.dataTitle": "البيانات — تصدير ونسخ احتياطي",
   "tools.backup": "نسخة احتياطية كاملة",
+  "tools.backupBuild": "جارٍ إنشاء النسخة الاحتياطية…",
+  "tools.backupFetch": "جارٍ التنزيل",
   "tools.backupSub": "ملف ZIP يحوي كل قاعدة البيانات (JSON) وكل وسائط المركز — احفظه في مكان آمن بانتظام.",
   "tools.backupBtn": "تنزيل النسخة (ZIP)",
   "tools.exportDone": "تم التصدير بنجاح",

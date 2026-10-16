@@ -827,6 +827,8 @@ export const es: Record<string, string> = {
   "tools.tab": "Herramientas",
   "tools.dataTitle": "Datos — exportación y copia de seguridad",
   "tools.backup": "Copia de seguridad completa",
+  "tools.backupBuild": "Creando la copia de seguridad…",
+  "tools.backupFetch": "Descargando",
   "tools.backupSub": "Archivo ZIP con toda la base de datos (JSON) y todos los medios del centro — guárdelo en un lugar seguro con regularidad.",
   "tools.backupBtn": "Descargar copia (ZIP)",
   "tools.exportDone": "Exportación realizada con éxito",

@@ -25,9 +25,19 @@ import { toast } from "sonner";
 import { localeOf } from "@/components/tri-input";
 
 /* ═══════════ 1+2: التصدير والنسخ الاحتياطي ═══════════ */
+
+/** تحويل base64 إلى Uint8Array — للحم أجزاء النسخة الاحتياطية محلياً */
+function b64ToU8(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+
 function DataTools() {
   const { t, lang } = useApp();
   const [busyKey, setBusyKey] = useState("");
+  const [progress, setProgress] = useState("");
 
   const download = async (key: string, url: string, filename: string) => {
     setBusyKey(key);
@@ -50,6 +60,53 @@ function DataTools() {
       toast.error(t("err.conn"));
     }
     setBusyKey("");
+  };
+
+  /* v3.20.1 — النسخة الاحتياطية بمرحلتين تمرّان بحدود الاستضافة السحابية:
+     1) POST يبني ZIP كاملاً داخل قاعدة البيانات (GridFS) ويعيد بياناته
+     2) تنزيل أجزاء base64 صغيرة (≤2.5MB) ولحمها في ملف ZIP واحد محلياً */
+  const runBackup = async () => {
+    setBusyKey("backup");
+    setProgress(t("tools.backupBuild"));
+    try {
+      const r = await fetch("/api/backup", { method: "POST" });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toast.error(j.error || t("common.error"));
+        return;
+      }
+      const fileId = String(j.fileId || "");
+      const parts = Math.max(1, parseInt(String(j.parts || "1"), 10) || 1);
+      const name = String(j.name || `aitigrine-backup-${new Date().toISOString().slice(0, 10)}.zip`);
+      if (!fileId) {
+        toast.error(t("common.error"));
+        return;
+      }
+      const chunks: Uint8Array[] = [];
+      for (let p = 1; p <= parts; p++) {
+        setProgress(`${t("tools.backupFetch")} ${p}/${parts}`);
+        const pr = await fetch(`/api/backup?file=${encodeURIComponent(fileId)}&part=${p}`);
+        const pj = await pr.json().catch(() => ({}));
+        if (!pr.ok) {
+          toast.error(pj.error || t("common.error"));
+          return;
+        }
+        chunks.push(b64ToU8(String(pj.data || "")));
+      }
+      const blob = new Blob(chunks as BlobPart[], { type: "application/zip" });
+      const u = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      el.href = u;
+      el.download = name;
+      el.click();
+      URL.revokeObjectURL(u);
+      toast.success(t("tools.exportDone"));
+    } catch {
+      toast.error(t("err.conn"));
+    } finally {
+      setBusyKey("");
+      setProgress("");
+    }
   };
 
   const rows = [
@@ -80,12 +137,12 @@ function DataTools() {
             <p className="text-xs text-muted-foreground leading-relaxed">{t("tools.backupSub")}</p>
           </div>
           <Button
-            onClick={() => download("backup", "/api/backup", `aitigrine-backup-${new Date().toISOString().slice(0, 10)}.zip`)}
+            onClick={runBackup}
             disabled={busyKey === "backup"}
             className="rounded-xl gap-1.5"
           >
             {busyKey === "backup" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            {t("tools.backupBtn")}
+            {progress || t("tools.backupBtn")}
           </Button>
         </CardContent>
       </Card>
