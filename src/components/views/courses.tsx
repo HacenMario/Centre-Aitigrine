@@ -56,6 +56,8 @@ type SpecOption = { _id: string; name: string; title?: string; kind: "specialist
 export default function Courses({ navigate }: { navigate: Navigate }) {
   const { t, lang, me, settings, viewId } = useApp();
   const isStaff = me?.role === "admin" || me?.role === "assistant";
+  /* ★ v3.21.2: صلاحية النشر (زرّا انستغرام/فايسبوك) تشمل الأخصائي والمكوِّن — دون لوحات الإدارة */
+  const canShare = !!me && (isStaff || me.role === "specialist" || me.role === "trainer");
   const [courses, setCourses] = useState<Course[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -268,8 +270,8 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
                   <SeatsBar c={c} />
                 </CardContent>
               </button>
-              {/* ★ v3.21/3.21.1: نشر التكوين على انستغرام/فايسبوك — للإدارة والمساعد فقط */}
-              {isStaff && (
+              {/* ★ v3.21/3.21.1: نشر التكوين على انستغرام/فايسبوك — ★ v3.21.2: يشمل الأخصائي والمكوِّن */}
+              {canShare && (
                 <CardContent className="border-t px-3 py-2">
                   <ShareButtons
                     target={{

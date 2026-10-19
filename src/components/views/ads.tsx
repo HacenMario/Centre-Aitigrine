@@ -125,6 +125,8 @@ function AdMediaCarousel({ media, title }: { media: string[]; title: string }) {
 export default function Ads({ navigate }: { navigate: Navigate }) {
   const { t, me, viewId } = useApp();
   const isStaff = me?.role === "admin" || me?.role === "assistant";
+  /* ★ v3.21.2: صلاحية النشر (زرّا انستغرام/فايسبوك) تشمل الأخصائي والمكوِّن — دون لوحات الإدارة */
+  const canShare = !!me && (isStaff || me.role === "specialist" || me.role === "trainer");
   const canReact = !!me && ["client", "specialist"].includes(me.role);
 
   const [ads, setAds] = useState<AdItem[]>([]);
@@ -495,8 +497,8 @@ export default function Ads({ navigate }: { navigate: Navigate }) {
                   </div>
                 )}
               </CardContent>
-              {/* ★ v3.21/3.21.1: نشر الإعلان على انستغرام/فايسبوك — للإدارة والمساعد فقط (إعلان المركز بلا مؤلف) */}
-              {isStaff && (
+              {/* ★ v3.21/3.21.1: نشر الإعلان على انستغرام/فايسبوك — ★ v3.21.2: يشمل الأخصائي والمكوِّن (إعلان المركز بلا مؤلف) */}
+              {canShare && (
                 <CardContent className="border-t px-4 py-2.5">
                   <ShareButtons
                     target={{
