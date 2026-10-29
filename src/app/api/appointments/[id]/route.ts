@@ -121,7 +121,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       }
       if (["unpaid", "paid"].includes(b.paymentStatus)) a.paymentStatus = b.paymentStatus;
     }
-    /* ★ v3.21.2: شبكة أمان — تعارض فتحة نشطة عند النقل (سباق نادر) يُعرض كرسالة ودّية لا خطأ DB خام */
+    /* ★ v3.21.3: شبكة أمان — تعارض فتحة نشطة عند النقل (سباق نادر) يُعرض كرسالة ودّية لا خطأ DB خام */
     try {
       await a.save();
     } catch (e) {

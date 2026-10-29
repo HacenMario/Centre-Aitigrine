@@ -39,7 +39,7 @@ node - <<'EOF'
 const { MongoClient, GridFSBucket } = require("mongodb");
 const fs = require("fs");
 (async () => {
-  /* ★ v3.21.2: يتبع قاعدة التطبيق الفعلية من .env — كان يكتب في ait_center بينما التطبيق على قاعدة أخرى */
+  /* ★ v3.21.3: يتبع قاعدة التطبيق الفعلية من .env — كان يكتب في ait_center بينما التطبيق على قاعدة أخرى */
   let uri = process.env.MONGODB_URI || "";
   if (!uri) { try { uri = (fs.readFileSync(".env", "utf8").match(/MONGODB_URI=(.*)/) || [])[1]?.trim() || ""; } catch {} }
   uri = uri || "mongodb://127.0.0.1:27017/ait_center";
