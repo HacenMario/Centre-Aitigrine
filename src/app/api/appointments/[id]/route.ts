@@ -121,7 +121,14 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       }
       if (["unpaid", "paid"].includes(b.paymentStatus)) a.paymentStatus = b.paymentStatus;
     }
-    await a.save();
+    /* ★ v3.21.2: شبكة أمان — تعارض فتحة نشطة عند النقل (سباق نادر) يُعرض كرسالة ودّية لا خطأ DB خام */
+    try {
+      await a.save();
+    } catch (e) {
+      if ((e as { code?: number })?.code === 11000)
+        return fail(409, "هذا الوقت محجوز — اختر وقتاً آخر");
+      throw e;
+    }
 
     /* ★ v3.8: توليد الفاتورة تلقائياً عند إنهاء الجلسة أو أداء المبلغ */
     const shouldInvoice = a.status === "completed" || a.paymentStatus === "paid";

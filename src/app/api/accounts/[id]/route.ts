@@ -17,26 +17,23 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const target = await User.findById(id).lean<{ active?: boolean; role?: string } | null>();
     if (!target) return fail(404, "الحساب غير موجود");
     const b = await req.json().catch(() => ({}));
-    /* ★ v3.19: زمرة الدم لحسابات العملاء فقط (مواصفة الميزة)
-       ★ v3.21.2: إصلاح إنذار كاذب كان يمنع حفظ مواقيت توفر الأخصائي — نموذج تعديل
-       الحسابات يرسل الكائن كاملاً فيحمل bloodType:null دائماً (من toSafeUser) رغم أن
-       الحقل لا يظهر في إعدادات الأخصائي؛ على غير العميل: الفراغ = لا عملية → يُتجاهل
-       بهدوء، والقيمة الفعلية تُرفض كما هي حصرياً للعملاء. */
-    const isBloodValue = (v: unknown) => !(v === null || v === "" || v === "none");
+    /* ★ v3.19: زمرة الدم لحسابات العملاء فقط (مواصفة الميزة) */
+    const bloodGuard = () => {
+      if (target.role !== "client") return fail(400, "زمرة الدم تُضبط لحسابات العملاء فقط");
+      return null;
+    };
 
     /* المساعد: يغيّر التفعيل فقط + ★ v3.19: إضافة/تعديل زمرة الدم لحساب العميل */
     if (me.role === "assistant") {
       const $setA: Record<string, unknown> = {};
       if (typeof b.active === "boolean") $setA.active = b.active;
       if (b.bloodType !== undefined) {
-        if (target.role !== "client") {
-          if (isBloodValue(b.bloodType)) return fail(400, "زمرة الدم تُضبط لحسابات العملاء فقط");
-        } else {
-          try {
-            $setA.bloodType = normalizeBloodType(b.bloodType);
-          } catch {
-            return fail(400, "زمرة الدم غير صحيحة — اختر إحدى الفصائل الثماني");
-          }
+        const g = bloodGuard();
+        if (g) return g;
+        try {
+          $setA.bloodType = normalizeBloodType(b.bloodType);
+        } catch {
+          return fail(400, "زمرة الدم غير صحيحة — اختر إحدى الفصائل الثماني");
         }
       }
       if (!Object.keys($setA).length) return fail(403, "المساعد يغيّر التفعيل وزمرة الدم فقط");
@@ -90,14 +87,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (b.assignedSpecialistId !== undefined) $set.assignedSpecialistId = b.assignedSpecialistId || null;
     /* ★ v3.19: زمرة الدم — للإدارة على حسابات العملاء؛ الفراغ = حذف (غير محددة) */
     if (b.bloodType !== undefined) {
-      if (target.role !== "client") {
-        if (isBloodValue(b.bloodType)) return fail(400, "زمرة الدم تُضبط لحسابات العملاء فقط");
-      } else {
-        try {
-          $set.bloodType = normalizeBloodType(b.bloodType);
-        } catch {
-          return fail(400, "زمرة الدم غير صحيحة — اختر إحدى الفصائل الثماني");
-        }
+      const g = bloodGuard();
+      if (g) return g;
+      try {
+        $set.bloodType = normalizeBloodType(b.bloodType);
+      } catch {
+        return fail(400, "زمرة الدم غير صحيحة — اختر إحدى الفصائل الثماني");
       }
     }
     if (typeof b.active === "boolean") $set.active = b.active;

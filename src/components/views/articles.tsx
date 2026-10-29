@@ -84,8 +84,6 @@ function fmtDate(iso: string, lang: "ar" | "fr" | "en"): string {
 export default function Articles({ navigate }: { navigate: Navigate }) {
   const { t, me, lang, viewId } = useApp();
   const isStaff = me?.role === "admin" || me?.role === "assistant";
-  /* ★ v3.21.2: صلاحية النشر (زرّا انستغرام/فايسبوك) تشمل الأخصائي والمكوِّن — دون لوحات الإدارة */
-  const canShare = !!me && (isStaff || me.role === "specialist" || me.role === "trainer");
   /** ★ v3.11: الأخصائي والمكوّن — كلاهما ينشر المقالات */
   const isAuthor = me?.role === "specialist" || me?.role === "trainer";
   /** النشر متاح للأخصائيين والمكوّنين والإدارة */
@@ -302,8 +300,8 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
                     </div>
                   </CardContent>
                 </button>
-                {/* ★ v3.21/3.21.1: نشر المقال على انستغرام/فايسبوك — ★ v3.21.2: يشمل الأخصائي والمكوِّن */}
-                {canShare && (
+                {/* ★ v3.21/3.21.1: نشر المقال على انستغرام/فايسبوك — للإدارة والمساعد فقط */}
+                {isStaff && (
                   <CardContent className="border-t px-3 py-2">
                     <ShareButtons
                       target={{

@@ -172,24 +172,33 @@ export async function POST(req: NextRequest) {
       clientName = c?.name || "";
     }
 
-    const a = await Appointment.create({
-      clientId,
-      specialistId,
-      serviceId: serviceIdVal,
-      serviceTitle: svcTitle,
-      serviceTitleFr: svcTitleFr,
-      serviceTitleEn: svcTitleEn,
-      kind: ["psychological", "art_therapy"].includes(b.kind) ? b.kind : "psychological",
-      mode: ["onsite", "remote"].includes(b.mode) ? b.mode : "onsite",
-      price: Math.max(0, Number(b.price) || 0),
-      date,
-      time,
-      status: "pending",
-      couponCode,
-      discount,
-      notes: String(b.notes || ""),
-      createdBy: me._id,
-    });
+    /* ★ v3.21.2: شبكة أمان — تعارض فتحة نشطة يُعرض كرسالة ودّية (409) لا خطأ DB خام
+     * يغطي سباق الطلبات المتزامنة على نفس الفتحة حتى مع الحماية على مستوى الفهرس */
+    let a;
+    try {
+      a = await Appointment.create({
+        clientId,
+        specialistId,
+        serviceId: serviceIdVal,
+        serviceTitle: svcTitle,
+        serviceTitleFr: svcTitleFr,
+        serviceTitleEn: svcTitleEn,
+        kind: ["psychological", "art_therapy"].includes(b.kind) ? b.kind : "psychological",
+        mode: ["onsite", "remote"].includes(b.mode) ? b.mode : "onsite",
+        price: Math.max(0, Number(b.price) || 0),
+        date,
+        time,
+        status: "pending",
+        couponCode,
+        discount,
+        notes: String(b.notes || ""),
+        createdBy: me._id,
+      });
+    } catch (e) {
+      if ((e as { code?: number })?.code === 11000)
+        return fail(409, "هذا الوقت محجوز — اختر وقتاً آخر");
+      throw e;
+    }
     await logAudit({ _id: me._id, name: me.name, role: me.role }, "appointment.create", `موعد: ${date} ${time}`, `${couponCode ? `كوبون=${couponCode} خصم=${discount}` : "بلا كوبون"}`, String(a._id));
 
     /* ★ v3.20: نبضة إثبات اجتماعي — حجز موعد حقيقي يدخل نافذة التحفيز (اسم أول فقط) */

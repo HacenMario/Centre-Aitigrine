@@ -4,7 +4,6 @@
  * ─────────────────────────────────────────────────────────────
  * الهدف: يمكّن المستخدمين من نشر كتاب/مقال/تكوين/إعلان أعجبهم مع أصحابهم ومتابعيهم.
  * ★ v3.21.1: الزران للإدارة والمساعد فقط — يختفيان ذاتياً عن غيرهما.
- * ★ v3.21.2: صلاحية النشر تشمل الأخصائي والمكوِّن أيضاً + إصلاح النشر على فايسبوك
  *
  * انستغرام (لا يملك رابط مشاركة ويب مباشر — المنطق الاحترافي المعتمد عالمياً):
  *   1) توليد صورة بمقاس انستغرام 1080×1350 (4:5) محلياً في المتصفح (Canvas):
@@ -19,10 +18,6 @@
  *
  * فايسبوك: يملك مشاركة ويب رسمية — نافذة sharer.php مع quote، ومعاينة غنية
  *   تُبنى من معلومات og الخادمية (page.tsx) فيظهر العنوان والنبذة والصورة تلقائياً.
- *   ★ v3.21.2 إصلاح: على الهاتف كان فتح sharer.php يسلّمه النظام لتطبيق فايسبوك
- *   الذي يسقطه في صفحته الرئيسية دون أي نافذة نشر — أصبح الهاتف يستعمل ورقة مشاركة
- *   النظام (navigator.share) فيُفتح محرّر منشور فايسبوك بالنص والرابط جاهزين،
- *   وعلى الحاسوب تبقى نافذة sharer.php الرسمية المنبثقة.
  *
  * ★ مكوّن معزول تماماً: لا يقرأ ولا يعدّل أي حالة خارجية — يُستخدم في البطاقات الأربعة.
  */
@@ -480,8 +475,8 @@ export default function ShareButtons({ target, className }: { target: ShareTarge
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, lang]);
 
-  /* ★ v3.21.2: الصلاحية تشمل الأخصائي والمكوِّن أيضاً — يختفيان ذاتياً عن بقية الأدوار والزوار */
-  const isStaff = !!me && ["admin", "assistant", "specialist", "trainer"].includes(me.role);
+  /* ★ v3.21.1: الزران للإدارة والمساعد فقط — يختفيان ذاتياً عن أي دور آخر والزوار */
+  const isStaff = !!me && (me.role === "admin" || me.role === "assistant");
   if (!isStaff) return null;
 
   const close = () => {
@@ -540,43 +535,21 @@ export default function ShareButtons({ target, className }: { target: ShareTarge
     }
   };
 
-  /* ★ v3.21.2 — النشر على فايسبوك يعمل فعلاً على كل جهاز:
-     الهاتف: النظام يسلّم روابط facebook.com لتطبيق فايسبوك فيسقط في الرئيسية
-     (سلوك معروف في أندرويد/iOS مع تطبيق فايسبوك المثبّت) — لذلك نستعمل ورقة
-     مشاركة النظام navigator.share: يختار فايسبوك منها فيُفتح محرّر المنشور
-     بالنص والرابط جاهزين — وهي الآلية التي يعالجها تطبيق فايسبوك بشكل صحيح دائماً.
-     الحاسوب: نافذة sharer.php الرسمية المنبثقة بمعاينتها الغنية. */
-  const shareFacebook = async () => {
-    const quote = target.summary ? `${target.title} — ${clip(target.summary, 140)}` : target.title;
-    const mobileWebShare =
-      typeof navigator !== "undefined" &&
-      !!navigator.share &&
-      /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
-    if (mobileWebShare) {
-      try {
-        await navigator.share({ title: target.title, text: quote, url });
-      } catch {
-        /* المستخدم أغلق ورقة المشاركة — لا رسالة */
-      }
-      return;
-    }
-    window.open(fbHref, "fbSharer", "noopener,noreferrer,width=640,height=580,scrollbars=yes");
-  };
-
   return (
     <>
       <div className={cn("flex items-center gap-1.5 flex-wrap", className)}>
-        {/* فايسبوك — ★ v3.21.2: زر بمعالج ذكي (ورقة مشاركة النظام على الهاتف / نافذة sharer على الحاسوب) */}
-        <button
-          type="button"
-          onClick={shareFacebook}
+        {/* فايسبوك — رابط مشاركة رسمي في تبويب جديد (لا يُحجب أبداً بكونه تنقلاً حقيقياً) */}
+        <a
+          href={fbHref}
+          target="_blank"
+          rel="noopener noreferrer"
           aria-label={t("shr.facebook")}
           title={t("shr.facebook")}
           className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#1877F2] px-3 text-xs font-black text-white shadow-sm transition-all hover:scale-[1.04] hover:bg-[#1465d8] active:scale-95"
         >
           <FacebookGlyph className="h-3.5 w-3.5" />
           <span>{t("shr.facebook")}</span>
-        </button>
+        </a>
         {/* انستغرام — نافذة تجهيز الصورة بمقاس انستغرام + مشاركة موجهة */}
         <button
           type="button"

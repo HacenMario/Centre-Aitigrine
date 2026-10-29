@@ -37,11 +37,14 @@ expect "جزء بعميل (403)" 403 "$(code "$BASE/api/backup?file=000000000000
 echo "── 3) وسائط تجريبية داخل GridFS قبل البناء ──"
 node - <<'EOF'
 const { MongoClient, GridFSBucket } = require("mongodb");
+const fs = require("fs");
 (async () => {
-  const uri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017";
+  /* ★ v3.21.2: يتبع قاعدة التطبيق الفعلية من .env — كان يكتب في ait_center بينما التطبيق على قاعدة أخرى */
+  let uri = process.env.MONGODB_URI || "";
+  if (!uri) { try { uri = (fs.readFileSync(".env", "utf8").match(/MONGODB_URI=(.*)/) || [])[1]?.trim() || ""; } catch {} }
+  uri = uri || "mongodb://127.0.0.1:27017/ait_center";
   const c = new MongoClient(uri);
   await c.connect();
-  /* اسم القاعدة من URI — بيئة المعاينة تحمل ait_center */
   const dbName = (uri.match(/\/([a-zA-Z0-9_-]+)(\?|$)/) || [])[1] || "ait_center";
   const b = new GridFSBucket(c.db(dbName), { bucketName: "media" });
   const old = await b.find({ filename: "test-backup-media.png" }).toArray();

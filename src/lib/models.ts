@@ -359,7 +359,20 @@ const AppointmentSchema = new Schema(
   },
   { timestamps: true }
 );
-AppointmentSchema.index({ date: 1, time: 1, specialistId: 1 }, { unique: true });
+/* ★ v3.21.2: الفهرس الفريد يصبح جزئياً — يحمي الفتحات النشطة فقط (pending/confirmed)
+ * الجذر: كان الفهرس القديم { date, time, specialistId } فريداً بغضّ النظر عن الحالة،
+ * فالموعد المكتمل/الملغى كان يحجب فتحته للأبد — والحجز الجديد يُرفض خادمياً بـ E11000 خام
+ * رغم أن فحص التصادم و"الأوقات المحجوزة" يعتبران المكتمل/الملغى متاحاً (تعارض قاتل).
+ * المزامنة الفعلية (إسقاط القديم + بناء هذا) تتم عند الإقلاع في src/lib/mongo.ts
+ * بأسلوب محصّن يعمل على كل نسخ MongoDB في الإنتاج. */
+AppointmentSchema.index(
+  { date: 1, time: 1, specialistId: 1 },
+  {
+    unique: true,
+    name: "uniq_active_slot",
+    partialFilterExpression: { status: { $in: ["pending", "confirmed"] } },
+  }
+);
 export type AppointmentDoc = InferSchemaType<typeof AppointmentSchema> & { _id: mongoose.Types.ObjectId };
 export const Appointment: Model<AppointmentDoc> =
   (mongoose.models.Appointment as Model<AppointmentDoc>) ||
