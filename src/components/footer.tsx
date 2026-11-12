@@ -25,7 +25,7 @@ export default function Footer({ navigate }: { navigate?: Navigate }) {
       {/* الشريط العلوي الملوّن — اللمسة الهوية نفسها بلا ثقل */}
       <div className="ait-footer-top h-1 w-full" aria-hidden="true" />
 
-      <div className="mx-auto flex max-w-7xl flex-col items-center gap-2.5 px-4 py-4 sm:flex-row sm:justify-between sm:px-6 sm:py-3.5">
+      <div className="mx-auto flex max-w-7xl flex-col items-center gap-2.5 px-4 py-4 sm:flex-row sm:justify-between sm:px-6 sm:py-3.5 lg:pe-24">
         {/* العلامة المختصرة */}
         <div className="flex items-center gap-2.5 min-w-0">
           {s?.logoBase64 ? (

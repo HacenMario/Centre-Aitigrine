@@ -463,29 +463,10 @@
 
 /* ═══════════════════════════════════════════════════════════════
    ★ v3.22.0 — واجهة التطبيق (App Mode)
-   شريط جانبي دائم + شريط تبويبات سفلي + شريط تطبيق مدمج
+   ★ v3.22.1 — الشريط الجانبي الدائم أُزيل بطلب المراجعة:
+   درج تنقّل موحّد (Sheet) يفتح بزر ☰ في شريط التطبيق على كل الأجهزة
+   + شريط تبويبات سفلي للجوال + شريط تطبيق مدمج بالشعار الكامل
    ═══════════════════════════════════════════════════════════════ */
-
-/* ── الشريط الجانبي الدائم (الحاسوب lg+) ── */
-.ait-appside {
-  background: var(--sidebar);
-  border-inline-end: 1px solid var(--sidebar-border);
-  box-shadow: -1px 0 0 oklch(0.52 0.11 175 / 0.04);
-}
-.dark .ait-appside {
-  box-shadow: -1px 0 0 oklch(0 0 0 / 0.2);
-}
-[dir="ltr"] .ait-appside {
-  box-shadow: 1px 0 0 oklch(0.52 0.11 175 / 0.04);
-}
-.dark [dir="ltr"] .ait-appside {
-  box-shadow: 1px 0 0 oklch(0 0 0 / 0.2);
-}
-.ait-appside-scroll {
-  scrollbar-width: thin;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-}
 
 /* ── شريط التبويبات السفلي (الجوال/التابلت < lg) ── */
 .ait-tabbar {

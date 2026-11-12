@@ -1,9 +1,11 @@
 "use client";
 /**
- * مركز أيت تقرين — هيكل التطبيق v5 (صفحة واحدة: تنقّل عبر السياق)
- * ★ v3.22.0: تحوّل واجهة التطبيق — مظهر تطبيق حقيقي بدل مظهر موقع إلكتروني:
- *   الحاسوب: شريط جانبي دائم + شريط تطبيق مدمج يعكس عنوان الصفحة الحالية
- *   الجوال/التابلت: شريط تبويبات سفلي (Bottom Tabs) + درج تنقّل للبقية
+ * مركز أيت تقرين — هيكل التطبيق v6 (صفحة واحدة: تنقّل عبر السياق)
+ * ★ v3.22.1: تحسينات بعد المراجعة — دون أي تغيير وظيفي:
+ *   - الشريط الجانبي لم يعد دائماً: درج تنقّل موحّد (جوال + حاسوب) يفتح بزر ☰ في الشريط
+ *     أو تبويب «المزيد» في الشريط السفلي (الجوال)
+ *   - الشعار مع الاسم الكامل ظاهر دائماً في شريط التطبيق
+ *   - سلّم الطبقات محكم: النوافذ z-100+ فوق كل عناصر الواجهة، والقوائم z-120 فوقها
  * ★ كل الصفحات موصولة كما هي — لم يُزال أي عنصر من التنقل
  * ★ مزوّد الوضع الليلي/النهاري (كوكي على الخادم — بلا وميض)
  * ★ الصلاحيات تُراجع عند تغيّر المستخدم وبعد اكتمال الإقلاع
@@ -14,7 +16,6 @@ import { AppProvider, useApp } from "@/lib/app-context";
 import type { ViewKey } from "@/lib/nav";
 import { ThemeProvider } from "@/components/theme-provider";
 import Header from "@/components/header";
-import AppSidebar from "@/components/app-sidebar";
 import NavDrawer from "@/components/nav-drawer";
 import BottomTabs from "@/components/bottom-tabs";
 import Footer from "@/components/footer";
@@ -56,7 +57,8 @@ const ADMIN_ONLY: ViewKey[] = ["documents"];
 
 function Shell() {
   const { t, me, hidden, ready, view, viewId, navigate } = useApp();
-  /* درج التنقّل — يُفتح من تبويب «المزيد» في الشريط السفلي (الجوال) */
+  /* درج التنقّل — يُفتح من زر ☰ في شريط التطبيق (كل الأجهزة)
+     أو من تبويب «المزيد» في الشريط السفلي (الجوال) ★ v3.22.1 */
   const [navOpen, setNavOpen] = useState(false);
 
   /* ★ v3.9.0: رسائل العودة من Google — نجاح واضح أو سبب فشل صريح
@@ -118,14 +120,13 @@ function Shell() {
 
   return (
     <div className="min-h-dvh">
-      {/* ★ v3.22.0: الشريط الجانبي الدائم على الحاسوب (lg+) — واجهة تطبيق */}
-      <AppSidebar />
-      {/* درج التنقّل للجوال/التابلت — كل الصفحات وبوابات الدخول كما هي */}
+      {/* ★ v3.22.1: درج التنقّل الموحّد — كل الصفحات وبوابات الدخول كما هي
+          يُفتح بزر ☰ في شريط التطبيق (جوال وحاسوب) أو تبويب «المزيد» (جوال) */}
       <NavDrawer open={navOpen} onOpenChange={setNavOpen} />
 
-      <div className="flex min-h-dvh flex-col lg:ps-[17rem]">
+      <div className="flex min-h-dvh flex-col">
         {/* شريط التطبيق ثابت fixed — لا يتأثر بقفل التمرير عند فتح النوافذ */}
-        <Header />
+        <Header onMenu={() => setNavOpen(true)} />
         <div className="h-14 shrink-0" aria-hidden="true" />
 
         {/* المحتوى — التمرير على body */}
@@ -170,8 +171,9 @@ function Shell() {
       <BottomTabs onMore={() => setNavOpen(true)} />
 
       {/* ★ v3.8.1: حزمة الأزرار العائمة — عمود واحد في الزاوية يمنع أي تراكب
+          ★ v3.22.1: z-[45] — فوق شريط التطبيق وتحت النوافذ المنبثقة دائماً
           ★ v3.22.0: مرفوعة فوق شريط التبويبات على الجوال/التابلت (< lg) */}
-      <div className="fixed z-40 bottom-[5.75rem] end-4 lg:bottom-6 lg:end-6 flex flex-col items-center gap-2.5 pointer-events-none">
+      <div className="fixed z-[45] bottom-[5.75rem] end-4 lg:bottom-6 lg:end-6 flex flex-col items-center gap-2.5 pointer-events-none">
         <div className="pointer-events-auto"><ChatbotWidget /></div>
         <div className="pointer-events-auto"><WhatsappButton /></div>
         <div className="pointer-events-auto"><BackToTop /></div>

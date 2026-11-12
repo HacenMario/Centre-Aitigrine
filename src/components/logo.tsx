@@ -1,8 +1,10 @@
 "use client";
 /**
- * شعار المركز v3 — الصورة + الاسم الكامل في سطرين
- * ★ نقرة واحدة → الرئيسية (إصلاح جذري: كان بلا onClick ولا يفعل شيئاً)
- * الضغط 3 مرات متتالية → إخفاء سريع (ميزة سرية محفوظة)
+ * شعار المركز v4 — ★ v3.22.1
+ * الصورة + الاسم الكامل في سطرين (سطر الاسم + سطر التخصصات) — في كل مكان يظهر
+ * فيه الشعار: شريط التطبيق ودرج التنقل. عُدّت العبارة المرافقة للوغو لتظهر
+ * على الجوال والحاسوب معاً (كانت مخفية على الجوال في v3.22.0 بطلب المراجعة).
+ * ★ نقرة واحدة → الرئيسية | الضغط 3 مرات متتالية → إخفاء سريع (ميزة سرية محفوظة)
  */
 import Image from "next/image";
 import { useRef } from "react";
@@ -10,7 +12,7 @@ import { useApp } from "@/lib/app-context";
 import { getQuickHideConfig } from "@/lib/quick-hide";
 import { toast } from "sonner";
 
-export default function Logo({ onClick, compact = false }: { onClick?: () => void; compact?: boolean }) {
+export default function Logo({ onClick }: { onClick?: () => void }) {
   const { settings, setHidden, t, lang, navigate } = useApp();
   const logoSrc = settings?.logoBase64 || "/logo.png";
   const clicks = useRef(0);
@@ -45,19 +47,17 @@ export default function Logo({ onClick, compact = false }: { onClick?: () => voi
       type="button"
       title={t("common.goHome")}
     >
-      <span className="relative shrink-0 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm ring-1 ring-primary/20 bg-background w-9 h-9 sm:w-11 sm:h-11 lg:w-12 lg:h-12">
+      <span className="relative shrink-0 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm ring-1 ring-primary/20 bg-background w-9 h-9 sm:w-11 sm:h-11">
         <Image src={logoSrc} alt={t("app.full")} fill sizes="52px" className="object-contain p-0.5 sm:p-1" />
       </span>
-      {!compact && (
-        <span className="flex flex-col min-w-0 leading-[1.3]">
-          <span className="font-extrabold text-foreground whitespace-normal break-words text-[0.78rem] sm:text-[0.95rem] lg:text-[1.05rem]">
-            {line1}
-          </span>
-          <span className="text-muted-foreground font-medium whitespace-normal break-words text-[0.62rem] sm:text-[0.72rem] lg:text-[0.8rem]">
-            {line2}
-          </span>
+      <span className="flex flex-col min-w-0 leading-[1.25]">
+        <span className="font-extrabold text-foreground whitespace-normal break-words text-[0.8rem] sm:text-[0.95rem]">
+          {line1}
         </span>
-      )}
+        <span className="text-muted-foreground font-medium whitespace-normal break-words text-[0.62rem] sm:text-[0.72rem]">
+          {line2}
+        </span>
+      </span>
     </button>
   );
 }

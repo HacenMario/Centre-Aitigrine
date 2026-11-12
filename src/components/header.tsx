@@ -1,12 +1,13 @@
 "use client";
 /**
- * شريط التطبيق v5 — ★ v3.22.0 تحوّل واجهة التطبيق
- * شريط علوي مدمج (App Bar) مثل التطبيقات الأصلية:
- *   الحاسوب: عنوان الصفحة الحالية (أيقونة + اسم) يمين البداية + أدوات التحكم يسار النهاية
- *   الجوال: شعار مدمج + أدوات التحكم — والتنقل عبر الشريط السفلي (Bottom Tabs)
+ * شريط التطبيق v6 — ★ v3.22.1 تحسينات واجهة التطبيق (بعد المراجعة)
+ * ★ زر القائمة (☰) عاد إلى الشريط على الجوال والحاسوب معاً — يفتح درج التنقل الكامل
+ * ★ الشعار مع الاسم الكامل (سطرا الاسم والتخصصات) ظاهران على الجوال والحاسوب — كما كان
+ *   الحاسوب: الشعار + فاصل أنيق + عنوان الصفحة الحالية (أيقونة + اسم)
+ * ★ الشريط الجانبي لم يعد دائماً — يظهر ويختفي بزر القائمة (درج موحّد كل الأجهزة)
  * ★ زر «هام جدا» (تثبيت الموقع كتطبيق + الإشعارات) — كما هو
  * ★ خلفية صلبة غير شفافة دائماً | لا زر دخول في الشريط — بوابات الدخول في درج التنقل
- * نوافذ Radix فوق كل شيء | RTL/LTR عبر الخصائص المنطقية
+ * نوافذ Radix فوق كل شيء (z-100+) | RTL/LTR عبر الخصائص المنطقية
  */
 import { useApp } from "@/lib/app-context";
 import { NAV_ITEMS, type ViewKey } from "@/lib/nav";
@@ -25,7 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Home, LogOut, TriangleAlert, UserRound, type LucideIcon } from "lucide-react";
+import { Home, LogOut, Menu, TriangleAlert, UserRound, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -48,7 +49,7 @@ function useViewMeta(): { title: string; Icon: LucideIcon } {
   return { title, Icon };
 }
 
-export default function Header() {
+export default function Header({ onMenu }: { onMenu?: () => void }) {
   const { t, me, logout, navigate, dir } = useApp();
   const [helpOpen, setHelpOpen] = useState(false);
   const { title, Icon } = useViewMeta();
@@ -63,19 +64,31 @@ export default function Header() {
   };
 
   return (
-    <header className="ait-header fixed top-0 inset-x-0 z-50 w-full lg:ps-[17rem]">
-      <div className="mx-auto flex min-h-14 max-w-7xl items-center gap-1.5 px-2.5 py-2 sm:gap-3 sm:px-6">
-        {/* الجوال: الشعار المدمج | الحاسوب: عنوان الصفحة الحالية */}
+    <header className="ait-header fixed top-0 inset-x-0 z-40 w-full">
+      <div className="mx-auto flex min-h-14 max-w-7xl items-center gap-1 sm:gap-3 px-2 py-2 sm:px-6">
+        {/* ★ v3.22.1 زر القائمة (navbar) — على الهاتف والحاسوب معاً: يفتح درج التنقل */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onMenu}
+          className="rounded-full shrink-0"
+          aria-label={t("header.menu")}
+        >
+          <Menu className="h-5.5 w-5.5" />
+        </Button>
+
+        {/* ★ الشعار + الاسم الكامل — على الجوال والحاسوب (عادت العبارة المرافقة للوغو) */}
         <div className="min-w-0 flex-1 lg:flex-none">
-          <div className="lg:hidden">
-            <Logo compact />
-          </div>
-          <div className="hidden min-w-0 items-center gap-2.5 lg:flex">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
-              <Icon className="h-4.5 w-4.5" />
-            </span>
-            <span className="truncate text-base font-black text-foreground">{title}</span>
-          </div>
+          <Logo />
+        </div>
+
+        {/* الحاسوب: فاصل + عنوان الصفحة الحالية — سياق مكانك مثل التطبيقات */}
+        <div className="hidden min-w-0 items-center gap-2.5 lg:flex lg:flex-1 ps-1 sm:ps-2">
+          <span className="h-6 w-px shrink-0 bg-border" aria-hidden="true" />
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+            <Icon className="h-4.5 w-4.5" />
+          </span>
+          <span className="truncate text-base font-black text-foreground">{title}</span>
         </div>
 
         {/* أدوات التحكم — كما هي تماماً */}
