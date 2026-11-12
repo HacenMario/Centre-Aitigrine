@@ -1,12 +1,16 @@
 "use client";
 /**
- * الهيدر v4 — خلفية صلبة غير شفافة دائماً (على أي تمرير)
- * ★ زر «هام جدا» (تثبيت الموقع كتطبيق + تفعيل الإشعارات) — نمط طمأنينة
- * ★ زر الوضع الليلي/النهاري
- * ★ لا زر دخول في الهيدر — بوابات الدخول في القائمة الجانبية
- * الشعار → الرئيسية فوراً | كل الأزرار تنقّل SPA داخلي | نوافذ Radix فوق كل شيء
+ * شريط التطبيق v5 — ★ v3.22.0 تحوّل واجهة التطبيق
+ * شريط علوي مدمج (App Bar) مثل التطبيقات الأصلية:
+ *   الحاسوب: عنوان الصفحة الحالية (أيقونة + اسم) يمين البداية + أدوات التحكم يسار النهاية
+ *   الجوال: شعار مدمج + أدوات التحكم — والتنقل عبر الشريط السفلي (Bottom Tabs)
+ * ★ زر «هام جدا» (تثبيت الموقع كتطبيق + الإشعارات) — كما هو
+ * ★ خلفية صلبة غير شفافة دائماً | لا زر دخول في الشريط — بوابات الدخول في درج التنقل
+ * نوافذ Radix فوق كل شيء | RTL/LTR عبر الخصائص المنطقية
  */
 import { useApp } from "@/lib/app-context";
+import { NAV_ITEMS, type ViewKey } from "@/lib/nav";
+import { NAV_ICONS } from "./sidebar-nav";
 import Logo from "./logo";
 import LanguageMenu from "./language-menu";
 import NotificationsBell from "./notifications-bell";
@@ -21,22 +25,33 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Home, LogOut, Menu, TriangleAlert, UserRound } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import SidebarNav from "./sidebar-nav";
+import { Home, LogOut, TriangleAlert, UserRound, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+/** عنوان الصفحة الحالية + أيقونتها — أسلوب تطبيق: الشريط يعكس موقعك دائماً */
+function useViewMeta(): { title: string; Icon: LucideIcon } {
+  const { t, view, viewId } = useApp();
+  const item = NAV_ITEMS.find((i) => i.key === view);
+  const Icon = (item && NAV_ICONS[item.icon]) || Home;
+  let title = item ? t(item.label) : "";
+  if (view === "login") {
+    const byGate: Record<string, string> = {
+      client: t("nav.loginClient"),
+      specialist: t("nav.loginSpecialist"),
+      admin: t("nav.loginAdmin"),
+    };
+    title = (viewId && byGate[viewId]) || t("nav.login");
+  } else if (view === "record") title = t("nav.record");
+  else if (view === "ebook") title = t("nav.ebooks");
+  else if (!title) title = t("nav.home");
+  return { title, Icon };
+}
+
 export default function Header() {
   const { t, me, logout, navigate, dir } = useApp();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const { title, Icon } = useViewMeta();
 
   const doLogout = async () => {
     try {
@@ -48,37 +63,22 @@ export default function Header() {
   };
 
   return (
-    <header className="ait-header fixed top-0 inset-x-0 z-50 w-full">
-      <div className="mx-auto flex min-h-16 max-w-7xl items-center gap-1.5 sm:gap-3 px-2.5 py-2 sm:px-6">
-        {/* قائمة التنقل — على الهاتف والحاسوب معاً: تظهر فقط بالضغط على زرها
-            (منطق موحّد — القائمة الجانبية الثابتة نُزعت عن الحاسوب بطلب المستخدم) */}
-        <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full shrink-0" aria-label={t("header.menu")}>
-              <Menu className="h-5.5 w-5.5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side={dir === "rtl" ? "right" : "left"} className="w-[min(21rem,90vw)] p-0">
-            {/* pe-14: مسافة آمنة بين الشعار وزر الإغلاق الأنيق (v3.6) */}
-            <SheetHeader className="border-b p-4 pe-14">
-              <SheetTitle className="text-start">
-                {/* الشعار مع النص المرافق (سطرا الاسم) — مثل الهيدر تماماً */}
-                <Logo />
-              </SheetTitle>
-            </SheetHeader>
-            {/* تمرير كامل يضمن الوصول لكل محتوى القائمة */}
-            <div className="h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain">
-              <SidebarNav onNavigate={() => setMenuOpen(false)} />
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        {/* الشعار — نقرة واحدة → الرئيسية */}
-        <div className="min-w-0 flex-1 sm:flex-none">
-          <Logo />
+    <header className="ait-header fixed top-0 inset-x-0 z-50 w-full lg:ps-[17rem]">
+      <div className="mx-auto flex min-h-14 max-w-7xl items-center gap-1.5 px-2.5 py-2 sm:gap-3 sm:px-6">
+        {/* الجوال: الشعار المدمج | الحاسوب: عنوان الصفحة الحالية */}
+        <div className="min-w-0 flex-1 lg:flex-none">
+          <div className="lg:hidden">
+            <Logo compact />
+          </div>
+          <div className="hidden min-w-0 items-center gap-2.5 lg:flex">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+              <Icon className="h-4.5 w-4.5" />
+            </span>
+            <span className="truncate text-base font-black text-foreground">{title}</span>
+          </div>
         </div>
 
-        {/* أدوات التحكم */}
+        {/* أدوات التحكم — كما هي تماماً */}
         <div className="flex items-center gap-1 sm:gap-2 ms-auto shrink-0">
           {/* «هام جدا» — دليل التثبيت والإشعارات (نمط طمأنينة) */}
           <Button
@@ -105,7 +105,7 @@ export default function Header() {
           <LanguageMenu />
           <NotificationsBell />
 
-          {/* الحساب — بلا زر دخول (بوابات الدخول في القائمة الجانبية) */}
+          {/* الحساب — بلا زر دخول (بوابات الدخول في درج التنقل) */}
           {me ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

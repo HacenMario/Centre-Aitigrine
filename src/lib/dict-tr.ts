@@ -989,6 +989,9 @@ export const tr: Record<string, string> = {
 
   /* ── ★ v3.20: Ücretli e-kitaplar + siparişler + sosyal kanıt ── */
   "nav.orders": "Kitap siparişleri",
+  "nav.more": "Daha fazla",
+  "nav.login": "Giriş yap",
+  "nav.record": "Tıbbi kayıt",
   "eb.free": "Ücretsiz",
   "eb.dzd": "DZD",
   "eb.buy": "Kitabı satın al",

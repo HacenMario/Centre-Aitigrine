@@ -989,6 +989,9 @@ export const es: Record<string, string> = {
 
   /* ── ★ v3.20: E-books de pago + pedidos + prueba social ── */
   "nav.orders": "Pedidos de libros",
+  "nav.more": "Más",
+  "nav.login": "Iniciar sesión",
+  "nav.record": "Ficha médica",
   "eb.free": "Gratis",
   "eb.dzd": "DZD",
   "eb.buy": "Comprar el libro",

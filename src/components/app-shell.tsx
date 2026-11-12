@@ -1,17 +1,22 @@
 "use client";
 /**
- * مركز أيت تقرين — هيكل التطبيق v4 (صفحة واحدة: تنقّل عبر السياق)
- * ★ كل الصفحات موصولة: الرئيسية، الأخصائيون، اتصل بالمركز، لوحة القيادة، المرضى، الملفات
+ * مركز أيت تقرين — هيكل التطبيق v5 (صفحة واحدة: تنقّل عبر السياق)
+ * ★ v3.22.0: تحوّل واجهة التطبيق — مظهر تطبيق حقيقي بدل مظهر موقع إلكتروني:
+ *   الحاسوب: شريط جانبي دائم + شريط تطبيق مدمج يعكس عنوان الصفحة الحالية
+ *   الجوال/التابلت: شريط تبويبات سفلي (Bottom Tabs) + درج تنقّل للبقية
+ * ★ كل الصفحات موصولة كما هي — لم يُزال أي عنصر من التنقل
  * ★ مزوّد الوضع الليلي/النهاري (كوكي على الخادم — بلا وميض)
  * ★ الصلاحيات تُراجع عند تغيّر المستخدم وبعد اكتمال الإقلاع
  */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppProvider, useApp } from "@/lib/app-context";
 import type { ViewKey } from "@/lib/nav";
 import { ThemeProvider } from "@/components/theme-provider";
 import Header from "@/components/header";
-import SidebarNav from "@/components/sidebar-nav";
+import AppSidebar from "@/components/app-sidebar";
+import NavDrawer from "@/components/nav-drawer";
+import BottomTabs from "@/components/bottom-tabs";
 import Footer from "@/components/footer";
 import WhatsappButton from "@/components/whatsapp-button";
 import QuickHide from "@/components/quick-hide";
@@ -51,6 +56,8 @@ const ADMIN_ONLY: ViewKey[] = ["documents"];
 
 function Shell() {
   const { t, me, hidden, ready, view, viewId, navigate } = useApp();
+  /* درج التنقّل — يُفتح من تبويب «المزيد» في الشريط السفلي (الجوال) */
+  const [navOpen, setNavOpen] = useState(false);
 
   /* ★ v3.9.0: رسائل العودة من Google — نجاح واضح أو سبب فشل صريح
      (كانت تُكتب صامتة فلا يرى المستخدم شيئاً بعد التحويل من Google) */
@@ -103,24 +110,26 @@ function Shell() {
   if (!ready) {
     return (
       <div className="flex min-h-dvh flex-col">
-        <div className="h-16 border-b bg-card" aria-hidden="true" />
+        <div className="h-14 border-b bg-card" aria-hidden="true" />
         <BrandSkeleton className="flex-1" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-dvh flex flex-col">
-      {/* الهيدر ثابت fixed — لا يتأثر بقفل التمرير عند فتح النوافذ */}
-      <Header />
-      <div className="h-16 shrink-0" aria-hidden="true" />
+    <div className="min-h-dvh">
+      {/* ★ v3.22.0: الشريط الجانبي الدائم على الحاسوب (lg+) — واجهة تطبيق */}
+      <AppSidebar />
+      {/* درج التنقّل للجوال/التابلت — كل الصفحات وبوابات الدخول كما هي */}
+      <NavDrawer open={navOpen} onOpenChange={setNavOpen} />
 
-      <div className="flex flex-1 w-full mx-auto max-w-[100rem]">
-        {/* v3.5: القائمة الجانبية على الحاسوب أيضاً تظهر فقط بالضغط على زر القائمة (مثل الهاتف)
-            — نُزعت القائمة الثابتة على الحاسوب بطلب المستخدم */}
+      <div className="flex min-h-dvh flex-col lg:ps-[17rem]">
+        {/* شريط التطبيق ثابت fixed — لا يتأثر بقفل التمرير عند فتح النوافذ */}
+        <Header />
+        <div className="h-14 shrink-0" aria-hidden="true" />
 
         {/* المحتوى — التمرير على body */}
-        <main id="ait-main" className="flex-1 min-w-0 px-4 py-6 w-full sm:px-6 sm:py-8 lg:px-8">
+        <main id="ait-main" className="flex-1 min-w-0 w-full px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8">
           <div className="ait-view mx-auto max-w-6xl" key={view + (viewId || "")}>
             {view === "home" && <Landing navigate={navigate} />}
             {view === "login" && <Login onDone={() => navigate("home")} />}
@@ -152,12 +161,17 @@ function Shell() {
             {view === "terms" && <InfoPage page="terms" navigate={navigate} />}
           </div>
         </main>
+
+        {/* فوتر مدمج بأسلوب تطبيق — سطر واحد أنيق */}
+        <Footer navigate={navigate} />
       </div>
 
-      <Footer navigate={navigate} />
+      {/* ★ v3.22.0: شريط التبويبات السفلي للجوال — قلب واجهة التطبيق */}
+      <BottomTabs onMore={() => setNavOpen(true)} />
+
       {/* ★ v3.8.1: حزمة الأزرار العائمة — عمود واحد في الزاوية يمنع أي تراكب
-          (البوت فوق، ثم واتساب، ثم العودة للأعلى) — على الحاسوب والجوال */}
-      <div className="fixed z-40 bottom-4 end-4 sm:bottom-6 sm:end-6 flex flex-col items-center gap-2.5 pointer-events-none">
+          ★ v3.22.0: مرفوعة فوق شريط التبويبات على الجوال/التابلت (< lg) */}
+      <div className="fixed z-40 bottom-[5.75rem] end-4 lg:bottom-6 lg:end-6 flex flex-col items-center gap-2.5 pointer-events-none">
         <div className="pointer-events-auto"><ChatbotWidget /></div>
         <div className="pointer-events-auto"><WhatsappButton /></div>
         <div className="pointer-events-auto"><BackToTop /></div>

@@ -4,6 +4,7 @@
  * ★ تمرير كامل يضمن الوصول لكل العناصر (نمط طمأنينة)
  * ★ ترتيب حسب أهمية الصفحة لنوع المستخدم: صفحات الدور أولاً ثم العامة
  * ★ للزوار: بوابات دخول مستقلة (عميل / أخصائي / إدارة)
+ * ★ v3.22.0: خريطة الأيقونات تُصدَّر للشريط السفلي وشريط التطبيق (واجهة تطبيق موحّدة)
  */
 import { useApp } from "@/lib/app-context";
 import { NAV_ITEMS, LOGIN_ENTRIES, ROLE_IMPORTANT, type Role } from "@/lib/nav";
@@ -44,7 +45,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const ICONS: Record<string, LucideIcon> = {
+/* ★ v3.22.0: خريطة أيقونات التنقل المشتركة — يستهلكها أيضاً bottom-tabs وheader */
+export const NAV_ICONS: Record<string, LucideIcon> = {
   Home,
   CalendarClock,
   Sparkles,
@@ -65,6 +67,7 @@ const ICONS: Record<string, LucideIcon> = {
   FileBadge2,
   ShoppingBag,
 };
+const ICONS = NAV_ICONS;
 
 export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const { t, me, logout, fontUp, fontDown, navigate, view, setHidden } = useApp();

@@ -988,6 +988,9 @@ export const ar: Record<string, string> = {
 
   /* ── ★ v3.20: الكتب المدفوعة + طلبات الشراء + الإثبات الاجتماعي ── */
   "nav.orders": "طلبات الكتب",
+  "nav.more": "المزيد",
+  "nav.login": "تسجيل الدخول",
+  "nav.record": "الملف الطبي",
   "eb.free": "مجاني",
   "eb.dzd": "دج",
   "eb.buy": "شراء الكتاب",

@@ -461,6 +461,59 @@
   overscroll-behavior: contain;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   ★ v3.22.0 — واجهة التطبيق (App Mode)
+   شريط جانبي دائم + شريط تبويبات سفلي + شريط تطبيق مدمج
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── الشريط الجانبي الدائم (الحاسوب lg+) ── */
+.ait-appside {
+  background: var(--sidebar);
+  border-inline-end: 1px solid var(--sidebar-border);
+  box-shadow: -1px 0 0 oklch(0.52 0.11 175 / 0.04);
+}
+.dark .ait-appside {
+  box-shadow: -1px 0 0 oklch(0 0 0 / 0.2);
+}
+[dir="ltr"] .ait-appside {
+  box-shadow: 1px 0 0 oklch(0.52 0.11 175 / 0.04);
+}
+.dark [dir="ltr"] .ait-appside {
+  box-shadow: 1px 0 0 oklch(0 0 0 / 0.2);
+}
+.ait-appside-scroll {
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+/* ── شريط التبويبات السفلي (الجوال/التابلت < lg) ── */
+.ait-tabbar {
+  background: color-mix(in oklab, var(--card) 88%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  border-top: 1px solid var(--border);
+  box-shadow:
+    0 -1px 2px oklch(0.23 0.02 170 / 0.05),
+    0 -8px 24px -16px oklch(0.23 0.02 170 / 0.25);
+  padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+}
+.dark .ait-tabbar {
+  box-shadow:
+    0 -1px 2px oklch(0 0 0 / 0.4),
+    0 -8px 24px -16px oklch(0 0 0 / 0.5);
+}
+
+/* ── شريط التطبيق المدمج (h-14) — نفس مظهر الهيدر السابق لكن أ tighter ── */
+.ait-header {
+  padding-inline-start: 0;
+}
+@media (min-width: 1024px) {
+  .ait-header {
+    background: var(--card);
+  }
+}
+
 /* ═══ أزرار تعمل حتى بشاشة صغيرة — مساحة لمس مريحة ═══ */
 button,
 a[role="button"] {
