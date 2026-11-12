@@ -6,6 +6,8 @@
  *     أو تبويب «المزيد» في الشريط السفلي (الجوال)
  *   - الشعار مع الاسم الكامل ظاهر دائماً في شريط التطبيق
  *   - سلّم الطبقات محكم: النوافذ z-100+ فوق كل عناصر الواجهة، والقوائم z-120 فوقها
+ * ★ v3.22.2: إخفاء شريط التبويبات والأزرار العائمة عند فتح أي نافذة (نمط التطبيقات)
+ *   — يعالج نهائياً ظهور النوافذ خلف الشريط على متصفحات الجوال (backdrop-filter)
  * ★ كل الصفحات موصولة كما هي — لم يُزال أي عنصر من التنقل
  * ★ مزوّد الوضع الليلي/النهاري (كوكي على الخادم — بلا وميض)
  * ★ الصلاحيات تُراجع عند تغيّر المستخدم وبعد اكتمال الإقلاع
@@ -172,8 +174,9 @@ function Shell() {
 
       {/* ★ v3.8.1: حزمة الأزرار العائمة — عمود واحد في الزاوية يمنع أي تراكب
           ★ v3.22.1: z-[45] — فوق شريط التطبيق وتحت النوافذ المنبثقة دائماً
-          ★ v3.22.0: مرفوعة فوق شريط التبويبات على الجوال/التابلت (< lg) */}
-      <div className="fixed z-[45] bottom-[5.75rem] end-4 lg:bottom-6 lg:end-6 flex flex-col items-center gap-2.5 pointer-events-none">
+          ★ v3.22.0: مرفوعة فوق شريط التبويبات على الجوال/التابلت (< lg)
+          ★ v3.22.2: صنف ait-floaters — ينسحب مع شريط التبويبات عند فتح أي نافذة */}
+      <div className="ait-floaters fixed z-[45] bottom-[5.75rem] end-4 lg:bottom-6 lg:end-6 flex flex-col items-center gap-2.5 pointer-events-none">
         <div className="pointer-events-auto"><ChatbotWidget /></div>
         <div className="pointer-events-auto"><WhatsappButton /></div>
         <div className="pointer-events-auto"><BackToTop /></div>

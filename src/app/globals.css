@@ -495,6 +495,50 @@
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   ★ v3.22.2 — ضمان مطلق لسلّم الطبقات عبر كل المتصفحات
+   بلاغ المراجعة: نوافذ تفاصيل الحجوزات تظهر خلف شريط التبويبات على الهاتف
+   (خلل ترتيب طبقات معروف في متصفحات الجوال مع backdrop-filter:
+   الشريط يُرفع لطبقة رسم مستقلة فيغطي نوافذ أعلى منه في z-index)
+   الحل المزدوج:
+   1) نوافذ Radix تُرفع بقوة (!important) فوق كل عناصر الواجهة —
+      منتقيات عبر المتصفحات كلها لأنها محدّدات صفات بسيطة
+   2) عند فتح أي نافذة (Radix يضع data-scroll-locked على body تلقائياً)
+      ينسحب شريط التبويبات والأزرار العائمة كلياً — النافذة وحدها على
+      الشاشة، تماماً كالتطبيقات الأصيلة — فلا يمكن أن يغطيها الشريط أبداً
+   ═══════════════════════════════════════════════════════════════ */
+[data-slot="dialog-overlay"],
+[data-slot="alert-dialog-overlay"],
+[data-slot="sheet-overlay"],
+[data-slot="drawer-overlay"] {
+  z-index: 300 !important;
+}
+[data-slot="dialog-content"],
+[data-slot="alert-dialog-content"],
+[data-slot="sheet-content"],
+[data-slot="drawer-content"] {
+  z-index: 310 !important;
+}
+[data-slot="popover-content"],
+[data-slot="dropdown-menu-content"],
+[data-slot="select-content"],
+[data-slot="hover-card-content"],
+[data-slot="tooltip-content"],
+[data-slot="context-menu-content"],
+[data-slot="menubar-content"],
+[data-slot="navigation-menu-content"] {
+  z-index: 320 !important;
+}
+.ait-tabbar,
+.ait-floaters {
+  transition: opacity 0.18s ease;
+}
+body[data-scroll-locked] .ait-tabbar,
+body[data-scroll-locked] .ait-floaters {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 /* ═══ أزرار تعمل حتى بشاشة صغيرة — مساحة لمس مريحة ═══ */
 button,
 a[role="button"] {
