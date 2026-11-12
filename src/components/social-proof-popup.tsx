@@ -11,7 +11,10 @@
  * - أنشطة حقيقية من /api/activities (نبضة لكل مستخدم — دوران بلا تكرار)
  * - مرة كل 5 دقائق (sessionStorage) — إغلاق تلقائي بعد 10 ثوانٍ بشريط تقدم
  * - الإغلاق اليدوي (×) يوقفها لبقية الجلسة حتى ولوج جديد للموقع
- * - زاوية سفلية هادئة z-30: لا تحجب شيئاً ولا تنافس النوافذ الإلزامية
+ * - ★ v3.22.3: فوق شريط التبويبات على الجوال/التابلت (< lg) — كانت bottom-4 z-30
+ *   فتظهر خلف الشريط السفلي (z-40) — الآن bottom فوق الشريط تماماً (نفس ارتفاع
+ *   الأزرار العائمة + safe-area) و z-[55] فوق عناصر الواجهة وتحت النوافذ
+ *   أما الحاسوب (lg) فموضعها كما هو bottom-4 حرفياً — لا تغيير إطلاقاً
  * - للجميع: زوار ومسجلون — هي رسالة تحفيز للمركز لا بيانات خاصة
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -120,7 +123,7 @@ export default function SocialProofPopup() {
 
   return (
     <div
-      className="fixed bottom-4 start-4 z-30 w-[19rem] max-w-[calc(100vw-2rem)]"
+      className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] start-4 z-[55] w-[19rem] max-w-[calc(100vw-2rem)] lg:bottom-4"
       role="status"
       aria-live="polite"
     >

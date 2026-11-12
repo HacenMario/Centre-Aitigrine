@@ -43,7 +43,7 @@ export default function NavDrawer({
         {/* توقيع النسخة — لمسة تطبيق احترافية ★ v3.22.1 */}
         <div className="shrink-0 border-t px-4 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-2.5 text-center">
           <p className="truncate text-[10.5px] font-semibold text-muted-foreground/70">
-            {t("app.name")} · v3.22.2
+            {t("app.name")} · v3.22.3
           </p>
         </div>
       </SheetContent>
