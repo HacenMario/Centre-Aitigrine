@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "مركز آيت تقرين — العناية النفسية، الأرطفونية و التكوين",
@@ -36,6 +37,7 @@ export default async function RootLayout({
       <body className="antialiased bg-background text-foreground font-cairo min-h-dvh">
         {children}
         <Toaster position="top-center" richColors />
+        <Analytics />
       </body>
     </html>
   );
