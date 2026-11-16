@@ -38,6 +38,9 @@ const UserSchema = new Schema(
     photoBase64: { type: String, default: "" },
     /** سنوات الخبرة (للأخصائي) */
     yearsExperience: { type: Number, default: 0, min: 0, max: 70 },
+    /** ★ v3.23: نسبة الأخصائي من كل جلسة (%) — تضبطها الإدارة لكل أخصائي على حدة (0-100)
+     *  المستحقات الشهرية = مجموع (سعر الجلسة الصافي بعد الخصم × النسبة) للجلسات المنتهية */
+    commissionRate: { type: Number, default: 0, min: 0, max: 100 },
     /** التخصصات المرتبطة بالأخصائي — مراجع مجموعة التخصصات */
     specialties: [{ type: Schema.Types.ObjectId, ref: "Specialty" }],
     /** ★ v3.12: الخدمات التي يجيدها الأخصائي — عند الحجز يختار العميل من بينها فقط
@@ -177,6 +180,9 @@ const SettingsSchema = new Schema(
         title: { type: String, default: "" },
       },
     ],
+    /** ★ v3.23: الراتب الثابت الشهري للمساعدة (دج) — تُعدّله الإدارة في صفحة الأجور والمستحقات،
+     *  ويُستخدم قيمةً افتراضية لأي شهر لم تُسجَّل تسوياته بعد (غياب الشهر يُخصم في PayrollAdjustment) */
+    assistantSalary: { type: Number, default: 0, min: 0 },
     /** مفاتيح VAPID لإشعارات الويب */
     vapidPublic: { type: String, default: "" },
     vapidPrivate: { type: String, default: "" },
@@ -776,3 +782,30 @@ const PushSubSchema = new Schema(
 export const PushSub =
   (mongoose.models.PushSub as Model<InferSchemaType<typeof PushSubSchema>>) ||
   mongoose.model("PushSub", PushSubSchema);
+
+/* ─────────────── تسويات الأجور الشهرية (★ v3.23) ───────────────
+ * مستند لكل شهر (YYYY-MM) — تسويات راتب المساعدة الثابت التي تسجلها الإدارة:
+ * الراتب الأساسي للشهر + أيام الغياب + قسط الخصم اليومي.
+ * مستحقات الأخصائيين تُحسب تلقائياً من الجلسات المنتهية × نسبة كل أخصائي
+ * (لا تحتاج مستنداً — تُشتق حية من المواعيد في src/lib/payroll.ts)
+ * الشهر بلا مستند = القيم الافتراضية (assistantSalary من الإعدادات + بلا غياب).
+ */
+const PayrollAdjustmentSchema = new Schema(
+  {
+    /** الشهر بصيغة YYYY-MM */
+    month: { type: String, required: true, unique: true, index: true },
+    /** الراتب الأساسي للمساعدة لهذا الشهر (دج) */
+    assistantBase: { type: Number, default: 0, min: 0 },
+    /** أيام غياب المساعدة عن المركز */
+    absenceDays: { type: Number, default: 0, min: 0, max: 31 },
+    /** قسط الخصم اليومي (دج/يوم) — الخصم = أيام الغياب × القسط */
+    deductionPerDay: { type: Number, default: 0, min: 0 },
+    /** ملاحظة إدارية اختيارية */
+    note: { type: String, default: "", maxlength: 300 },
+  },
+  { timestamps: true }
+);
+export type PayrollAdjustmentDoc = InferSchemaType<typeof PayrollAdjustmentSchema> & { _id: mongoose.Types.ObjectId };
+export const PayrollAdjustment: Model<PayrollAdjustmentDoc> =
+  (mongoose.models.PayrollAdjustment as Model<PayrollAdjustmentDoc>) ||
+  mongoose.model<PayrollAdjustmentDoc>("PayrollAdjustment", PayrollAdjustmentSchema);

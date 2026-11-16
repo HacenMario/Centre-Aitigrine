@@ -7,7 +7,7 @@
  */
 import { ok, handle } from "@/lib/api-helpers";
 import { Appointment, Course, Feedback, MedicalRecord, ResetRequest, Service, User } from "@/lib/models";
-import { currentUser, isStaff } from "@/lib/auth";
+import { currentUser } from "@/lib/auth";
 
 export async function GET() {
   return handle(async () => {
@@ -61,8 +61,8 @@ export async function GET() {
       languages,
     };
 
-    /* ── لوحة القيادة (إدارة/مساعد) ── */
-    if (me && isStaff(me.role)) {
+    /* ── لوحة القيادة (الإدارة فقط ★ v3.23 — حُجبت عن حساب المساعد) ── */
+    if (me && me.role === "admin") {
       /* v3.8: بيانات الرسوم البيانية — حجوزات آخر 6 أشهر، الخدمات الأكثر طلباً، نمو العملاء */
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);

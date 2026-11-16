@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import AdminTools from "@/components/views/admin-tools";
 import MediaManager from "@/components/views/media-manager";
-import { Plus, Trash2, X, Building2, Save, Images, MapPin, Share2, Languages, SlidersHorizontal, FileStack, Stethoscope, Sparkles, Pencil, Quote as QuoteIcon, Clock, Copy, DatabaseBackup, HardDrive } from "lucide-react";
+import { Plus, Trash2, X, Building2, Save, Images, MapPin, Share2, Languages, SlidersHorizontal, FileStack, Stethoscope, Sparkles, Pencil, Quote as QuoteIcon, Clock, Copy, DatabaseBackup, HardDrive, Lock } from "lucide-react";
 import { toast } from "sonner";
 import type { Navigate } from "@/lib/nav";
 
@@ -57,8 +57,20 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
       .catch(() => {});
   }, [pageLang]);
 
-  if (!me || (me.role !== "admin" && me.role !== "assistant")) {
-    return <p className="text-center text-muted-foreground py-16">{t("common.error")}</p>;
+  /* ★ v3.23: إعدادات المركز للإدارة فقط — حُجبت عن حساب المساعد (طلب المستخدم) */
+  if (!me || me.role !== "admin") {
+    return (
+      <div className="max-w-md mx-auto py-16 text-center space-y-4">
+        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-500/10 text-amber-600">
+          <Lock className="h-8 w-8" />
+        </span>
+        <h1 className="text-xl font-black">{t("common.noAccess")}</h1>
+        <p className="text-sm leading-relaxed text-muted-foreground">{t("set.adminOnly")}</p>
+        <Button variant="outline" onClick={() => navigate("home")} className="rounded-xl">
+          {t("common.goHome")}
+        </Button>
+      </div>
+    );
   }
   if (!form) return <p className="text-center text-muted-foreground py-16">{t("common.loading")}</p>;
 

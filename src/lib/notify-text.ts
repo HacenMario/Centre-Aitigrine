@@ -344,6 +344,92 @@ export function rescheduledText(opts: {
   };
 }
 
+/* ─────────── تغيير الأخصائي المكلف بالموعد ★ v3.23 ───────────
+ * كل طرف يتلقى نصه الخاص: العميل يتعرف على أخصائيه الجديد،
+ * الأخصائي الجديد يُكلَّف بالموعد، والأخصائي السابق يُبلَّغ بأنه لم يعد مسؤولاً عنه */
+export function reassignedText(opts: {
+  date: string;
+  time: string;
+  viewer: "client" | "newSpec" | "oldSpec" | "staff";
+  specName?: string; // اسم الأخصائي الجديد (للعميل)
+  clientName?: string; // اسم العميل (للأخصائي/الإدارة)
+  oldName?: string; // اسم الأخصائي السابق (للإدارة)
+}): PentaNotification {
+  const { date, time, viewer, specName, clientName, oldName } = opts;
+  const d = Object.fromEntries(LANGS.map((l) => [l, fmtDate(date, l)])) as Record<"ar" | "fr" | "en" | "tr" | "es", string>;
+  if (viewer === "client") {
+    return {
+      titles: {
+        ar: "تم تغيير الأخصائي المسؤول عن موعدك",
+        fr: "Le spécialiste de votre rendez-vous a changé",
+        en: "Your appointment specialist has changed",
+        tr: "Randevunuzun uzmanı değişti",
+        es: "El especialista de su cita ha cambiado",
+      },
+      bodies: {
+        ar: `موعدك بتاريخ ${d.ar} على الساعة ${time} أصبح مكلَّف به${specName ? ` ${specName}` : " أخصائي آخر"}.`,
+        fr: `Votre rendez-vous du ${d.fr} à ${time} est désormais confié${specName ? ` à ${specName}` : " à un autre spécialiste"}.`,
+        en: `Your appointment on ${d.en} at ${time} is now handled${specName ? ` by ${specName}` : " by another specialist"}.`,
+        tr: `${d.tr} saat ${time} randevunuz artık${specName ? ` ${specName}` : " başka bir uzman"} tarafından yürütülecek.`,
+        es: `Su cita del ${d.es} a las ${time} ahora estará a cargo${specName ? ` de ${specName}` : " de otro especialista"}.`,
+      },
+    };
+  }
+  if (viewer === "newSpec") {
+    return {
+      titles: {
+        ar: "كُلِّفتَ بموعد جديد",
+        fr: "Un nouveau rendez-vous vous a été confié",
+        en: "A new appointment has been assigned to you",
+        tr: "Size yeni bir randevu atandı",
+        es: "Se le ha asignado una nueva cita",
+      },
+      bodies: {
+        ar: `كُلِّفتَ بموعد بتاريخ ${d.ar} على الساعة ${time}${clientName ? ` — العميل: ${clientName}` : ""}.`,
+        fr: `Un rendez-vous vous a été confié le ${d.fr} à ${time}${clientName ? ` — client : ${clientName}` : ""}.`,
+        en: `You have been assigned an appointment on ${d.en} at ${time}${clientName ? ` — client: ${clientName}` : ""}.`,
+        tr: `${d.tr} saat ${time} randevusu size atandı${clientName ? ` — danışan: ${clientName}` : ""}.`,
+        es: `Se le ha asignado una cita el ${d.es} a las ${time}${clientName ? ` — cliente: ${clientName}` : ""}.`,
+      },
+    };
+  }
+  if (viewer === "oldSpec") {
+    return {
+      titles: {
+        ar: "أُعيد تكليف أحد مواعيدك",
+        fr: "Un de vos rendez-vous a été réattribué",
+        en: "One of your appointments has been reassigned",
+        tr: "Randevularınızdan biri yeniden atandı",
+        es: "Una de sus citas ha sido reasignada",
+      },
+      bodies: {
+        ar: `موعد بتاريخ ${d.ar} على الساعة ${time} أُعيد تكليفه إلى أخصائي آخر.`,
+        fr: `Le rendez-vous du ${d.fr} à ${time} a été réattribué à un autre spécialiste.`,
+        en: `The appointment on ${d.en} at ${time} has been reassigned to another specialist.`,
+        tr: `${d.tr} saat ${time} randevusu başka bir uzmana atandı.`,
+        es: `La cita del ${d.es} a las ${time} ha sido reasignada a otro especialista.`,
+      },
+    };
+  }
+  /* ملخص إداري */
+  return {
+    titles: {
+      ar: "تغيير الأخصائي المكلف بالموعد",
+      fr: "Changement de spécialiste d'un rendez-vous",
+      en: "Appointment specialist changed",
+      tr: "Randevu uzmanı değiştirildi",
+      es: "Cambio de especialista de una cita",
+    },
+    bodies: {
+      ar: `أُعيد تكليف موعد بتاريخ ${d.ar} على الساعة ${time}${oldName ? ` من ${oldName}` : ""}${specName ? ` إلى ${specName}` : ""}${clientName ? ` — العميل: ${clientName}` : ""}.`,
+      fr: `Le rendez-vous du ${d.fr} à ${time} a été réattribué${oldName ? ` de ${oldName}` : ""}${specName ? ` à ${specName}` : ""}${clientName ? ` — client : ${clientName}` : ""}.`,
+      en: `The appointment on ${d.en} at ${time} was reassigned${oldName ? ` from ${oldName}` : ""}${specName ? ` to ${specName}` : ""}${clientName ? ` — client: ${clientName}` : ""}.`,
+      tr: `${d.tr} saat ${time} randevusu${oldName ? ` ${oldName}` : ""}${specName ? ` → ${specName}` : ""} yeniden atandı${clientName ? ` — danışan: ${clientName}` : ""}.`,
+      es: `La cita del ${d.es} a las ${time} fue reasignada${oldName ? ` de ${oldName}` : ""}${specName ? ` a ${specName}` : ""}${clientName ? ` — cliente: ${clientName}` : ""}.`,
+    },
+  };
+}
+
 /* ─────────── إشعار عام ─────────── */
 export function generalText(ar: string, fr: string, en: string, tr?: string, es?: string): PentaNotification {
   return {

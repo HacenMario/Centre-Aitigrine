@@ -31,6 +31,8 @@ export type SafeUser = {
   bioFr?: string;
   bioEn?: string;
   yearsExperience: number;
+  /** ★ v3.23: نسبة الأخصائي من كل جلسة (%) — تضبطها الإدارة؛ تُظهر للأخصائي في أرباحه */
+  commissionRate: number;
   specialties: string[];
   /** ★ v3.12: الخدمات التي يجيدها الأخصائي (معرفات) */
   serviceIds: string[];
@@ -73,6 +75,7 @@ export function toSafeUser(u: UserDoc): SafeUser {
     bioFr: (u as { bioFr?: string }).bioFr ?? "",
     bioEn: (u as { bioEn?: string }).bioEn ?? "",
     yearsExperience: (u as { yearsExperience?: number }).yearsExperience ?? 0,
+    commissionRate: Math.max(0, Math.min(100, Number((u as { commissionRate?: number }).commissionRate) || 0)),
     specialties: specIds,
     serviceIds: svcIds,
     photoBase64: u.photoBase64 ?? "",

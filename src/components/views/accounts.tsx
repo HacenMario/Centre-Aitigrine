@@ -28,7 +28,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Power, Search, UsersRound, Phone, KeyRound, BellRing, X, Droplet, Lock } from "lucide-react";
+import { Plus, Pencil, Trash2, Power, Search, UsersRound, Phone, KeyRound, BellRing, X, Droplet, Lock, Percent } from "lucide-react";
 import { toast } from "sonner";
 import { TriInput, TriTextarea, flattenTri, triFrom, triName, TRI3, pickTri } from "@/components/tri-input";
 import { FullAvatar } from "@/components/full-image";
@@ -45,6 +45,8 @@ type Account = {
   _id: string; name: string; phone: string; role: "admin" | "assistant" | "specialist" | "trainer" | "client";
   specialty?: string; langs?: string[]; title?: string; titleFr?: string; titleEn?: string;
   bio?: string; bioFr?: string; bioEn?: string; yearsExperience?: number; specialties?: string[];
+  /** ★ v3.23: نسبة الأخصائي من كل جلسة (%) — تضبطها الإدارة */
+  commissionRate?: number;
   /** ★ v3.12: الخدمات التي يجيدها الأخصائي */
   serviceIds?: string[];
   photoBase64?: string;
@@ -247,6 +249,13 @@ export default function Accounts({ navigate }: { navigate: Navigate }) {
                   <span className="text-xs text-muted-foreground">
                     {a.specialty === "art_therapy" ? t("acc.art") : a.specialty === "both" ? t("acc.both") : t("acc.psycho")}
                   </span>
+                )}
+                {/* ★ v3.23: شارة نسبة الأخصائي — مرئية للإدارة في قائمة الحسابات */}
+                {a.role === "specialist" && (a.commissionRate ?? 0) > 0 && (
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 gap-1">
+                    <Percent className="h-3 w-3" aria-hidden="true" />
+                    <span className="font-bold tabular-nums">{a.commissionRate}%</span>
+                  </Badge>
                 )}
                 {(a.role === "specialist" || a.role === "trainer") && (a.yearsExperience || 0) > 0 && (
                   <span className="text-xs font-bold text-primary">+{a.yearsExperience} {t("spec.years")}</span>
@@ -508,6 +517,7 @@ function AccountForm({
         <>
           {/* نوع الخدمة الإكلينيكي — للأخصائي فقط (المكوّن لا يستقبل مواعيد ★ v3.11) */}
           {value?.role === "specialist" ? (
+            <>
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>{t("acc.specialty")}</Label>
@@ -530,6 +540,25 @@ function AccountForm({
                 />
               </div>
             </div>
+            {/* ★ v3.23: نسبة الأخصائي من كل جلسة (%) — أساس احتساب مستحقاته الشهرية */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Percent className="h-3.5 w-3.5 text-primary" />
+                {t("acc.commissionRate")}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number" min={0} max={100} step={1}
+                  value={value?.commissionRate ?? 0}
+                  onChange={(e) => upd({ commissionRate: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
+                  className="h-11 tabular-nums"
+                  aria-label={t("acc.commissionRate")}
+                />
+                <span className="text-sm font-black text-muted-foreground">%</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">{t("acc.commissionHint")}</p>
+            </div>
+            </>
           ) : (
             <div className="space-y-2">
               <Label>{t("acc.years")}</Label>

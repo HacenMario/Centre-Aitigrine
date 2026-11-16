@@ -42,6 +42,8 @@ export type Me = {
   bioFr?: string;
   bioEn?: string;
   yearsExperience?: number;
+  /** ★ v3.23: نسبة الأخصائي من كل جلسة (%) — تظهر له في صفحة أرباحه */
+  commissionRate?: number;
   specialties?: string[];
   /** ★ v3.12: الخدمات التي يجيدها الأخصائي (معرفات) */
   serviceIds?: string[];

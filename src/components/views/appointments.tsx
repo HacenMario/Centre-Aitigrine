@@ -21,6 +21,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -28,10 +29,11 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarClock, Plus, Trash2, CheckCircle2, XCircle, CircleCheckBig, Info, UserRound, Star, Banknote, Coins, CalendarPlus, FileDown, Tag, Phone } from "lucide-react";
+import { CalendarClock, Plus, Trash2, CheckCircle2, XCircle, CircleCheckBig, Info, UserRound, UserRoundCog, Star, Banknote, Coins, CalendarPlus, FileDown, Tag, Phone, ListFilter, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import RatingsDialog from "@/components/ratings-dialog";
 import Pagination from "@/components/pagination";
+import ApptCalendar from "@/components/appt-calendar";
 import { pickTri } from "@/components/tri-input";
 import { cn } from "@/lib/utils";
 import type { Navigate } from "@/lib/nav";
@@ -160,6 +162,10 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
   const [rateFor, setRateFor] = useState<{ id: string; name: string } | null>(null);
   /* ★ v3.12: تغيير وقت الموعد — للأخصائي صاحب الموعد وللإدارة */
   const [reschedFor, setReschedFor] = useState<Appt | null>(null);
+  /* ★ v3.23: تغيير الأخصائي المكلف بالموعد — للإدارة والمساعد */
+  const [reassignFor, setReassignFor] = useState<Appt | null>(null);
+  /* ★ v3.23: نمط العرض للأخصائي — قائمة أو تقويم (يومي/أسبوعي/شهري) */
+  const [specMode, setSpecMode] = useState<"list" | "calendar">("calendar");
   /* ترقيم الصفحات — الحالة قبل أي عائد مبكر (قواعد الـ hooks) */
   const [page, setPage] = useState(1);
   /* ★ v3.13: أخصائي محدد مسبقاً — يأتي من زر «حجز موعد» في بطاقة الأخصائي (spec:<id>) */
@@ -255,6 +261,20 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
         {t("appt.reminderNote")}
       </p>
 
+      {/* ★ v3.23: للأخصائي — تبديل بين لوحة التقويم (يومي/أسبوعي/شهري) والقائمة الكلاسيكية */}
+      {me.role === "specialist" && (
+        <Tabs value={specMode} onValueChange={(v) => setSpecMode(v as "list" | "calendar")}>
+          <TabsList className="h-11 w-full sm:w-auto">
+            <TabsTrigger value="calendar" className="gap-1.5 flex-1 px-4 text-xs sm:flex-none">
+              <CalendarDays className="h-4 w-4" /> {t("appt.calTab")}
+            </TabsTrigger>
+            <TabsTrigger value="list" className="gap-1.5 flex-1 px-4 text-xs sm:flex-none">
+              <ListFilter className="h-4 w-4" /> {t("appt.listTab")}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
+
       {loading ? (
         <PageSkeleton kind="rows" count={4} label={t("common.loading")} />
       ) : appts.length === 0 ? (
@@ -263,6 +283,9 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
             {t("appt.noAppointments")}
           </CardContent>
         </Card>
+      ) : me.role === "specialist" && specMode === "calendar" ? (
+        /* ★ v3.23: لوحة تقويم المواعيد — يومي/أسبوعي/شهري بحالات المرضى */
+        <ApptCalendar appts={appts} onReload={load} />
       ) : (
         <div className="grid gap-3">
           {pageAppts.map((a) => (
@@ -420,6 +443,13 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
                       <CalendarClock className="h-4 w-4" /> {t("appt.changeTime")}
                     </Button>
                   )}
+                  {/* ★ v3.23: تغيير الأخصائي المكلف بالموعد — للإدارة والمساعد مع إشعارات كل الأطراف */}
+                  {isStaff && (
+                    <Button size="sm" variant="outline" className="gap-1.5"
+                      onClick={() => setReassignFor(a)}>
+                      <UserRoundCog className="h-4 w-4" /> {t("appt.changeSpecBtn")}
+                    </Button>
+                  )}
                   {/* ★ v3.8: إضافة الموعد للتقويم — Google Calendar أو ملف iCal */}
                   {["confirmed", "completed"].includes(a.status) && (me.role === "client" || isStaff) && (
                     <AddToCalendar
@@ -464,10 +494,12 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
         </div>
       )}
 
-      <Pagination page={page} pageCount={pageCount} onPage={setPage} total={appts.length} pageSize={PAGE_SIZE} />
+      {/* الترقيم للقائمة فقط — التقويم يعرض الفترة كاملة */}
+      {!(me.role === "specialist" && specMode === "calendar") && (
+        <Pagination page={page} pageCount={pageCount} onPage={setPage} total={appts.length} pageSize={PAGE_SIZE} />
+      )}
 
-      <BookingDialog
-        open={open}
+      <BookingDialog        open={open}
         presetSpecId={presetSpec}
         onClose={() => {
           setOpen(false);
@@ -485,6 +517,8 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
       />
       {/* ★ v3.12: نافذة تغيير وقت الموعد */}
       <RescheduleDialog open={!!reschedFor} appt={reschedFor} onClose={() => { setReschedFor(null); load(); }} />
+      {/* ★ v3.23: نافذة تغيير الأخصائي المكلف بالموعد */}
+      <ReassignDialog open={!!reassignFor} appt={reassignFor} onClose={() => { setReassignFor(null); load(); }} />
       {rateFor && (
         <RatingsDialog
           specialistId={rateFor.id}
@@ -1280,6 +1314,114 @@ function RescheduleDialog({ open, appt, onClose }: { open: boolean; appt: Appt |
                 {t("common.cancel")}
               </Button>
               <Button onClick={save} disabled={busy || !date || !time} className="h-12 flex-1 rounded-xl">
+                {busy ? t("common.saving") : t("common.confirm")}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ───────────────── نافذة تغيير الأخصائي المكلف بالموعد ★ v3.23 ─────────────────
+ * للإدارة والمساعد — تختار الأخصائي الجديد من قائمة الأخصائيين المفعّلين،
+ * والخادم يتحقق من أوقات الاستقبال وتصادم الفتحات قبل التطبيق،
+ * ويصل كل طرف إشعار بلغته (العميل + الأخصائي الجديد + الأخصائي السابق). */
+function ReassignDialog({ open, appt, onClose }: { open: boolean; appt: Appt | null; onClose: () => void }) {
+  const { t, lang } = useApp();
+  const [specs, setSpecs] = useState<Account[]>([]);
+  const [specId, setSpecId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !appt) return;
+    setSpecId("");
+    setLoading(true);
+    (async () => {
+      try {
+        const r = await fetch("/api/specialists", { cache: "no-store" });
+        const j = await r.json();
+        /* استبعاد الأخصائي الحالي نفسه */
+        setSpecs((j.specialists || []).filter((s: Account) => s._id !== appt.specialistId));
+      } catch {
+        setSpecs([]);
+      }
+      setLoading(false);
+    })();
+  }, [open, appt]);
+
+  const save = async () => {
+    if (!appt || !specId) {
+      toast.error(t("err.required"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/appointments/${appt._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ specialistId: specId }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) {
+        toast.success(t("appt.reassignDone"));
+        onClose();
+      } else {
+        toast.error(j.error || t("common.error"));
+      }
+    } catch {
+      toast.error(t("err.conn"));
+    }
+    setBusy(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto rounded-3xl">
+        <DialogHeader>
+          <DialogTitle className="text-start">{t("appt.reassignTitle")}</DialogTitle>
+          <DialogDescription className="text-start">{t("appt.reassignHint")}</DialogDescription>
+        </DialogHeader>
+        {appt && (
+          <div className="space-y-4">
+            {/* الموعد الحالي */}
+            <div className="rounded-2xl border bg-muted/40 p-3 space-y-1.5">
+              <p className="text-sm font-bold break-words">{appt.clientName || "—"}</p>
+              <p className="text-xs text-muted-foreground" dir="ltr">{appt.date} · {appt.time}</p>
+              <p className="flex items-center gap-1.5 text-xs text-primary font-bold">
+                <UserRound className="h-3.5 w-3.5" />
+                {t("appt.specialist")}: {appt.specialistName || "—"}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t("appt.reassignNew")}</Label>
+              {loading ? (
+                <p className="rounded-xl bg-muted/60 p-3 text-sm text-muted-foreground text-center">{t("common.loading")}</p>
+              ) : specs.length === 0 ? (
+                <p className="rounded-xl bg-muted/60 p-3 text-sm text-muted-foreground text-center">
+                  {t("appt.reassignEmpty")}
+                </p>
+              ) : (
+                <Select value={specId} onValueChange={setSpecId}>
+                  <SelectTrigger className="h-12"><SelectValue placeholder={t("appt.reassignNew")} /></SelectTrigger>
+                  <SelectContent>
+                    {specs.map((s) => (
+                      <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="text-[11px] leading-relaxed text-muted-foreground">{t("appt.reassignNote")}</p>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <Button type="button" variant="outline" onClick={onClose} className="h-12 flex-1 rounded-xl">
+                {t("common.cancel")}
+              </Button>
+              <Button onClick={save} disabled={busy || !specId || loading || specs.length === 0} className="h-12 flex-1 rounded-xl">
                 {busy ? t("common.saving") : t("common.confirm")}
               </Button>
             </div>

@@ -22,6 +22,9 @@ export type ViewKey =
   | "documents"
   | "orders"
   | "record"
+  | "earnings"
+  | "payroll"
+  | "reports"
   | "feedback"
   | "contact"
   | "faq"
@@ -47,11 +50,13 @@ export type NavItem = {
 };
 
 /** الصفحات المهمة لكل دور — تظهر أولاً في القائمة (نمط طمأنينة)
- * ★ v3.11: المكوّن — مقالاته وتكويناته وملفه المهني (بلا مواعيد ولا استقبال) */
+ * ★ v3.11: المكوّن — مقالاته وتكويناته وملفه المهني (بلا مواعيد ولا استقبال)
+ * ★ v3.23: لوحة القيادة وإعدادات المركز للإدارة فقط — المساعد يبدأ من المواعيد والمرضى
+ */
 export const ROLE_IMPORTANT: Record<Exclude<Role, "guest">, ViewKey[]> = {
-  admin: ["dashboard", "appointments", "accounts", "settings"],
-  assistant: ["dashboard", "appointments", "patients"],
-  specialist: ["appointments", "patients", "profile"],
+  admin: ["dashboard", "appointments", "payroll", "reports", "accounts", "settings"],
+  assistant: ["appointments", "patients"],
+  specialist: ["appointments", "patients", "earnings", "profile"],
   trainer: ["articles", "courses", "profile"],
   client: ["appointments", "specialists"],
 };
@@ -60,11 +65,18 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "home", label: "nav.home", icon: "Home", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"] },
   /* المواعيد: للإدارة والأخصائي والعميل — المكوّن لا يستقبل مواعيد أصلاً (★ v3.11) */
   { key: "appointments", label: "nav.appointments", icon: "CalendarClock", roles: ["admin", "assistant", "specialist", "client"] },
-  { key: "dashboard", label: "nav.dashboard", icon: "LayoutDashboard", roles: ["admin", "assistant"] },
+  /* ★ v3.23: أرباح الأخصائي — مستحقاته الشهرية حسب نسبته من الجلسات المنتهية */
+  { key: "earnings", label: "nav.earnings", icon: "Coins", roles: ["specialist"] },
+  /* ★ v3.23: لوحة القيادة للإدارة فقط (حُجبت عن حساب المساعد — طلب المستخدم) */
+  { key: "dashboard", label: "nav.dashboard", icon: "LayoutDashboard", roles: ["admin"] },
   /* المرضى: الأخصائي يرى مرضاه — والمكوّن يرى المعيَّنين له إن عيَّنته الإدارة (★ v3.11) */
   { key: "patients", label: "nav.patients", icon: "ClipboardPlus", roles: ["admin", "assistant", "specialist", "trainer"] },
   { key: "accounts", label: "nav.accounts", icon: "UsersRound", roles: ["admin", "assistant"] },
-  { key: "settings", label: "nav.settings", icon: "Settings", roles: ["admin", "assistant"] },
+  /* ★ v3.23: الأجور والمستحقات + التقارير المالية — حساب الإدارة فقط */
+  { key: "payroll", label: "nav.payroll", icon: "Wallet", roles: ["admin"] },
+  { key: "reports", label: "nav.reports", icon: "ChartLine", roles: ["admin"] },
+  /* إعدادات المركز للإدارة فقط (حُجبت عن حساب المساعد — طلب المستخدم ★ v3.23) */
+  { key: "settings", label: "nav.settings", icon: "Settings", roles: ["admin"] },
   /* إدارة الوثائق: صفحة خاصة بالقائمة الجانبية تظهر لحساب الإدارة فقط — طلب المستخدم */
   { key: "documents", label: "nav.documents", icon: "FileBadge2", roles: ["admin"], divider: true },
   /* v3.20: طلبات شراء الكتب الإلكترونية — إدارة ومساعد */

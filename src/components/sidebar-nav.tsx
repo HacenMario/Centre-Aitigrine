@@ -29,6 +29,9 @@ import {
   ClipboardPlus,
   FileBadge2,
   ShoppingBag,
+  Coins,
+  Wallet,
+  ChartLine,
   LogIn,
   LogOut,
   UserRound,
@@ -66,6 +69,9 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   ClipboardPlus,
   FileBadge2,
   ShoppingBag,
+  Coins,
+  Wallet,
+  ChartLine,
 };
 const ICONS = NAV_ICONS;
 

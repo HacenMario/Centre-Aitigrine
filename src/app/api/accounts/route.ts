@@ -62,6 +62,9 @@ export async function POST(req: NextRequest) {
         role === "specialist" && Array.isArray(b.serviceIds)
           ? b.serviceIds.map(String).filter(Boolean)
           : [],
+      /* ★ v3.23: نسبة الأخصائي من كل جلسة (%) — للأخصائي فقط */
+      commissionRate:
+        role === "specialist" ? Math.max(0, Math.min(100, Math.round(Number(b.commissionRate) || 0))) : 0,
       photoBase64: String(b.photoBase64 || ""),
       /* ساعات العمل: للأخصائي فقط (المكوّن لا يستقبل مواعيد أصلاً) */
       weeklyHours: role === "specialist" ? b.weeklyHours || {} : {},

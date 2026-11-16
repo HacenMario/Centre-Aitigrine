@@ -18,13 +18,13 @@ import {
   LayoutDashboard, UsersRound, Stethoscope, CalendarClock, Hourglass, CheckCircle2,
   CircleCheckBig, XCircle, Wallet, PiggyBank, FolderHeart, MessageSquareHeart, KeyRound,
   ArrowLeft, ArrowRight, Wifi, MapPinned, RefreshCw, Coins, GraduationCap, Sparkles, Banknote,
-  BarChart3, TrendingUp, LineChart as LineChartIcon, Download, FileSpreadsheet, DatabaseBackup,
+  BarChart3, TrendingUp, ShieldCheck, ChartPie, Download, FileSpreadsheet, DatabaseBackup,
 } from "lucide-react";
 import type { Navigate } from "@/lib/nav";
 import { localeOf } from "@/components/tri-input";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
-  AreaChart, Area,
+  AreaChart, Area, PieChart, Pie, Cell,
 } from "recharts";
 
 type Stats = { clients: number; specialists: number; remote: number; onsite: number; centerDays: number; languages: number };
@@ -81,6 +81,23 @@ export default function Dashboard({ navigate }: { navigate: Navigate }) {
 
   const money = (n: number) => `${(n || 0).toLocaleString(lang === "ar" ? "ar-DZ" : "fr-DZ")} ${lang === "ar" ? "دج" : "DA"}`;
 
+  /* ★ v3.23: لوحة القيادة للإدارة فقط — حُجبت عن حساب المساعد (طلب المستخدم).
+     الحرس بعد كل الـ hooks حتى تُستدعى دائماً بنفس الترتيب */
+  if (me?.role !== "admin") {
+    return (
+      <div className="max-w-md mx-auto py-16 text-center space-y-4">
+        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-500/10 text-amber-600">
+          <ShieldCheck className="h-8 w-8" />
+        </span>
+        <h1 className="text-xl font-black">{t("common.noAccess")}</h1>
+        <p className="text-sm leading-relaxed text-muted-foreground">{t("dash.adminOnly")}</p>
+        <Button variant="outline" onClick={() => navigate("home")} className="rounded-xl">
+          {t("common.goHome")}
+        </Button>
+      </div>
+    );
+  }
+
   /* اسم الشهر بلغة الواجهة — "2025-05" → "ماي" */
   const monthName = (ym: string) => {
     try {
@@ -114,6 +131,15 @@ export default function Dashboard({ navigate }: { navigate: Navigate }) {
     { icon: FolderHeart, label: t("dash.files"), value: String(dash?.files ?? "—") },
     { icon: MessageSquareHeart, label: t("dash.newFeedback"), value: String(dash?.newFeedback ?? "—") },
   ];
+
+  /* ★ v3.23: بطاقة الخدمات الأكثر طلباً — دائرة نسب مؤية بأسماء كاملة بلا اقتصاص */
+  const PIE_COLORS = ["#0f766e", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ef4444", "#10b981", "#3b82f6", "#a855f7"];
+  const pieTotal = (dash?.topServices || []).reduce((a, s) => a + s.count, 0);
+  const pieData = (dash?.topServices || []).map((s) => ({
+    fullName: s.name,
+    count: s.count,
+    pct: pieTotal > 0 ? Math.round((s.count / pieTotal) * 1000) / 10 : 0,
+  }));
 
   return (
     <div className="space-y-5">
@@ -278,30 +304,69 @@ export default function Dashboard({ navigate }: { navigate: Navigate }) {
           </Card>
         )}
 
-        {/* الخدمات الأكثر طلباً */}
+        {/* الخدمات الأكثر طلباً — ★ v3.23: دائرة نسب مؤية بأسماء كاملة بلا اقتصاص */}
         {dash?.topServices && dash.topServices.length > 0 && (
           <Card className="ait-card overflow-hidden rounded-3xl shadow-sm">
             <CardContent className="p-5 sm:p-6 space-y-4">
               <h2 className="font-black flex items-center gap-2 text-base sm:text-lg">
                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
-                  <LineChartIcon className="h-5 w-5" />
+                  <ChartPie className="h-5 w-5" />
                 </span>
                 {t("dash.chartTopServices")}
               </h2>
-              <div className="h-60 w-full" dir="ltr">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={dash.topServices.map((s) => ({ name: s.name.length > 14 ? s.name.slice(0, 14) + "…" : s.name, fullName: s.name, count: s.count }))}
-                    layout="vertical"
-                    margin={{ top: 0, right: 12, left: 8, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#94a3b844" />
-                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                    <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12 }} />
-                    <Bar dataKey="count" name={t("dash.chartBookingsCount")} fill="#10b981" radius={[0, 6, 6, 0]} barSize={18} />
-                  </BarChart>
-                </ResponsiveContainer>
+              <div className="flex flex-col items-center gap-5 lg:flex-row lg:items-center">
+                {/* الدائرة — الإجمالي في المركز */}
+                <div className="relative h-52 w-52 shrink-0" dir="ltr">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        dataKey="count"
+                        nameKey="fullName"
+                        innerRadius="70%"
+                        outerRadius="94%"
+                        paddingAngle={2}
+                        strokeWidth={0}
+                      >
+                        {pieData.map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12 }}
+                        formatter={(v: number | string, name: string) => {
+                          const pct = pieData.find((p) => p.fullName === name)?.pct ?? 0;
+                          return [`${v} (${pct}%)`, name] as [string, string];
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-3xl font-black tabular-nums leading-none">{pieTotal}</span>
+                    <span className="mt-1 max-w-24 text-center text-[10px] font-bold leading-tight text-muted-foreground">
+                      {t("dash.chartBookingsCount")}
+                    </span>
+                  </div>
+                </div>
+                {/* التفسير — الأسماء كاملة تتلف بلا اقتطاع، نسب ومجاميع */}
+                <ul className="w-full min-w-0 flex-1 space-y-1.5">
+                  {pieData.map((s, i) => (
+                    <li key={i} className="flex items-start gap-2 rounded-xl border bg-card p-2.5">
+                      <span
+                        aria-hidden="true"
+                        className="mt-1 h-3 w-3 shrink-0 rounded-full ring-2 ring-background"
+                        style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}
+                      />
+                      <span className="min-w-0 flex-1 text-xs font-bold leading-snug break-words">{s.fullName}</span>
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[10px] tabular-nums">{s.count}</Badge>
+                        <Badge variant="outline" className="rounded-full border-primary/30 bg-primary/8 px-2 py-0.5 text-[10px] font-black tabular-nums text-primary">
+                          {s.pct}%
+                        </Badge>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </CardContent>
           </Card>

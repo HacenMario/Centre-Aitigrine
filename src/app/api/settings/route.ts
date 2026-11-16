@@ -116,6 +116,9 @@ export async function PUT(req: NextRequest) {
     if (typeof b.lat === "number") s.lat = b.lat;
     if (typeof b.lng === "number") s.lng = b.lng;
     if (typeof b.logoBase64 === "string") s.logoBase64 = b.logoBase64;
+    /* ★ v3.23: الراتب الثابت الشهري للمساعدة — قيمة افتراضية لأشهر الأجور الجديدة */
+    if (b.assistantSalary !== undefined)
+      s.assistantSalary = Math.max(0, Math.round(Number(b.assistantSalary) || 0));
     if (typeof b.langFr === "boolean") s.langFr = b.langFr;
     if (typeof b.langEn === "boolean") s.langEn = b.langEn;
     if (typeof b.langTr === "boolean") s.langTr = b.langTr;

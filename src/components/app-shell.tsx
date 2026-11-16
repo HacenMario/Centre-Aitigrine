@@ -50,12 +50,16 @@ import Patients from "@/components/views/patients";
 import Documents from "@/components/views/documents";
 import EbookOrders from "@/components/views/ebook-orders";
 import Record from "@/components/views/record";
+import Earnings from "@/components/views/earnings";
+import Payroll from "@/components/views/payroll";
+import Reports from "@/components/views/reports";
 import Testimonials from "@/components/views/testimonials";
 import BrandSkeleton from "@/components/brand-skeleton";
 
-const STAFF_ONLY: ViewKey[] = ["accounts", "settings", "dashboard", "patients", "record", "orders"];
-/* إدارة الوثائق: صفحة خاصة بحساب الإدارة فقط — طلب المستخدم */
-const ADMIN_ONLY: ViewKey[] = ["documents"];
+const STAFF_ONLY: ViewKey[] = ["accounts", "patients", "record", "orders"];
+/* ★ v3.23: لوحة القيادة + إعدادات المركز + الأجور + التقارير + الوثائق — للإدارة فقط
+   (حُجبت لوحة القيادة والإعدادات عن حساب المساعد — طلب المستخدم) */
+const ADMIN_ONLY: ViewKey[] = ["documents", "dashboard", "settings", "payroll", "reports"];
 
 function Shell() {
   const { t, me, hidden, ready, view, viewId, navigate } = useApp();
@@ -155,6 +159,9 @@ function Shell() {
             {/* v3.20: طلبات شراء الكتب — إدارة ومساعد */}
             {view === "orders" && <EbookOrders navigate={navigate} />}
             {view === "record" && <Record patientId={viewId} navigate={navigate} />}
+            {view === "earnings" && <Earnings navigate={navigate} />}
+            {view === "payroll" && <Payroll navigate={navigate} />}
+            {view === "reports" && <Reports navigate={navigate} />}
             {view === "settings" && <CenterSettings navigate={navigate} />}
             {view === "feedback" && <Feedback navigate={navigate} />}
             {view === "profile" && <Profile navigate={navigate} />}

@@ -88,6 +88,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     else if (b.photoBase64 === "") $unset.photoBase64 = "";
     if (b.weeklyHours !== undefined) $set.weeklyHours = b.weeklyHours;
     if (b.assignedSpecialistId !== undefined) $set.assignedSpecialistId = b.assignedSpecialistId || null;
+    /* ★ v3.23: نسبة الأخصائي من كل جلسة (%) — للإدارة على حسابات الأخصائيين */
+    if (b.commissionRate !== undefined)
+      $set.commissionRate = Math.max(0, Math.min(100, Math.round(Number(b.commissionRate) || 0)));
     /* ★ v3.19: زمرة الدم — للإدارة على حسابات العملاء؛ الفراغ = حذف (غير محددة) */
     if (b.bloodType !== undefined) {
       if (target.role !== "client") {

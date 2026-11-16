@@ -7,7 +7,7 @@ import { ok, fail, handle } from "@/lib/api-helpers";
 import { Appointment, User } from "@/lib/models";
 import { currentUser, isStaff, requireUser } from "@/lib/auth";
 import { notifyStaff, notifyUser } from "@/lib/push";
-import { statusChangedText, rescheduledText } from "@/lib/notify-text";
+import { statusChangedText, rescheduledText, reassignedText } from "@/lib/notify-text";
 import { ensureInvoice } from "@/lib/invoice";
 import { logAudit } from "@/lib/audit";
 import { mapToObj } from "@/lib/map";
@@ -52,6 +52,42 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const staff = isStaff(me.role);
     const isOwnerSpec = me.role === "specialist" && String(a.specialistId) === String(me._id);
     if (!staff && !isOwnerSpec) return fail(403, "غير مسموح");
+
+    /* ★ v3.23: إعادة تعيين الأخصائي المكلف بالموعد — للإدارة والمساعد فقط.
+     * التحقق الخادمي الكامل قبل التطبيق:
+     * ١) الأخصائي الجديد موجود وحسابه أخصائي مفعّل
+     * ٢) للمواعيد النشطة (pending/confirmed): التوقيت من أوقات الأخصائي الجديد المحفوظة حصراً
+     * ۳) بلا تصادم فتحة نشطة للأخصائي الجديد (عدا الموعد نفسه) — والحفظ محمي بالفهرس الجزئي
+     * ٤) إشعارات لكل الأطراف: العميل + الأخصائي الجديد + الأخصائي السابق + ملخص إداري */
+    let specChanged = false;
+    let oldSpecId = "";
+    if (staff && b.specialistId !== undefined && String(b.specialistId) !== String(a.specialistId)) {
+      const newSpecId = String(b.specialistId);
+      if (!newSpecId) return fail(400, "حدد الأخصائي الجديد");
+      const newSpec = await User.findById(newSpecId)
+        .lean<{ _id: unknown; name: string; role: string; active?: boolean; weeklyHours?: unknown } | null>();
+      if (!newSpec || newSpec.role !== "specialist" || newSpec.active === false)
+        return fail(400, "الأخصائي الجديد غير متاح");
+      if (["pending", "confirmed"].includes(a.status)) {
+        /* فتحة الموعد يجب أن تكون من أوقات الأخصائي الجديد المحفوظة حصراً */
+        const wh = mapToObj(newSpec.weeklyHours) as Record<string, string[]>;
+        const dow = String(new Date(`${a.date}T00:00:00`).getDay());
+        const dayHours = wh[dow] || [];
+        if (!dayHours.includes(a.time))
+          return fail(400, "الأخصائي الجديد لا يستقبل في توقيت هذا الموعد — غيّر التوقيت أو اختر أخصائياً آخر");
+        const clash = await Appointment.findOne({
+          _id: { $ne: a._id },
+          specialistId: newSpecId,
+          date: a.date,
+          time: a.time,
+          status: { $in: ["pending", "confirmed"] },
+        }).lean();
+        if (clash) return fail(409, "الأخصائي الجديد لديه موعد آخر في نفس هذا التوقيت");
+      }
+      oldSpecId = String(a.specialistId);
+      a.specialistId = newSpec._id as typeof a.specialistId;
+      specChanged = true;
+    }
 
     let statusChanged = false;
     if (b.status && ["pending", "confirmed", "completed", "cancelled"].includes(b.status) && b.status !== a.status) {
@@ -146,9 +182,50 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       const changes: string[] = [];
       if (statusChanged) changes.push(`status=${a.status}`);
       if (timeChanged) changes.push(`date=${a.date}`, `time=${a.time}`);
+      if (specChanged) changes.push(`specialist=${a.specialistId}`);
       if (b.price !== undefined) changes.push(`price=${a.price}`);
       if (["unpaid", "paid"].includes(b.paymentStatus)) changes.push(`payment=${a.paymentStatus}`);
       await logAudit({ _id: me._id, name: me.name, role: me.role }, "appointment.update", `موعد: ${a.date} ${a.time}`, changes.join(", ") || "تعديل", String(a._id));
+    }
+
+    /* ★ v3.23: إشعارات تغيير الأخصائي — لكل طرف نصه الخاص بخمس لغات:
+     * العميل يتعرف على أخصائيه الجديد، الأخصائي الجديد يُكلَّف،
+     * الأخصائي السابق يُبلَّغ، والإدارة تتلقى ملخصاً عندما يكون الفاعل مساعداً */
+    if (specChanged) {
+      const [oldInfo, newInfo, clientInfo] = await Promise.all([
+        oldSpecId ? User.findById(oldSpecId).select("name").lean<{ name?: string } | null>() : Promise.resolve(null),
+        User.findById(a.specialistId).select("name").lean<{ name?: string } | null>(),
+        User.findById(a.clientId).select("name").lean<{ name?: string } | null>(),
+      ]);
+      const newName = newInfo?.name || "";
+      const oldName = oldInfo?.name || "";
+      const clientName = clientInfo?.name || "";
+      notifyUser(
+        String(a.clientId),
+        reassignedText({ date: a.date, time: a.time, viewer: "client", specName: newName }),
+        "status",
+        `appointments:${String(a._id)}`
+      );
+      notifyUser(
+        String(a.specialistId),
+        reassignedText({ date: a.date, time: a.time, viewer: "newSpec", clientName }),
+        "status",
+        `appointments:${String(a._id)}`
+      );
+      if (oldSpecId)
+        notifyUser(
+          oldSpecId,
+          reassignedText({ date: a.date, time: a.time, viewer: "oldSpec" }),
+          "status",
+          "appointments"
+        );
+      if (!staff)
+        /* الأخصائي هو الفاعل (نظرياً — التعيين للطاقم فقط) → ملخص إداري */
+        notifyStaff(
+          reassignedText({ date: a.date, time: a.time, viewer: "staff", specName: newName, oldName, clientName }),
+          "status",
+          `appointments:${String(a._id)}`
+        );
     }
 
     /* ★ v3.12: إشعار تغيير الوقت — يصل العميل فوراً بالتوقيت الجديد والقديم
