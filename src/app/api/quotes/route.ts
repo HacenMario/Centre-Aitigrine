@@ -5,7 +5,7 @@
  * كل عبارة بخمس لغات (عربي/فرنسي/إنجليزي/تركي/إسباني — ★ v3.10) + مؤلف اختياري + تفعيل
  */
 import { NextRequest } from "next/server";
-import { ok, fail, handle } from "@/lib/api-helpers";
+import { ok, fail, handle, PUBLIC_EDGE_CACHE } from "@/lib/api-helpers";
 import { WelcomeQuote } from "@/lib/models";
 import { requireUser } from "@/lib/auth";
 import { RE_QUOTES } from "@/lib/re-quotes";
@@ -55,7 +55,10 @@ export async function GET() {
       .select("textAr textFr textEn textTr textEs author active createdAt")
       .limit(300)
       .lean<Record<string, unknown>[]>();
-    return ok({ total: rows.length, quotes: rows.map(mapQuote) });
+    const res = ok({ total: rows.length, quotes: rows.map(mapQuote) });
+    /* ★ v3.23.1: كاش حافة — العبارات النشطة متطابقة لكل الزوار (التعديل يظهر خلال ≤60 ثانية) */
+    res.headers.set("Cache-Control", PUBLIC_EDGE_CACHE);
+    return res;
   });
 }
 

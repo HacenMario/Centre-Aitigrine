@@ -1,9 +1,11 @@
 /**
  * إعدادات المركز
  * GET: للجميع (بدون مفاتيح VAPID السرية) — PUT: الإدارة فقط
+ * ★ v3.23.1: GET بكاش حافة عام — الاستجابة متطابقة لكل الزوار وتُجلب في كل تحميل صفحة،
+ *   تخديمها من الـ CDN يقلص Fast Origin Transfer جوهرياً (التعديل يظهر خلال ≤60 ثانية كحد أقصى)
  */
 import { NextRequest } from "next/server";
-import { ok, handle } from "@/lib/api-helpers";
+import { ok, handle, PUBLIC_EDGE_CACHE } from "@/lib/api-helpers";
 import { Settings } from "@/lib/models";
 import { requireUser } from "@/lib/auth";
 import { ensureVapidKeys } from "@/lib/push";
@@ -74,7 +76,10 @@ export async function GET() {
       courseCategories: normCats(opts.courseCategories),
       dayHours: normDayHours(opts.dayHours),
     };
-    return ok({ settings: pub });
+    const res = ok({ settings: pub });
+    /* ★ v3.23.1: تخديم من الـ CDN — أكثر مسار استدعاءً في الموقع (كل زائر في كل تحميل) */
+    res.headers.set("Cache-Control", PUBLIC_EDGE_CACHE);
+    return res;
   });
 }
 

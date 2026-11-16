@@ -1,7 +1,9 @@
 /**
  * فريق المركز — أخصائيون نشطون (معلومات عامة آمنة للصفحة الرئيسية)
+ * ★ v3.23.1: كاش حافة عام — الاستجابة متطابقة لكل الزوار وبها صور base64 ثقيلة،
+ *   تخديمها من الـ CDN يقلص Fast Origin Transfer (التحديث يظهر خلال ≤60 ثانية كحد أقصى)
  */
-import { ok, handle } from "@/lib/api-helpers";
+import { ok, handle, PUBLIC_EDGE_CACHE } from "@/lib/api-helpers";
 import { User } from "@/lib/models";
 
 export async function GET() {
@@ -11,7 +13,7 @@ export async function GET() {
       .select("name title titleFr titleEn specialty langs bio bioFr bioEn yearsExperience specialties photoBase64 weeklyHours")
       .sort({ createdAt: 1 })
       .lean<{ _id: unknown; name: string; title?: string; specialty?: string; langs?: string[]; bio?: string; photoBase64?: string; weeklyHours?: unknown }[]>();
-    return ok({
+    const res = ok({
       team: specs.map((s) => {
         let wh: Record<string, string[]> = {};
         const raw = s.weeklyHours as unknown;
@@ -37,5 +39,8 @@ export async function GET() {
         };
       }),
     });
+    /* ★ v3.23.1: تخديم من الـ CDN — الزوار المتكررون لا يستدعون الدالة أصلاً */
+    res.headers.set("Cache-Control", PUBLIC_EDGE_CACHE);
+    return res;
   });
 }

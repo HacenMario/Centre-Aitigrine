@@ -59,6 +59,16 @@ export default function Earnings({ navigate }: { navigate: Navigate }) {
     }
   };
 
+  /* ★ v3.23.1: اسم الشهر المختصر — ملصقات المحور الأفقي تبقى مضغوطة لا تتزاحم على الهاتف */
+  const monthShort = (ym: string) => {
+    try {
+      const [y, m] = ym.split("-").map(Number);
+      return new Date(y, (m || 1) - 1, 1).toLocaleDateString(localeOf(lang), { month: "short" });
+    } catch {
+      return ym;
+    }
+  };
+
   const cards: { icon: typeof Coins; label: string; value: string; cls?: string }[] = [
     {
       icon: Percent,
@@ -146,7 +156,7 @@ export default function Earnings({ navigate }: { navigate: Navigate }) {
               <div className="h-64 w-full" dir="ltr">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={[...data.months].reverse().map((m) => ({ ...m, label: monthName(m.month).split(" ")[0] }))}
+                    data={[...data.months].reverse().map((m) => ({ ...m, label: monthShort(m.month) }))}
                     margin={{ top: 4, right: 8, left: -18, bottom: 0 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#94a3b844" />
@@ -174,17 +184,21 @@ export default function Earnings({ navigate }: { navigate: Navigate }) {
               </h2>
               <div className="space-y-2">
                 {data.months.map((m) => (
-                  <div key={m.month} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border bg-card p-3.5">
-                    <p className="min-w-0 flex-1 text-sm font-bold break-words">{monthName(m.month)}</p>
-                    <Badge variant="secondary" className="rounded-full text-[11px] shrink-0">
-                      {t("earn.sessionsCount", { n: m.sessions })}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                      {t("earn.revenue")}: {money(m.revenue)}
-                    </span>
-                    <span className="text-sm font-black tabular-nums text-emerald-600 dark:text-emerald-400 shrink-0">
-                      {money(m.dues)}
-                    </span>
+                  /* ★ v3.23.1: اسم الشهر في سطر مستقل على الهاتف — لا ينضغط أبداً
+                     إلى عمود أحرف (كان flex-1 بأساس صفر يسحقه أمام العناصر shrink-0) */
+                  <div key={m.month} className="flex flex-col gap-2 rounded-2xl border bg-card p-3.5 sm:flex-row sm:items-center sm:gap-3">
+                    <p className="text-sm font-bold break-words">{monthName(m.month)}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:ms-auto">
+                      <Badge variant="secondary" className="rounded-full text-[11px]">
+                        {t("earn.sessionsCount", { n: m.sessions })}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {t("earn.revenue")}: {money(m.revenue)}
+                      </span>
+                      <span className="text-sm font-black tabular-nums text-emerald-600 dark:text-emerald-400">
+                        {money(m.dues)}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
