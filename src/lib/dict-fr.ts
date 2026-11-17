@@ -1344,4 +1344,7 @@ export const fr: Record<string, string> = {
   "client.ageAuto": "mis à jour automatiquement chaque année",
   "sa.micWebView": "Le site est ouvert dans le navigateur d'une application (WhatsApp/Facebook/Telegram…) qui bloque le micro — copiez le lien et ouvrez-le dans Chrome ou Safari puis réessayez",
 
+  /* ★ v3.24.3 — protection iOS PWA pour le micro */
+  "sa.micIOSPWA": "Le micro n'est pas disponible dans l'application installée sur iPhone — ouvrez le site dans Safari sur le même appareil, l'enregistrement et l'analyse fonctionneront pleinement",
+
 };

@@ -1344,4 +1344,7 @@ export const en: Record<string, string> = {
   "client.ageAuto": "updates automatically every year",
   "sa.micWebView": "The site is open inside an app browser (WhatsApp/Facebook/Telegram…) that blocks the microphone — copy the link and open it in Chrome or Safari then try again",
 
+  /* ★ v3.24.3 — iOS PWA microphone protection */
+  "sa.micIOSPWA": "The microphone is not available inside the installed site app on iPhone — open the site in Safari on the same device and recording and analysis will work fully",
+
 };

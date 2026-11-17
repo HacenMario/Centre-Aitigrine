@@ -81,7 +81,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "hr", label: "nav.hr", icon: "Briefcase", roles: ["admin"] },
   { key: "reports", label: "nav.reports", icon: "ChartLine", roles: ["admin"] },
   /* ★ v3.24: محلل النطق الذكي — للأخصائي فقط */
-  { key: "speech", label: "nav.speech", icon: "AudioLines", roles: ["specialist"] },
+  { key: "speech", label: "nav.speech", icon: "Ear", roles: ["specialist"] },
   /* إعدادات المركز للإدارة فقط (حُجبت عن حساب المساعد — طلب المستخدم ★ v3.23) */
   { key: "settings", label: "nav.settings", icon: "Settings", roles: ["admin"] },
   /* إدارة الوثائق: صفحة خاصة بالقائمة الجانبية تظهر لحساب الإدارة فقط — طلب المستخدم */
@@ -95,8 +95,8 @@ export const NAV_ITEMS: NavItem[] = [
   /* v3.6.0: المقالات العلمية — القراءة للجميع والنشر للأخصائيين والمكوّنين والإدارة (★ v3.11) */
   { key: "articles", label: "nav.articles", icon: "Newspaper", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"] },
   /* v3.8.0: شهادات وقصص النجاح — عامة، والتحرير للإدارة */
-  { key: "testimonials", label: "nav.testimonials", icon: "Quote", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"] },
-  { key: "ads", label: "nav.ads", icon: "Megaphone", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"], divider: true },
+  { key: "testimonials", label: "nav.testimonials", icon: "Trophy", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"] },
+  { key: "ads", label: "nav.ads", icon: "BadgePercent", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"], divider: true },
   { key: "contact", label: "nav.contact", icon: "Mail", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"] },
   { key: "feedback", label: "nav.feedback", icon: "MessageSquareHeart", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"] },
   { key: "faq", label: "nav.faq", icon: "CircleHelp", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"], divider: true },

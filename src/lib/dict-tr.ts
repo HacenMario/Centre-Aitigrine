@@ -1344,4 +1344,7 @@ export const tr: Record<string, string> = {
   "client.ageAuto": "her yıl otomatik güncellenir",
   "sa.micWebView": "Site bir uygulama tarayıcısında açık (WhatsApp/Facebook/Telegram…) ve mikrofonu engelliyor — bağlantıyı kopyalayıp Chrome veya Safari'de açın ve tekrar deneyin",
 
+  /* ★ v3.24.3 — iOS PWA mikrofon koruması */
+  "sa.micIOSPWA": "Mikrofon iPhone'da yüklü site uygulaması içinde kullanılamıyor — siteyi aynı cihazda Safari ile açın; kayıt ve analiz tamamen çalışacaktır",
+
 };

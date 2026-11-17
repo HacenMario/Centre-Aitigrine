@@ -14,6 +14,7 @@ import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
 import { requireUser } from "@/lib/auth";
 import { normalizeArabic, disorderLabelAr, severityLabelAr } from "@/lib/wordbank";
+import { createZai } from "@/lib/zai-config";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -140,15 +141,16 @@ export async function POST(req: NextRequest) {
     if (!audioB64 || audioB64.length < 256) return fail(400, "التسجيل الصوتي مفقود أو قصير جداً");
     if (audioB64.length > 10 * 1024 * 1024) return fail(400, "التسجيل كبير جداً — أعد التسجيل بمدة أقصر");
 
-    /* ═══ 1) ASR — تحويل الكلام لنص ═══ */
+    /* ═══ 1) ASR — تحويل الكلام لنص (★ v3.24.3: إعداد المفتاح من الكود مباشرة — يعمل في كل بيئة) ═══ */
     let transcript = "";
     let aiOk = true;
     let zai: { audio: { asr: { create: (a: { file_base64: string }) => Promise<{ text: string }> } }; chat: { completions: { create: (a: unknown) => Promise<{ choices: { message?: { content?: string } }[] }> } } } | null = null;
     try {
-      const mod = await import("z-ai-web-dev-sdk");
-      zai = (await mod.default.create()) as unknown as typeof zai;
+      zai = await createZai();
+      if (!zai) throw new Error("no-zai");
       const r = await zai.audio.asr.create({ file_base64: audioB64 });
       transcript = String(r.text || "").trim();
+      if (!transcript) aiOk = false;
     } catch {
       aiOk = false;
     }
@@ -183,6 +185,7 @@ export async function POST(req: NextRequest) {
           targetLetter && targetLetter !== targetWord ? `الحرف المدروس: ${targetLetter}` : "",
           `الحرف موجود في الكلمة المستهدفة: ${letterInTarget ? "نعم" : "لا"}`,
           `ما فهمه التعرف الصوتي من نطق المريض: "${transcript}"`,
+          `ملاحظة مهمة: التعرف الصوتي متعدد اللغات والنطق قد يكون بأي لغة من لغات التطبيق (العربية أو الفرنسية أو الإنجليزية أو التركية أو الإسبانية) أو بلهجة عامية — قارن ما فُهم بالكلمة المستهدفة بلغتها المناسبة، واهتم بجودة الأصوات (أصوات العلة/التشوه/الإبدال) لا بالتطابق الحرفي للكتابة.`,
           `فحص حتمي: الكلمة كاملة مفهومة؟ ${wordAchieved ? "نعم" : "لا"} — الحرف المدروس ظهر في النطق المفهوم؟ ${letterAchieved ? "نعم" : "لا"}`,
           ageCtx ? `سن المريض التقريبي: ${ageCtx} سنة` : "",
           genderCtx ? `جنس المريض: ${genderCtx === "male" ? "ذكر" : "أنثى"}` : "",

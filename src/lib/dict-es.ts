@@ -1344,4 +1344,7 @@ export const es: Record<string, string> = {
   "client.ageAuto": "se actualiza automáticamente cada año",
   "sa.micWebView": "El sitio está abierto en el navegador de una aplicación (WhatsApp/Facebook/Telegram…) que bloquea el micrófono — copie el enlace y ábralo en Chrome o Safari e intente de nuevo",
 
+  /* ★ v3.24.3 — protección iOS PWA para el micrófono */
+  "sa.micIOSPWA": "El micrófono no está disponible dentro de la aplicación instalada del sitio en iPhone — abra el sitio en Safari en el mismo dispositivo y la grabación y el análisis funcionarán por completo",
+
 };

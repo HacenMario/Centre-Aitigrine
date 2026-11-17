@@ -104,6 +104,16 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
     setResult(null);
     const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
     const inAppWebView = /\bwv\b|\bFBAN\b|\bFBAV\b|\bInstagram\b|\bTikTok\b|\bTelegram\b|\bSnapchat\b|\bLinkedInApp\b/i.test(ua);
+    /* ★ v3.24.3: حماية iOS PWA — داخل تطبيق الموقع المثبت على الآيفون لا يمنح WKWebView
+       الميكروفون وقد يُغلق التطبيق مباشرة عند الاستدعاء؛ نوجّه المستخدم لـ Safari فوراً
+       بدل استدعاء getUserMedia الذي يعمل بشكل سليم في متصفح الآيفون */
+    const isIOSPWA = /iP(hone|ad|od)/i.test(ua)
+      && ((typeof navigator !== "undefined" && (navigator as { standalone?: boolean }).standalone === true)
+        || (typeof window !== "undefined" && window.matchMedia?.("(display-mode: standalone)")?.matches === true));
+    if (isIOSPWA) {
+      toast.error(t("sa.micIOSPWA"), { duration: 12000 });
+      return;
+    }
     if (typeof window !== "undefined" && !window.isSecureContext) {
       toast.error(t("sa.micHttps"), { duration: 8000 });
       return;

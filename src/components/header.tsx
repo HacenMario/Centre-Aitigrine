@@ -26,7 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Home, LogOut, Menu, TriangleAlert, UserRound, type LucideIcon } from "lucide-react";
+import { Home, CircleHelp, LogOut, Menu, TriangleAlert, UserRound, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -34,7 +34,7 @@ import { toast } from "sonner";
 function useViewMeta(): { title: string; Icon: LucideIcon } {
   const { t, view, viewId } = useApp();
   const item = NAV_ITEMS.find((i) => i.key === view);
-  const Icon = (item && NAV_ICONS[item.icon]) || Home;
+  const Icon = (item && NAV_ICONS[item.icon]) || CircleHelp; /* ★ v3.24.3: بلا Home مضللة */
   let title = item ? t(item.label) : "";
   if (view === "login") {
     const byGate: Record<string, string> = {
