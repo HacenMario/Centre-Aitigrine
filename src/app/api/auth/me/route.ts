@@ -64,11 +64,11 @@ export async function PATCH(req: NextRequest) {
       if (!$set.bloodType) return fail(400, "زمرة الدم إلزامية عند إنشاء الحساب");
     }
 
-    /* ★ v3.24: سن وجنس العميل — يُقبلان في نفس نافذة إكمال حساب Google (اختياريان) */
+    /* ★ v3.24.1: سن وجنس العميل — يعدّلهما العميل بنفسه من ملفه الشخصي في أي وقت
+       (بيانات اختيارية غير حساسة بخلاف زمرة الدم)، ويضبطهما الطاقم على حسابات العملاء فقط */
     if (age !== undefined || gender !== undefined) {
-      const isGoogleCompletion = /^g-[A-Za-z0-9_-]{6,}$/.test(String(me.phone || ""));
-      if (!isGoogleCompletion || me.role !== "client")
-        return fail(403, "تعديل سن وجنس العميل يتم من الإدارة أو المساعد أو الأخصائي المعالج");
+      if (me.role !== "client")
+        return fail(403, "سن وجنس العميل يُضبطان في حسابات العملاء فقط");
       if (age !== undefined) {
         const n = Number(age);
         $set.age = age === null || age === "" || !Number.isFinite(n) ? null : Math.max(0, Math.min(120, Math.round(n)));

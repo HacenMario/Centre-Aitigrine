@@ -769,7 +769,7 @@ function AccountForm({
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5 text-primary" />
+                <UserRound className="h-3.5 w-3.5 text-primary" />
                 {t("client.gender")}
               </Label>
               <Select

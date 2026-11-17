@@ -76,8 +76,9 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "accounts", label: "nav.accounts", icon: "UsersRound", roles: ["admin", "assistant"] },
   /* ★ v3.23: الأجور والمستحقات + التقارير المالية — حساب الإدارة فقط */
   { key: "payroll", label: "nav.payroll", icon: "Wallet", roles: ["admin"] },
-  /* ★ v3.24: الموارد البشرية — رواتب كل العمال والحضور والإجازات والacompte (الإدارة فقط) */
-  { key: "hr", label: "nav.hr", icon: "UsersRound", roles: ["admin"] },
+  /* ★ v3.24: الموارد البشرية — رواتب كل العمال والحضور والإجازات والacompte (الإدارة فقط)
+     ★ v3.24.1: أيقونة Briefcase مميزة — كانت UsersRound مكررة مع صفحة الحسابات */
+  { key: "hr", label: "nav.hr", icon: "Briefcase", roles: ["admin"] },
   { key: "reports", label: "nav.reports", icon: "ChartLine", roles: ["admin"] },
   /* ★ v3.24: محلل النطق الذكي — للأخصائي فقط */
   { key: "speech", label: "nav.speech", icon: "AudioLines", roles: ["specialist"] },

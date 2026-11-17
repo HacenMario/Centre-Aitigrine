@@ -2,6 +2,8 @@
  * ورقة الراتب (★ v3.24) — الإدارة فقط
  * GET ?employeeId=<id>&month=YYYY-MM → كل معطيات ورقة الراتب القابلة للطباعة:
  * بيانات الموظف + ملخص الاحتساب (الأساس/الغياب/الخصم/المكافآت) + الدفعات + الإجازات + صافي المستحق
+ * ★ v3.24.1: معرّفات الدفعات والإجازات تُعاد للواجهة (كان غيابها يُفشل الحذف والتعديل
+ * من بطاقة التفصيل)، + اسم المركز والعنوان بكل اللغات واللوغو لورقة راتب احترافية.
  */
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
@@ -27,15 +29,19 @@ export async function GET(req: NextRequest) {
     const [stats, payments, leaves, attRows, st] = await Promise.all([
       employeeStats(emp, month),
       HrPayment.find({ employeeId: emp._id, month }).sort({ createdAt: 1 }).lean<
-        { type: string; amount: number; date: string; note?: string; byName?: string }[]
+        { _id: unknown; type: string; amount: number; date: string; note?: string; byName?: string }[]
       >(),
       HrLeave.find({ employeeId: emp._id }).sort({ start: 1 }).lean<
-        { start: string; end: string; type: string; note?: string }[]
+        { _id: unknown; start: string; end: string; type: string; note?: string }[]
       >(),
       HrAttendance.find({ employeeId: emp._id, date: { $regex: `^${month}-` } })
         .sort({ date: 1 })
         .lean<{ date: string; status: string; note?: string }[]>(),
-      Settings.findOne({ key: "center" }).lean<{ centerName?: string } | null>(),
+      Settings.findOne({ key: "center" }).lean<{
+        centerName?: string; centerNameFr?: string; centerNameEn?: string; centerNameTr?: string; centerNameEs?: string;
+        address?: string; addressFr?: string; addressEn?: string; addressTr?: string; addressEs?: string;
+        phone?: string; logoBase64?: string;
+      } | null>(),
     ]);
 
     return ok({
@@ -47,11 +53,26 @@ export async function GET(req: NextRequest) {
         phone: emp.phone || "",
       },
       month,
-      centerName: st?.centerName || "مركز آيت تقرين",
+      /* ★ v3.24.1: المركز بكل اللغات — ورقة الراتب تترجم الاسم والعنوان حسب لغة الوثيقة */
+      center: {
+        name: st?.centerName || "مركز آيت تقرين",
+        nameFr: st?.centerNameFr || "",
+        nameEn: st?.centerNameEn || "",
+        nameTr: st?.centerNameTr || "",
+        nameEs: st?.centerNameEs || "",
+        address: st?.address || "",
+        addressFr: st?.addressFr || "",
+        addressEn: st?.addressEn || "",
+        addressTr: st?.addressTr || "",
+        addressEs: st?.addressEs || "",
+        phone: st?.phone || "",
+        logoBase64: st?.logoBase64 || "",
+      },
       issuedOn: ymOf(new Date()) === month ? new Date().toISOString() : `${month}-28`,
       stats,
-      payments: payments.map((p) => ({ type: p.type, amount: Math.round(Number(p.amount) || 0), date: p.date, note: p.note || "", byName: p.byName || "" })),
-      leaves: leaves.map((l) => ({ start: l.start, end: l.end, type: l.type, note: l.note || "" })),
+      /* ★ v3.24.1: المعرّفات إلزامية للتعديل والحذف من بطاقة التفصيل */
+      payments: payments.map((p) => ({ _id: String(p._id), type: p.type, amount: Math.round(Number(p.amount) || 0), date: p.date, note: p.note || "", byName: p.byName || "" })),
+      leaves: leaves.map((l) => ({ _id: String(l._id), start: l.start, end: l.end, type: l.type, note: l.note || "" })),
       attendance: attRows.map((a) => ({ date: a.date, status: a.status, note: a.note || "" })),
     });
   });

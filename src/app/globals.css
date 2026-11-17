@@ -836,6 +836,72 @@ img, video, iframe {
   }
 }
 
+/* ═══ ورقة الراتب — طباعة صفحة واحدة بلا صفحات فارغة (★ v3.24.1) ═══
+   الورقة تُعرض عبر بوابة .slip-root في جذر المستند: وضعية body.slip-printing
+   تخفي تطبيق Next كلياً بـ display:none (فلا يبقى ارتفاع زائد يولّد صفحات
+   مماثلة فارغة كما في نظام visibility)، وتُظهر الورقة وحدها أسود على أبيض. */
+@media print {
+  body.slip-printing,
+  body.slip-printing * {
+    visibility: visible !important;
+  }
+  body.slip-printing > *:not(.slip-root) {
+    display: none !important;
+  }
+  body.slip-printing .slip-root {
+    position: static !important;
+    inset: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    z-index: auto !important;
+    display: block !important;
+  }
+  body.slip-printing .slip-root > div {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+  body.slip-printing .slip-sheet {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+    max-height: none !important;
+  }
+  .slip-no-print {
+    display: none !important;
+  }
+  body.slip-printing .slip-sheet,
+  body.slip-printing .slip-sheet * {
+    background: transparent !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    border-color: #333 !important;
+  }
+  /* تظليل رمادي فاتح أنيق للرؤوس والصفوف المهمة */
+  body.slip-printing .slip-sheet .bg-gray-900 {
+    background: #ececec !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body.slip-printing .slip-sheet .bg-gray-50,
+  body.slip-printing .slip-sheet .bg-gray-100 {
+    background: #f2f2f2 !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body.slip-printing .slip-sheet img {
+    max-height: 60px !important;
+    width: auto !important;
+  }
+}
+
 /* ★ v3.20: شريط تقدم نافذة الإثبات الاجتماعي — 10 ثوانٍ حتى الإغلاق التلقائي */
 @keyframes ait-sp-progress {
   from { width: 100%; }

@@ -144,6 +144,32 @@ export async function POST(req: NextRequest) {
       return ok();
     }
 
+    /* ── ★ v3.24.1: حفظ دفعي للتغييرات — الحفظ اليدوي الواحد بعد تعديلات متعددة ──
+       changes: [{ date, status }] — الحالة "" تعني حذف السجل (غير المسجَّل = حاضر) */
+    if (action === "attendance.batch") {
+      const employeeId = String(b.employeeId || "");
+      if (!employeeId) return fail(400, "الموظف مطلوب");
+      const changes = Array.isArray(b.changes) ? b.changes : [];
+      if (!changes.length) return fail(400, "لا تغييرات لحفظها");
+      for (const ch of changes) {
+        const date = String(ch?.date || "");
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return fail(400, `تاريخ غير صحيح: ${date}`);
+        const status = String(ch?.status || "");
+        if (status === "") {
+          await HrAttendance.deleteOne({ employeeId, date });
+        } else if (["present", "absent", "leave", "holiday"].includes(status)) {
+          await HrAttendance.findOneAndUpdate(
+            { employeeId, date },
+            { employeeId, date, status },
+            { upsert: true, new: true }
+          );
+        } else {
+          return fail(400, `حالة غير صحيحة: ${status}`);
+        }
+      }
+      return ok();
+    }
+
     /* ── الإجازات ── */
     if (action === "leave.add") {
       const employeeId = String(b.employeeId || "");
@@ -163,6 +189,26 @@ export async function POST(req: NextRequest) {
     }
     if (action === "leave.delete") {
       await HrLeave.findByIdAndDelete(b._id);
+      return ok();
+    }
+    /* ── ★ v3.24.1: تعديل إجازة — التواريخ والنوع والسبب الاختياري ── */
+    if (action === "leave.edit") {
+      const start = String(b.start || "");
+      const end = String(b.end || start);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end))
+        return fail(400, "تواريخ صحيحة مطلوبة");
+      if (end < start) return fail(400, "تاريخ النهاية قبل البداية");
+      const e = await HrLeave.findOneAndUpdate(
+        { _id: b._id },
+        {
+          start,
+          end,
+          type: b.type === "unpaid" ? "unpaid" : "paid",
+          note: String(b.note || "").trim(),
+        },
+        { new: true }
+      ).lean();
+      if (!e) return fail(404, "الإجازة غير موجودة");
       return ok();
     }
 
@@ -188,6 +234,28 @@ export async function POST(req: NextRequest) {
     }
     if (action === "payment.delete") {
       await HrPayment.findByIdAndDelete(b._id);
+      return ok();
+    }
+    /* ── ★ v3.24.1: تعديل دفعة — النوع والمبلغ والتاريخ والسبب الاختياري ── */
+    if (action === "payment.edit") {
+      const $setP: Record<string, unknown> = {};
+      if (b.type !== undefined) {
+        if (!["acompte", "salary", "bonus", "deduction"].includes(String(b.type))) return fail(400, "نوع الدفعة غير صحيح");
+        $setP.type = String(b.type);
+      }
+      if (b.amount !== undefined) {
+        const amount = Math.round(Number(b.amount) || 0);
+        if (amount <= 0) return fail(400, "المبلغ يجب أن يكون أكبر من صفر");
+        $setP.amount = amount;
+      }
+      if (b.date !== undefined) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(b.date || ""))) return fail(400, "التاريخ غير صحيح");
+        $setP.date = String(b.date);
+      }
+      if (b.note !== undefined) $setP.note = String(b.note || "").trim();
+      if (!Object.keys($setP).length) return fail(400, "لا تغييرات لحفظها");
+      const p = await HrPayment.findOneAndUpdate({ _id: b._id }, { $set: $setP }, { new: true }).lean();
+      if (!p) return fail(404, "الدفعة غير موجودة");
       return ok();
     }
 

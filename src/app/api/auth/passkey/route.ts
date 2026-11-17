@@ -52,7 +52,12 @@ export async function POST(req: NextRequest) {
       const me = await currentUser();
       if (!me) return fail(401, "انتهت الجلسة — سجّل الدخول من جديد");
       const v = await verifyRegistration(b.response as RegistrationResponseJSON, String(me._id));
-      if (!v.ok || !v.cred) return fail(400, "تعذر تفعيل المفتاح — أعد المحاولة");
+      /* ★ v3.24.1: رسالة حسب السبب — انتهاء الصلاحية غير فشل التحقق */
+      if (!v.ok || !v.cred) {
+        if (v.reason === "challenge")
+          return fail(400, "انتهت صلاحية محاولة التفعيل أو تكررت — أعد المحاولة من جديد");
+        return fail(400, "تعذر التحقق من استجابة جهازك — تأكد أنك على نفس الموقع ثم أعد المحاولة");
+      }
       await PasskeyCredential.findOneAndUpdate(
         { credId: v.cred.credId },
         { ...v.cred, userId: me._id, label: String(b.label || "").slice(0, 80) },
@@ -78,7 +83,11 @@ export async function POST(req: NextRequest) {
     }
     if (action === "login") {
       const v = await verifyAuthentication(b.response as AuthenticationResponseJSON);
-      if (!v.ok || !v.credId) return fail(400, "تعذر التحقق من المفتاح — أعد المحاولة");
+      if (!v.ok || !v.credId) {
+        if (v.reason === "challenge")
+          return fail(400, "انتهت صلاحية محاولة الدخول — أعد المحاولة من جديد");
+        return fail(400, "تعذر التحقق من المفتاح — أعد المحاولة");
+      }
       const cred = await PasskeyCredential.findOne({ credId: v.credId }).lean<PasskeyCredentialDoc | null>();
       if (!cred) return fail(400, "المفتاح غير معروف");
       const u = await User.findById(cred.userId).lean<

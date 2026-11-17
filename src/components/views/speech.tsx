@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { WORD_BANK } from "@/lib/wordbank";
+import { WORD_BANK, wordLabel, type Penta } from "@/lib/wordbank";
 import type { Navigate } from "@/lib/nav";
 
 type Result = {
@@ -49,11 +49,12 @@ const SEV_BADGE: Record<string, string> = {
 export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
   const { t, lang } = useApp();
   const [letter, setLetter] = useState(WORD_BANK[0]?.letter || "ب");
-  const [word, setWord] = useState(WORD_BANK[0]?.words[0] || "");
+  const [wordObj, setWordObj] = useState<Penta | null>(WORD_BANK[0]?.words[0] || null);
   const [custom, setCustom] = useState("");
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
   const [recording, setRecording] = useState(false);
+  const [askingMic, setAskingMic] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [audioURL, setAudioURL] = useState("");
   const [audioB64, setAudioB64] = useState("");
@@ -71,7 +72,7 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
   const pickLetter = (l: string) => {
     setLetter(l);
     const entry = WORD_BANK.find((w) => w.letter === l);
-    setWord(entry?.words[0] || "");
+    setWordObj(entry?.words[0] || null);
     setCustom("");
     resetTake();
   };
@@ -94,8 +95,19 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [recording]);
 
+  /* ★ v3.24.1: طلب إذن الميكروفون بمعالجة دقيقة لكل حالة خطأ — رسالة إرشادية حسب السبب
+     الفعلي (إذن مرفوض/لا ميكروفون/مستعمل ببرنامج آخر/سياق غير آمن) بدل رسالة عامة واحدة */
   const startRec = async () => {
     setResult(null);
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      toast.error(t("sa.micHttps"), { duration: 7000 });
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      toast.error(t("sa.micUnsupported"), { duration: 7000 });
+      return;
+    }
+    setAskingMic(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -128,16 +140,30 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
       rec.start();
       setSeconds(0);
       setRecording(true);
-    } catch {
-      toast.error(t("sa.micDenied"));
+    } catch (e) {
+      const name = String((e as { name?: string })?.name || "");
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        /* الإذن مرفوض من إعدادات المتصفح للموقع نفسه — التوجيه للإصلاح */
+        toast.error(t("sa.micDenied"), { description: t("sa.micDeniedHint"), duration: 9000 });
+      } else if (name === "NotFoundError" || name === "OverconstrainedError") {
+        toast.error(t("sa.micNotFound"), { duration: 7000 });
+      } else if (name === "NotReadableError" || name === "AbortError") {
+        toast.error(t("sa.micBusy"), { duration: 7000 });
+      } else {
+        toast.error(t("sa.micDenied"), { description: t("sa.micDeniedHint"), duration: 9000 });
+      }
     }
+    setAskingMic(false);
   };
   const stopRec = () => {
     try { recRef.current?.stop(); } catch {}
     setRecording(false);
   };
 
-  const effectiveWord = custom.trim() || word;
+  /* الكلمة العلاجية المرجعية عربية دائماً (مرجع ASR والمقارنة) — والعرض بلغة الواجهة */
+  const effectiveWord = custom.trim() || wordObj?.ar || "";
+  const effectiveDisplay = custom.trim() || (wordObj ? wordLabel(wordObj, lang) : "");
+  const effectiveLetter = custom.trim() ? custom.trim().charAt(0) : letter;
   const mmss = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 
   const analyze = async () => {
@@ -151,7 +177,9 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
         body: JSON.stringify({
           audio: audioB64,
           targetWord: effectiveWord,
-          targetLetter: custom.trim() ? custom.trim().charAt(0) : letter,
+          targetDisplay: effectiveDisplay,
+          targetLetter: effectiveLetter,
+          lang,
           age: age === "" ? null : Number(age),
           gender: gender || null,
         }),
@@ -207,18 +235,22 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
             {t("sa.wordBank")}
           </h2>
           <div className="flex flex-wrap gap-1.5">
-            {WORD_BANK.map((w) => (
-              <button key={w.letter} type="button" onClick={() => pickLetter(w.letter)}
-                aria-label={`${t("sa.targetLetter")} ${w.letter}`}
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-xl border text-base font-black transition-all",
-                  letter === w.letter
-                    ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                    : "bg-card text-foreground/80 hover:border-primary/40 hover:bg-primary/5"
-                )}>
-                {w.letter}
-              </button>
-            ))}
+            {WORD_BANK.map((w) => {
+              const shown = lang === "ar" ? w.letter : (w.letterLabel[lang] || w.letter);
+              return (
+                <button key={w.letter} type="button" onClick={() => pickLetter(w.letter)}
+                  aria-label={`${t("sa.targetLetter")} ${w.letter}`}
+                  className={cn(
+                    "flex min-h-10 flex-col items-center justify-center rounded-xl border px-2 py-1 text-base font-black leading-none transition-all",
+                    letter === w.letter
+                      ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                      : "bg-card text-foreground/80 hover:border-primary/40 hover:bg-primary/5"
+                  )}>
+                  <span>{shown}</span>
+                  {lang !== "ar" && <span className="mt-0.5 text-[9px] font-bold opacity-60">{w.letter}</span>}
+                </button>
+              );
+            })}
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
             <div className="space-y-2">
@@ -227,14 +259,16 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
               </Label>
               <div className="flex flex-wrap gap-1.5">
                 {bank.words.map((w) => (
-                  <button key={w} type="button" onClick={() => { setWord(w); setCustom(""); resetTake(); }}
+                  <button key={w.ar} type="button"
+                    onClick={() => { setWordObj(w); setCustom(""); resetTake(); }}
                     className={cn(
-                      "rounded-full border px-3 py-1.5 text-sm font-bold transition-all",
-                      word === w && !custom
+                      "flex min-w-14 flex-col items-center rounded-full border px-3 py-1.5 transition-all",
+                      wordObj?.ar === w.ar && !custom
                         ? "border-primary bg-primary/10 text-primary"
                         : "bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground"
                     )}>
-                    {w}
+                    <span className="text-sm font-bold leading-tight">{wordLabel(w, lang)}</span>
+                    {lang !== "ar" && <span className="text-[9.5px] leading-tight opacity-70">{w.ar}</span>}
                   </button>
                 ))}
               </div>
@@ -242,11 +276,18 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">{t("sa.custom")}</Label>
               <Input value={custom} onChange={(e) => { setCustom(e.target.value); resetTake(); }}
-                placeholder={word} className="h-11 min-w-0" />
+                placeholder={wordObj ? wordLabel(wordObj, lang) : ""} className="h-11 min-w-0" />
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            {t("sa.targetLetter")}: <span className="font-black text-primary">{custom.trim() ? custom.trim().charAt(0) : letter}</span>
+            {t("sa.targetLetter")}: <span className="font-black text-primary" dir="auto">
+              {lang === "ar" ? effectiveLetter : `${bank.letterLabel[lang] || effectiveLetter} / ${effectiveLetter}`}
+            </span>
+            <span className="mx-1.5">·</span>
+            {t("sa.target")}: <span className="font-black text-primary" dir="auto">{effectiveDisplay}</span>
+            {lang !== "ar" && effectiveWord && effectiveWord !== effectiveDisplay && (
+              <span className="ms-1 text-[10px] opacity-70">({effectiveWord})</span>
+            )}
           </p>
         </CardContent>
       </Card>
@@ -285,8 +326,9 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
           {/* أزرار التسجيل */}
           <div className="flex flex-wrap items-center gap-2">
             {!recording ? (
-              <Button onClick={startRec} disabled={analyzing} className="h-12 gap-2 rounded-xl text-base shadow-lg shadow-primary/20">
-                <Mic className="h-5 w-5" /> {audioB64 ? t("sa.rerecord") : t("sa.record")}
+              <Button onClick={startRec} disabled={analyzing || askingMic}
+                className="h-12 gap-2 rounded-xl text-base shadow-lg shadow-primary/20">
+                <Mic className="h-5 w-5" /> {askingMic ? t("sa.micAsking") : audioB64 ? t("sa.rerecord") : t("sa.record")}
               </Button>
             ) : (
               <Button onClick={stopRec} variant="destructive" className="h-12 gap-2 rounded-xl text-base">
@@ -334,11 +376,11 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
                   "rounded-full gap-1",
                   s.code === "none" ? SEV_BADGE.low : SEV_BADGE.mid
                 )}>
-                  {s.label}
+                  {t(`sa.dis.${s.code}`) === `sa.dis.${s.code}` ? s.label : t(`sa.dis.${s.code}`)}
                 </Badge>
               ))}
               <Badge variant="outline" className={cn("rounded-full", SEV_BADGE[result.severity.code])}>
-                {t("sa.severity")}: {result.severity.label}
+                {t("sa.severity")}: {t(`sa.sev.${result.severity.code}`) === `sa.sev.${result.severity.code}` ? result.severity.label : t(`sa.sev.${result.severity.code}`)}
               </Badge>
             </div>
             {result.findings.length > 0 && (

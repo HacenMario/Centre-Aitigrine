@@ -23,6 +23,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
        الحقل لا يظهر في إعدادات الأخصائي؛ على غير العميل: الفراغ = لا عملية → يُتجاهل
        بهدوء، والقيمة الفعلية تُرفض كما هي حصرياً للعملاء. */
     const isBloodValue = (v: unknown) => !(v === null || v === "" || v === "none");
+    /* ★ v3.24.1: نفس منطق زمرة الدم للحقول المخصصة لدور واحد — نموذج تعديل الحسابات يرسل
+       الكائن كاملاً فيحمل سن/جنس/نظام الأجر الرمزي دائماً (من toSafeUser) رغم أن الحقل
+       لا يظهر لغير دور هدفه؛ على غير الهدف: الفراغ/القيمة الرمزية = لا عملية → تجاهل هادئ،
+       والقيمة الفعلية وحدها تُرفض برسالة النطاق الصحيحة. */
+    const isAgeValue = (v: unknown) => !(v === null || v === "" || v === undefined);
+    const isGenderValue = (v: unknown) => v === "male" || v === "female";
 
     /* المساعد: يغيّر التفعيل فقط + ★ v3.19: إضافة/تعديل زمرة الدم لحساب العميل */
     if (me.role === "assistant") {
@@ -39,15 +45,22 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
           }
         }
       }
-      /* ★ v3.24: سن وجنس العميل — للمساعد أيضاً على حسابات العملاء */
+      /* ★ v3.24: سن وجنس العميل — للمساعد أيضاً على حسابات العملاء
+         ★ v3.24.1: على غير العميل — الفراغ يُتجاهل بهدوء والقيمة الفعلية وحدها تُرفض */
       if (b.age !== undefined) {
-        if (target.role !== "client") return fail(400, "سن العميل يُضبط لحسابات العملاء فقط");
-        const n = Number(b.age);
-        $setA.age = b.age === null || b.age === "" || !Number.isFinite(n) ? null : Math.max(0, Math.min(120, Math.round(n)));
+        if (target.role !== "client") {
+          if (isAgeValue(b.age)) return fail(400, "سن العميل يُضبط لحسابات العملاء فقط");
+        } else {
+          const n = Number(b.age);
+          $setA.age = b.age === null || b.age === "" || !Number.isFinite(n) ? null : Math.max(0, Math.min(120, Math.round(n)));
+        }
       }
       if (b.gender !== undefined) {
-        if (target.role !== "client") return fail(400, "جنس العميل يُضبط لحسابات العملاء فقط");
-        $setA.gender = b.gender === "male" || b.gender === "female" ? b.gender : null;
+        if (target.role !== "client") {
+          if (isGenderValue(b.gender)) return fail(400, "جنس العميل يُضبط لحسابات العملاء فقط");
+        } else {
+          $setA.gender = isGenderValue(b.gender) ? b.gender : null;
+        }
       }
       if (!Object.keys($setA).length) return fail(403, "المساعد يغيّر التفعيل وزمرة الدم وبيانات العميل الأساسية فقط");
       const u = await User.findByIdAndUpdate(id, { $set: $setA }, { new: true }).lean();
@@ -98,27 +111,49 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     else if (b.photoBase64 === "") $unset.photoBase64 = "";
     if (b.weeklyHours !== undefined) $set.weeklyHours = b.weeklyHours;
     if (b.assignedSpecialistId !== undefined) $set.assignedSpecialistId = b.assignedSpecialistId || null;
-    /* ★ v3.23: نسبة الأخصائي من كل جلسة (%) — للإدارة على حسابات الأخصائيين */
-    if (b.commissionRate !== undefined)
-      $set.commissionRate = Math.max(0, Math.min(100, Math.round(Number(b.commissionRate) || 0)));
-    /* ★ v3.24: نظام أجر الأخصائي — عمولة لكل جلسة أو راتب شهري ثابت عبر الموارد البشرية */
+    /* ★ v3.23: نسبة الأخصائي من كل جلسة (%) — للإدارة على حسابات الأخصائيين
+       ★ v3.24.1: على غير الأخصائي — الصفر الرمزي يُتجاهل بهدوء والقيمة الفعلية وحدها تُرفض */
+    if (b.commissionRate !== undefined) {
+      const n = Math.max(0, Math.min(100, Math.round(Number(b.commissionRate) || 0)));
+      if (target.role !== "specialist") {
+        if (n > 0) return fail(400, "نسبة الأخصائي تُضبط لحسابات الأخصائيين فقط");
+      } else {
+        $set.commissionRate = n;
+      }
+    }
+    /* ★ v3.24: نظام أجر الأخصائي — عمولة لكل جلسة أو راتب شهري ثابت عبر الموارد البشرية
+       ★ v3.24.1: على غير الأخصائي — القيمة الرمزية commission تُتجاهل بهدوء */
     if (b.payModel !== undefined) {
-      if (target.role !== "specialist") return fail(400, "نظام الأجر يُضبط لحسابات الأخصائيين فقط");
-      $set.payModel = b.payModel === "salary" ? "salary" : "commission";
+      if (target.role !== "specialist") {
+        if (b.payModel === "salary") return fail(400, "نظام الأجر يُضبط لحسابات الأخصائيين فقط");
+      } else {
+        $set.payModel = b.payModel === "salary" ? "salary" : "commission";
+      }
     }
     if (b.salaryAmount !== undefined) {
-      if (target.role !== "specialist") return fail(400, "الراتب الثابت يُضبط لحسابات الأخصائيين فقط");
-      $set.salaryAmount = Math.max(0, Math.round(Number(b.salaryAmount) || 0));
+      const n = Math.max(0, Math.round(Number(b.salaryAmount) || 0));
+      if (target.role !== "specialist") {
+        if (n > 0) return fail(400, "الراتب الثابت يُضبط لحسابات الأخصائيين فقط");
+      } else {
+        $set.salaryAmount = n;
+      }
     }
-    /* ★ v3.24: سن وجنس العميل — للإدارة والمساعد على حسابات العملاء (اختياريان) */
+    /* ★ v3.24: سن وجنس العميل — للإدارة والمساعد على حسابات العملاء (اختياريان)
+       ★ v3.24.1: على غير العميل — الفراغ يُتجاهل بهدوء والقيمة الفعلية وحدها تُرفض */
     if (b.age !== undefined) {
-      if (target.role !== "client") return fail(400, "سن العميل يُضبط لحسابات العملاء فقط");
-      const n = Number(b.age);
-      $set.age = b.age === null || b.age === "" || !Number.isFinite(n) ? null : Math.max(0, Math.min(120, Math.round(n)));
+      if (target.role !== "client") {
+        if (isAgeValue(b.age)) return fail(400, "سن العميل يُضبط لحسابات العملاء فقط");
+      } else {
+        const n = Number(b.age);
+        $set.age = b.age === null || b.age === "" || !Number.isFinite(n) ? null : Math.max(0, Math.min(120, Math.round(n)));
+      }
     }
     if (b.gender !== undefined) {
-      if (target.role !== "client") return fail(400, "جنس العميل يُضبط لحسابات العملاء فقط");
-      $set.gender = b.gender === "male" || b.gender === "female" ? b.gender : null;
+      if (target.role !== "client") {
+        if (isGenderValue(b.gender)) return fail(400, "جنس العميل يُضبط لحسابات العملاء فقط");
+      } else {
+        $set.gender = isGenderValue(b.gender) ? b.gender : null;
+      }
     }
     /* ★ v3.19: زمرة الدم — للإدارة على حسابات العملاء؛ الفراغ = حذف (غير محددة) */
     if (b.bloodType !== undefined) {

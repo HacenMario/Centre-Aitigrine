@@ -32,6 +32,7 @@ import {
   Coins,
   Wallet,
   ChartLine,
+  Briefcase,
   LogIn,
   LogOut,
   UserRound,
@@ -72,6 +73,7 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   Coins,
   Wallet,
   ChartLine,
+  Briefcase,
 };
 const ICONS = NAV_ICONS;
 

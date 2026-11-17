@@ -1,5 +1,6 @@
 "use client";
-/** ملفي الشخصي — بياناتي + تغيير كلمة المرور + مفاتيح المرور + الإخفاء السريع (رمز كل مستخدم) */
+/** ملفي الشخصي — بياناتي + تغيير كلمة المرور + مفاتيح المرور + الإخفاء السريع (رمز كل مستخدم)
+ * ★ v3.24.1: العميل يرى ويعدّل سن وجنسه من ملفه الشخصي مباشرة (اختياريان) */
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import BackButton from "@/components/back-button";
@@ -8,7 +9,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { UserRound, KeyRound, Phone, BadgeCheck, EyeOff, ShieldCheck, Trash2, Droplet, Fingerprint, Plus, CloudUpload, Smartphone } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { UserRound, KeyRound, Phone, BadgeCheck, EyeOff, ShieldCheck, Trash2, Droplet, Fingerprint, Plus, CloudUpload, Smartphone, Cake } from "lucide-react";
 import { toast } from "sonner";
 import { getQuickHideConfig, saveQuickHideConfig } from "@/lib/quick-hide";
 import { browserSupportsWebAuthn, platformAuthenticatorIsAvailable, startRegistration } from "@simplewebauthn/browser";
@@ -22,6 +26,18 @@ export default function Profile({ navigate }: { navigate: Navigate }) {
   const [oldPass, setOldPass] = useState("");
   const [newPass, setNewPass] = useState("");
   const [busy, setBusy] = useState(false);
+
+  /* ★ v3.24.1: سن وجنس العميل — عرض وتعديل ذاتي من الملف الشخصي */
+  const [clAge, setClAge] = useState(me?.role === "client" && me.age != null ? String(me.age) : "");
+  const [clGender, setClGender] = useState(me?.role === "client" && me.gender ? me.gender : "none");
+  const [clBusy, setClBusy] = useState(false);
+
+  useEffect(() => {
+    if (me?.role === "client") {
+      setClAge(me.age != null ? String(me.age) : "");
+      setClGender(me.gender ? me.gender : "none");
+    }
+  }, [me]);
 
   /* الإخفاء السريع — كل مستخدم يضع رمزه الخاص من إعداداته (نمط طمأنينة) */
   const [qhEnabled, setQhEnabled] = useState(false);
@@ -132,6 +148,19 @@ export default function Profile({ navigate }: { navigate: Navigate }) {
     else toast.error(j.error || t("common.error"));
   };
 
+  /* ★ v3.24.1: حفظ سن وجنس العميل من ملفه — الحقلان اختياريان */
+  const saveClientInfo = async () => {
+    setClBusy(true);
+    const r = await fetch("/api/auth/me", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ age: clAge === "" ? null : Number(clAge), gender: clGender === "none" ? null : clGender }),
+    });
+    const j = await r.json().catch(() => ({}));
+    setClBusy(false);
+    if (r.ok) { setMe(j.user); toast.success(t("toast.profileSaved")); }
+    else toast.error(j.error || t("common.error"));
+  };
+
   /* حفظ رمز الإخفاء السريع لهذا المستخدم على هذا الجهاز */
   const saveQhPin = async () => {
     if (!/^\d{4,8}$/.test(qhPin)) { toast.error(t("qh.pinInvalid")); return; }
@@ -191,6 +220,19 @@ export default function Profile({ navigate }: { navigate: Navigate }) {
                     <span dir="ltr" className="font-bold tabular-nums">{me.bloodType}</span>
                   </Badge>
                 )}
+                {/* ★ v3.24.1: سن وجنس العميل — شارتا عرض في رأس الملف */}
+                {me.role === "client" && me.age != null && (
+                  <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary gap-1">
+                    <Cake className="h-3 w-3" aria-hidden="true" />
+                    <span className="font-bold tabular-nums">{me.age}</span>
+                  </Badge>
+                )}
+                {me.role === "client" && (me.gender === "male" || me.gender === "female") && (
+                  <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-400 gap-1">
+                    <UserRound className="h-3 w-3" aria-hidden="true" />
+                    <span className="font-bold">{t(me.gender === "male" ? "client.male" : "client.female")}</span>
+                  </Badge>
+                )}
                 <span className="text-sm text-muted-foreground flex items-center gap-1" dir="ltr">
                   <Phone className="h-3.5 w-3.5" /> {me.phone}
                 </span>
@@ -205,6 +247,33 @@ export default function Profile({ navigate }: { navigate: Navigate }) {
               <Button onClick={saveInfo} disabled={busy} className="h-11 sm:w-32">{t("common.save")}</Button>
             </div>
           </div>
+
+          {/* ★ v3.24.1: سن وجنس العميل — ربط الملف الشخصي ببيانات المريض (اختياريان) */}
+          {me.role === "client" && (
+            <div className="space-y-3 border-t pt-4">
+              <Label className="flex items-center gap-2"><Cake className="h-4 w-4 text-primary" /> {t("prof.clientInfo")}</Label>
+              <p className="text-[12.5px] leading-relaxed text-muted-foreground">{t("client.ageGenderNote")}</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t("client.age")}</Label>
+                  <Input type="number" min={0} max={120} value={clAge}
+                    onChange={(e) => setClAge(e.target.value)} className="h-11 tabular-nums" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t("client.gender")}</Label>
+                  <Select value={clGender} onValueChange={setClGender}>
+                    <SelectTrigger className="h-11" aria-label={t("client.gender")}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t("client.genderSelect")}</SelectItem>
+                      <SelectItem value="male">{t("client.male")}</SelectItem>
+                      <SelectItem value="female">{t("client.female")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button onClick={saveClientInfo} disabled={clBusy} variant="outline" className="h-11">{t("common.save")}</Button>
+            </div>
+          )}
 
           <div className="space-y-3 border-t pt-4">
             <Label className="flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" /> {t("prof.changePass")}</Label>

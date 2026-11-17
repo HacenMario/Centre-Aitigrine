@@ -72,6 +72,32 @@ function fromB64url(s: string): Uint8Array {
   return new Uint8Array(Buffer.from(String(s), "base64url"));
 }
 
+/**
+ * ★ v3.24.1 — إصلاح جذري لفشل تفعيل مفاتيح المرور:
+ * المتصفح يعيد التحدي داخل clientDataJSON بترميز base64url على بايتات السلسلة الأصلية،
+ * بينما قاعدة البيانات تحفظ السلسلة الأصلية كما أنتجتها generateOptions — لذا كان البحث
+ * بالقيمة المُرسلة لا يطابق أبداً ويفشل التفعيل دوماً. نُفكّ الترميز هنا لاستعادة الأصل،
+ * مع قبول القيمة الخام إن وردت أصلاً مُفكوكة (توافق مع أي عميل).
+ */
+function decodeClientChallenge(raw: string): string {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  try {
+    const dec = Buffer.from(s, "base64url").toString("utf8");
+    /* السلسلة الأصلية ASCII قصيرة — الفك الصحيح يعطي نصاً معرفاً؛ الفك الخاطئ يعطي رموزاً غريبة */
+    if (dec && dec.length >= 16 && /^[\x21-\x7e]+$/.test(dec)) return dec;
+  } catch {}
+  return s;
+}
+
+/** استهلاك التحدي بمحاولتي مطابقة: المُفكوك أولاً ثم الخام (مرة واحدة فقط على النجاح) */
+export async function takeChallengeSmart(raw: string, purpose: "register" | "auth"): Promise<string | null> {
+  const decoded = decodeClientChallenge(raw);
+  const hit = decoded ? await takeChallenge(decoded, purpose) : null;
+  if (hit !== null) return hit;
+  return takeChallenge(String(raw || ""), purpose);
+}
+
 /** خيارات تسجيل مفتاح جديد لمستخدم — مع استثناء مفاتيحه القائمة */
 export async function registrationOptionsFor(userId: string, userName: string): Promise<Record<string, unknown>> {
   const { rpID } = await webauthnRP();
@@ -90,14 +116,15 @@ export async function registrationOptionsFor(userId: string, userName: string): 
   return opts as unknown as Record<string, unknown>;
 }
 
-/** التحقق من تسجيل مفتاح جديد — يعود ببيانات المفتاح للحفظ */
+/** التحقق من تسجيل مفتاح جديد — يعود ببيانات المفتاح للحفظ وسبب الفشل إن حدث */
 export async function verifyRegistration(
   response: RegistrationResponseJSON,
   userId: string
-): Promise<{ ok: boolean; cred?: { credId: string; publicKey: string; counter: number; deviceType: string; backedUp: boolean; transports: string[] } }> {
+): Promise<{ ok: boolean; reason?: "challenge" | "verify" | "exception"; cred?: { credId: string; publicKey: string; counter: number; deviceType: string; backedUp: boolean; transports: string[] } }> {
   const { origin, rpID } = await webauthnRP();
-  const expectedChallenge = await takeChallenge(response?.response?.challenge || "", "register");
-  if (!expectedChallenge) return { ok: false };
+  /* ★ v3.24.1: البحث بالتحدي الأصلي بعد فك ترميز المتصفح — كان سبب فشل التفعيل دوماً */
+  const expectedChallenge = await takeChallengeSmart(response?.response?.challenge || "", "register");
+  if (!expectedChallenge) return { ok: false, reason: "challenge" };
   try {
     const v = await verifyRegistrationResponse({
       response,
@@ -106,7 +133,7 @@ export async function verifyRegistration(
       expectedRPID: rpID,
       requireUserVerification: false,
     });
-    if (!v.verified || !v.registrationInfo?.credential) return { ok: false };
+    if (!v.verified || !v.registrationInfo?.credential) return { ok: false, reason: "verify" };
     const c = v.registrationInfo.credential;
     return {
       ok: true,
@@ -120,7 +147,7 @@ export async function verifyRegistration(
       },
     };
   } catch {
-    return { ok: false };
+    return { ok: false, reason: "exception" };
   }
 }
 
@@ -139,13 +166,14 @@ export async function authenticationOptionsFor(userId: string, credIds: string[]
 /** التحقق من محاولة دخول — يعود بمعرّف مفتاح المطابق لتحميل المستخدم */
 export async function verifyAuthentication(
   response: AuthenticationResponseJSON
-): Promise<{ ok: boolean; credId?: string; newCounter?: number }> {
+): Promise<{ ok: boolean; reason?: "challenge" | "verify" | "exception"; credId?: string; newCounter?: number }> {
   const { origin, rpID } = await webauthnRP();
-  const expectedChallenge = await takeChallenge(response?.response?.challenge || "", "auth");
-  if (!expectedChallenge) return { ok: false };
+  /* ★ v3.24.1: فك ترميز التحدي — نفس إصلاح التسجيل */
+  const expectedChallenge = await takeChallengeSmart(response?.response?.challenge || "", "auth");
+  if (!expectedChallenge) return { ok: false, reason: "challenge" };
   const credId = String(response?.id || "");
   const cred = await PasskeyCredential.findOne({ credId }).lean<PasskeyCredentialDoc | null>();
-  if (!cred) return { ok: false };
+  if (!cred) return { ok: false, reason: "challenge" };
   try {
     const v = await verifyAuthenticationResponse({
       response,
@@ -160,9 +188,9 @@ export async function verifyAuthentication(
         transports: (cred.transports || []) as never,
       },
     });
-    if (!v.verified) return { ok: false };
+    if (!v.verified) return { ok: false, reason: "verify" };
     return { ok: true, credId, newCounter: v.authenticationInfo.newCounter };
   } catch {
-    return { ok: false };
+    return { ok: false, reason: "exception" };
   }
 }

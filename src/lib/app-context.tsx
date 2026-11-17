@@ -50,6 +50,14 @@ export type Me = {
   photoBase64?: string;
   weeklyHours?: Record<string, string[]>;
   assignedSpecialistId?: string | null;
+  /** ★ v3.19: زمرة الدم — تظهر في ملف العميل وتضبطها الإدارة/المساعد */
+  bloodType?: string | null;
+  /** ★ v3.24.1: سن وجنس العميل — يرى ويعدّلهما العميل من ملفه الشخصي */
+  age?: number | null;
+  gender?: "male" | "female" | null;
+  /** ★ v3.24: نظام أجر الأخصائي — يظهر في صفحة الأرباح */
+  payModel?: "commission" | "salary";
+  salaryAmount?: number;
   active?: boolean;
 } | null;
 
