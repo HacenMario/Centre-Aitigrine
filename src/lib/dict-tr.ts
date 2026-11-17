@@ -1301,6 +1301,12 @@ export const tr: Record<string, string> = {
   "sa.dis.distortion": "Artikülasyon bozulması",
   "sa.dis.none": "Net belirti yok",
   "sa.okTitle": "Analiz tamamlandı",
+  /* ★ v3.24.4 — التعرف داخل المتصفح + محرك صادق */
+  "sa.liveTranscript": "Kayıt sırasında duyulan metin",
+  "sa.manualTranscript": "Anlaşılan metin — analizden önce düzeltin veya elle yazın",
+  "sa.asrBrowser": "Tarayıcınız otomatik konuşma tanıma sağlamıyor — kaydedin ve duyduğunuzu yazın; analiz her zaman tamamlanır",
+  "sa.engine.ai": "Bulut yapay zekâ analizi (merkez anahtarı)",
+  "sa.engine.heuristic": "Ayrıntılı deterministik fonetik analiz",
   "nav.hr": "İnsan kaynakları",
   "nav.speech": "Konuşma analizi",
   /* ★ v3.24.1 — mikrofon, çok dilli banka, manuel kayıt, profesyonel ücret bordrosu */

@@ -5,6 +5,11 @@
  * ثم تحليل فوري بثلاث طبقات: تحويل الكلام لنص (ASR) ← مقارنة حتمية للمخارج ←
  * تحليل ذكاء اصطناعي بسياق أرطوفوني يحدد الاشتباه المبدئي (لثغة/تأتأة/حذف/إبدال/تشويه)
  * وشدته وتوجيهات مقترحة. النتيجة مبدئية للتوجيه — لا تغني عن التقييم السريري المباشر.
+ * ★ v3.24.4 — ضمان نجاح التحليل في كل بيئة (تشخيص فعلي): مسار ASR الخادمي القديم كان
+ *   404 على api.z.ai فسقط التحليل دائماً على «لم يُكتشف كلام واضح» رغم وضوح الصوت. الآن:
+ *   التعرف الصوتي يتم داخل متصفح الجهاز (Web Speech API — مجاني بلا مفاتيح) بالتوازي مع
+ *   التسجيل، مع عرض النص المسموع حياً وتحريره قبل التحليل؛ وبلا دعم متصفح يكفي الكتابة اليدوية.
+ *   النتيجة تشير بصدق لمحركها: ذكاء اصطناعي سحابي (عند توفر رصيد مفتاح المركز) أو حتمي مفصل.
  * تجاوب كامل: كل التحكم يتراص على الهاتف، والتسجيل بMediaRecorder (webm/mp4 حسب الجهاز).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import {
   AudioLines, Mic, Square, RotateCcw, Wand2, Copy, CheckCircle2,
-  AlertTriangle, Info, Volume2, Sparkles, CircleAlert,
+  AlertTriangle, Info, Volume2, Sparkles, CircleAlert, PenLine,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -37,8 +42,28 @@ type Result = {
   findings: string[];
   advice: string[];
   engine: string;
+  asrSource?: string;
+  manualNeeded?: boolean;
   targetWord: string;
 };
+
+/* ★ v3.24.4: أنواع Web Speech الدنيا — كشف الدعم مرة واحدة ولغة التعرف بلغة الواجهة */
+type SrAlt = { transcript?: string };
+type SrResult = { isFinal?: boolean; 0?: SrAlt; transcript?: string };
+type SrEvent = { results: { length: number } & Record<number, SrResult> };
+type SrCtor = new () => {
+  lang: string; continuous: boolean; interimResults: boolean;
+  onresult: ((e: SrEvent) => void) | null;
+  onerror: ((e: { error?: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void; stop: () => void; abort: () => void;
+};
+const SR_LOCALE: Record<string, string> = { ar: "ar-SA", fr: "fr-FR", en: "en-US", tr: "tr-TR", es: "es-ES" };
+const SRCtor: SrCtor | null = typeof window !== "undefined"
+  ? ((window as unknown as { SpeechRecognition?: SrCtor; webkitSpeechRecognition?: SrCtor }).SpeechRecognition
+    || (window as unknown as { webkitSpeechRecognition?: SrCtor }).webkitSpeechRecognition
+    || null)
+  : null;
 
 const SEV_BADGE: Record<string, string> = {
   low: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25",
@@ -60,12 +85,20 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
   const [audioB64, setAudioB64] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
+  /* ★ v3.24.4: النص المسموع حياً + النص النهائي القابل للتحرير قبل التحليل */
+  const [live, setLive] = useState("");
+  const [finalText, setFinalText] = useState("");
 
   const streamRef = useRef<MediaStream | null>(null);
   const recRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const recordingRef = useRef(false);
+  const srRef = useRef<InstanceType<SrCtor> | null>(null);
+  const srFinalRef = useRef("");
+  const srInterimRef = useRef("");
+  const srHadTextRef = useRef(false);
 
   const bank = WORD_BANK.find((w) => w.letter === letter) || WORD_BANK[0];
 
@@ -81,6 +114,11 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
     setAudioB64("");
     setResult(null);
     setSeconds(0);
+    setLive("");
+    setFinalText("");
+    srFinalRef.current = "";
+    srInterimRef.current = "";
+    srHadTextRef.current = false;
     if (audioElRef.current) audioElRef.current.src = "";
   };
 
@@ -166,11 +204,51 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
           bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
         }
         setAudioB64(btoa(bin));
+        /* النص المسموع حتى لحظة الإيقاف — قابل للتحرير قبل التحليل */
+        setFinalText(`${srFinalRef.current} ${srInterimRef.current}`.trim());
         stream.getTracks().forEach((tr) => tr.stop());
         streamRef.current = null;
       };
       recRef.current = rec;
       rec.start();
+      recordingRef.current = true;
+      /* ★ v3.24.4: التعرف الصوتي داخل المتصفح (مجاني بلا مفاتيح) — يعرض النص المسموع حياً؛
+         فشله الصامت لا يضر: التسجيل يبقى ومسار التحليل الحتمي مستقل بكل الأحوال */
+      setLive("");
+      srFinalRef.current = "";
+      srInterimRef.current = "";
+      srHadTextRef.current = false;
+      if (SRCtor) {
+        try {
+          const sr = new SRCtor();
+          sr.lang = SR_LOCALE[lang] || "ar-SA";
+          sr.continuous = true;
+          sr.interimResults = true;
+          sr.onresult = (e) => {
+            let fin = ""; let interim = "";
+            for (let i = 0; i < e.results.length; i++) {
+              const r = e.results[i];
+              const txt = r[0]?.transcript || r.transcript || "";
+              if (r.isFinal) fin += `${txt} `; else interim += txt;
+            }
+            if (fin.trim()) {
+              srFinalRef.current = `${srFinalRef.current} ${fin}`.trim();
+              srHadTextRef.current = true;
+            }
+            srInterimRef.current = interim;
+            setLive(`${srFinalRef.current} ${interim}`.trim());
+          };
+          sr.onerror = () => { /* لا قاطع: المسار الحتمي والتسجيل يبقيان التحليل سليماً */ };
+          sr.onend = () => {
+            /* كروم يوقف الاستماع تلقائياً بعد الصمت — نعيد التشغيل ما دمنا نسجل */
+            if (recordingRef.current) {
+              try { sr.start(); } catch { /* سباق إعادة تشغيل — تجاهل */ }
+            }
+          };
+          srRef.current = sr;
+          sr.start();
+        } catch { /* أعلن الدعم ثم رفض — نكمل بلا تعرف حي */ }
+      }
       setSeconds(0);
       setRecording(true);
     } catch (e) {
@@ -191,7 +269,9 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
     setAskingMic(false);
   };
   const stopRec = () => {
+    recordingRef.current = false;
     try { recRef.current?.stop(); } catch {}
+    try { srRef.current?.stop(); } catch {}
     setRecording(false);
   };
 
@@ -203,14 +283,18 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
 
   const analyze = async () => {
     if (!effectiveWord) { toast.error(t("err.required")); return; }
-    if (!audioB64) { toast.error(t("sa.noSpeech")); return; }
+    const heard = finalText.trim();
+    if (!audioB64 && !heard) { toast.error(t("sa.noSpeech")); return; }
     setAnalyzing(true);
     setResult(null);
     try {
       const r = await fetch("/api/speech-analyze", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          audio: audioB64,
+          audio: audioB64 || undefined,
+          transcript: heard || undefined,
+          transcriptSource: heard ? (srHadTextRef.current ? "browser" : "manual") : undefined,
+          browserAsr: !!SRCtor,
           targetWord: effectiveWord,
           targetDisplay: effectiveDisplay,
           targetLetter: effectiveLetter,
@@ -221,7 +305,7 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
       });
       const j = await r.json();
       if (r.ok) {
-        if (j.noSpeech) toast.error(t("sa.noSpeech"));
+        if (j.noSpeech) toast.error(j.manualNeeded ? t("sa.asrBrowser") : t("sa.noSpeech"));
         else toast.success(t("sa.okTitle"));
         setResult(j);
       } else toast.error(j.error || t("sa.error"));
@@ -358,6 +442,13 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
               </Select>
             </div>
           </div>
+          {/* ★ v3.24.4: النص المسموع حياً أثناء التسجيل (تعرف داخل المتصفح) */}
+          {recording && live && (
+            <div className="rounded-xl border border-primary/25 bg-primary/[0.06] px-3 py-2">
+              <p className="text-[11px] font-bold text-muted-foreground">{t("sa.liveTranscript")}</p>
+              <p className="mt-0.5 break-words text-sm font-bold" dir="auto">{live}</p>
+            </div>
+          )}
           {/* أزرار التسجيل */}
           <div className="flex flex-wrap items-center gap-2">
             {!recording ? (
@@ -380,7 +471,21 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
               <audio ref={audioElRef} src={audioURL} controls className="h-10 max-w-full" preload="metadata" />
             )}
           </div>
-          <Button onClick={analyze} disabled={analyzing || recording || !audioB64 || !effectiveWord}
+          {audioURL && !recording && (
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5 text-xs">
+                <PenLine className="h-3.5 w-3.5 text-primary" /> {t("sa.manualTranscript")}
+              </Label>
+              <Input value={finalText} onChange={(e) => setFinalText(e.target.value)}
+                dir="auto" className="h-11 min-w-0" placeholder={t("sa.liveTranscript")} />
+            </div>
+          )}
+          {!recording && !SRCtor && (
+            <p className="flex items-start gap-1.5 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {t("sa.asrBrowser")}
+            </p>
+          )}
+          <Button onClick={analyze} disabled={analyzing || recording || (!audioB64 && !finalText.trim()) || !effectiveWord}
             className="h-12 w-full gap-2 rounded-xl text-base shadow-lg shadow-primary/20">
             <Wand2 className={cn("h-5 w-5", analyzing && "animate-pulse")} />
             {analyzing ? t("sa.analyzing") : t("sa.analyze")}
@@ -404,6 +509,9 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
             <div className="rounded-xl border bg-card/60 p-3 text-sm">
               <p className="text-xs text-muted-foreground">{t("sa.transcript")}</p>
               <p className="mt-0.5 font-bold break-words">{result.transcript || "—"}</p>
+              <p className="mt-1 text-[10.5px] text-muted-foreground">
+                {result.engine === "ai" ? t("sa.engine.ai") : t("sa.engine.heuristic")}
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {result.suspicion.map((s) => (

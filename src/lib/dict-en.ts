@@ -1301,6 +1301,12 @@ export const en: Record<string, string> = {
   "sa.dis.distortion": "Articulation distortion",
   "sa.dis.none": "No clear indicators",
   "sa.okTitle": "Analysis complete",
+  /* ★ v3.24.4 — التعرف داخل المتصفح + محرك صادق */
+  "sa.liveTranscript": "Heard text during recording",
+  "sa.manualTranscript": "What was understood — correct it or type it before analysis",
+  "sa.asrBrowser": "Your browser has no automatic speech recognition — record then type what you heard to always complete the analysis",
+  "sa.engine.ai": "Cloud AI analysis (center key)",
+  "sa.engine.heuristic": "Detailed deterministic phonetic analysis",
   "nav.hr": "Human resources",
   "nav.speech": "Speech analyzer",
   /* ★ v3.24.1 — microphone, multilingual bank, manual save, professional pay slip */

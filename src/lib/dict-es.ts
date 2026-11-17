@@ -1301,6 +1301,12 @@ export const es: Record<string, string> = {
   "sa.dis.distortion": "Distorsión articulatoria",
   "sa.dis.none": "Sin indicadores claros",
   "sa.okTitle": "Análisis completado",
+  /* ★ v3.24.4 — التعرف داخل المتصفح + محرك صادق */
+  "sa.liveTranscript": "Texto escuchado durante la grabación",
+  "sa.manualTranscript": "Lo que se comprendió — corríjalo o escríbalo antes del análisis",
+  "sa.asrBrowser": "Su navegador no ofrece reconocimiento automático de voz — grabe y escriba lo que oyó para completar siempre el análisis",
+  "sa.engine.ai": "Análisis con IA en la nube (clave del centro)",
+  "sa.engine.heuristic": "Análisis fonético determinista detallado",
   "nav.hr": "Recursos humanos",
   "nav.speech": "Analizador de habla",
   /* ★ v3.24.1 — micrófono, banco multilingüe, guardado manual, hoja de salario profesional */
