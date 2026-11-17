@@ -7,6 +7,9 @@
  * • ★ v3.20: رابط Google Drive قابل للضغط يظهر للمستحقين (PDF منظّم بالصور والجداول)
  * • القراءة داخل الموقع فقط — أسطر إجابات تفاعلية يحفظها العميل
  * • الإجابات تظهر للإدارة وللأخصائي المعالج فقط
+ * • ★ v3.25: قارئ الكتاب التفاعلي — PDF مرفوع من الإدارة يُقرأ داخل الموقع بتجربة كتاب حقيقي:
+ *   قلب صفحات ثلاثي الأبعاد (أسلوب quranflash)، علامة حمراء على الصفحة المحفوظة،
+ *   استكمال القراءة من نفس الصفحة، وزر Zoom in/out — لكل مستخدم تقدمه الخاص
  * • الإدارة والمساعد يضيفان/يعدلان/يعطلان — والحذف للإدارة
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -31,11 +34,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   BookOpenText, Plus, Pencil, Trash2, Power, PenLine, Lock, ArrowRight, ArrowLeft, ShieldCheck,
-  MessagesSquare, X, ExternalLink, ShoppingCart, Wallet, CircleAlert, Check, Clock3,
+  MessagesSquare, X, ExternalLink, ShoppingCart, Wallet, CircleAlert, Check, Clock3, FileText,
 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { TriInput, TriTextarea, triFrom, flattenTri, pickTri, TRI3 } from "@/components/tri-input";
 import FullImage from "@/components/full-image";
+import PdfFlipbook from "@/components/pdf-flipbook";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import Pagination from "@/components/pagination";
 import { WhatsAppGlyph } from "@/components/whatsapp-button";
 import { cn } from "@/lib/utils";
@@ -50,6 +58,8 @@ type Ebook = {
   author: string; coverBase64: string; blocks: Block[]; active: boolean;
   /** ★ v3.20 */
   price?: number; driveLink?: string; driveHas?: boolean;
+  /** ★ v3.25: وجود PDF مدمج (الرابط لا يُرسل في القائمة حفظاً للأمان) + اتجاه التقليب */
+  pdfHas?: boolean; pdfUrl?: string; direction?: "rtl" | "ltr";
   myOrder?: "pending" | "accepted" | "paid" | null;
 };
 
@@ -61,6 +71,9 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
   const [ebooks, setEbooks] = useState<Ebook[]>([]);
   const [loading, setLoading] = useState(true);
   const [reading, setReading] = useState<Ebook | null>(null);
+  /* ★ v3.25: القارئ التفاعلي في مستوى الصفحة — خارج نافذة Radix (pointer-events:none على الجسم
+     ما دامت النافذة مفتوحة كانت ستُعطل النقر داخل القارئ) */
+  const [flipping, setFlipping] = useState<Ebook | null>(null);
   const [editing, setEditing] = useState<Partial<Ebook> | null>(null);
   const [delId, setDelId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -192,7 +205,7 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
           <h1 className="text-xl sm:text-2xl font-black">{t("nav.ebooks")}</h1>
         </div>
         {isStaff && (
-          <Button onClick={() => setEditing({ title: "", summary: "", author: "", coverBase64: "", blocks: [], active: true, price: 0, driveLink: "" })}
+          <Button onClick={() => setEditing({ title: "", summary: "", author: "", coverBase64: "", blocks: [], active: true, price: 0, driveLink: "", pdfUrl: "", direction: "rtl" })}
             className="gap-2 rounded-xl shadow-md shadow-primary/20">
             <Plus className="h-4.5 w-4.5" /> {t("eb.newEbook")}
           </Button>
@@ -232,6 +245,11 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
                       {(e.price || 0) === 0 && (
                         <Badge className="bg-background/90 text-primary border-0 shadow gap-1">
                           <Lock className="h-3 w-3" /> {t("eb.readOnlyInSite")}
+                        </Badge>
+                      )}
+                      {e.pdfHas && (
+                        <Badge className="bg-background/90 text-rose-600 border-0 shadow gap-1">
+                          <FileText className="h-3 w-3" /> {t("eb.pdfBadge")}
                         </Badge>
                       )}
                     </div>
@@ -321,7 +339,15 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
 
       {/* القارئ الداخلي */}
       {reading && (
-        <EbookReader ebook={reading} onClose={() => { setReading(null); load(); }} buy={buy} waHref={waHref} />
+        <EbookReader ebook={reading} onClose={() => { setReading(null); load(); }} buy={buy} waHref={waHref}
+          onOpenFlip={() => { const bk = reading; setReading(null); setFlipping(bk); }} />
+      )}
+
+      {/* ★ v3.25: القارئ التفاعلي — طبقة ملء الشاشة مستقلة، وإغلاقه يعيد نافذة الكتاب */}
+      {flipping && flipping.pdfUrl && (
+        <PdfFlipbook ebookId={flipping._id} url={flipping.pdfUrl} title={titleOf(flipping) || flipping.title}
+          direction={flipping.direction || "rtl"}
+          onClose={() => { const bk = flipping; setFlipping(null); if (bk) setReading(bk); }} />
       )}
 
       {/* المحرر الإداري */}
@@ -359,12 +385,13 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
 
 /* ───────────────── القارئ — داخل الموقع فقط ───────────────── */
 function EbookReader({
-  ebook, onClose, buy, waHref,
+  ebook, onClose, buy, waHref, onOpenFlip,
 }: {
   ebook: Ebook;
   onClose: () => void;
   buy: (e: Ebook) => void;
   waHref: (e: Ebook) => string;
+  onOpenFlip: () => void;
 }) {
   const { t, me, lang, settings } = useApp();
   const isClient = me?.role === "client";
@@ -545,6 +572,14 @@ function EbookReader({
           </a>
         )}
 
+        {/* ★ v3.25: المستحق وملف PDF مدمج — زر فتح القارئ التفاعلي (تجربة الكتاب الحقيقي) */}
+        {unlocked && book.pdfUrl && (
+          <Button onClick={onOpenFlip}
+            className="h-12 w-full gap-2 rounded-xl text-sm font-bold shadow-md shadow-primary/20">
+            <BookOpenText className="h-5 w-5" /> {t("eb.readerOpen")}
+          </Button>
+        )}
+
         {/* المحتوى — للمستحق فقط */}
         {unlocked && (
           <>
@@ -685,6 +720,26 @@ function EbookEditor({ ebook, onChange, onDone }: { ebook: Partial<Ebook> | null
   const { t } = useApp();
   const [busy, setBusy] = useState(false);
   const [full, setFull] = useState<Partial<Ebook> | null>(ebook);
+  /* ★ v3.25: رفع ملف PDF إلى GridFS — القارئ التفاعلي يقرأه داخل الموقع */
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement | null>(null);
+
+  const pickPdf = async (f: File) => {
+    setPdfBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      const r = await fetch("/api/media", { method: "POST", body: fd });
+      const j = await r.json().catch(() => null);
+      if (r.ok && j?.url) {
+        upd({ pdfUrl: String(j.url) });
+        toast.success(t("eb.pdfUploaded"));
+      } else toast.error(j?.error || t("common.error"), { duration: 6000 });
+    } catch {
+      toast.error(t("err.conn"));
+    }
+    setPdfBusy(false);
+  };
 
   /* ★ v3.20: تعديل كتاب موجود = جلب كامل أولاً (القائمة خالية من blocks عمداً) */
   useEffect(() => {
@@ -752,6 +807,45 @@ function EbookEditor({ ebook, onChange, onDone }: { ebook: Partial<Ebook> | null
       <div className="space-y-2">
         <Label>{t("eb.cover")}</Label>
         <ImageInput value={e?.coverBase64 || ""} onChange={(v) => upd({ coverBase64: v })} />
+      </div>
+
+      {/* ★ v3.25: ملف PDF للقارئ التفاعلي — يُرفع إلى وسائط المركز ويُقرأ داخل الموقع */}
+      <div className="space-y-2 rounded-2xl border border-primary/25 bg-primary/[0.04] p-4">
+        <Label className="flex items-center gap-1.5 text-primary">
+          <FileText className="h-4 w-4" /> {t("eb.pdfUpload")}
+        </Label>
+        <input ref={pdfInputRef} type="file" accept="application/pdf,.pdf" className="hidden"
+          onChange={(ev) => { const f = ev.target.files?.[0]; if (f) pickPdf(f); ev.target.value = ""; }} />
+        {e?.pdfUrl ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex min-w-0 flex-1 items-center gap-1.5 rounded-xl bg-background px-3 py-2 text-xs font-bold ring-1 ring-border">
+              <FileText className="h-3.5 w-3.5 shrink-0 text-rose-600" />
+              <span className="truncate" dir="ltr">{e.pdfUrl.split("/").pop()}</span>
+            </span>
+            <Button type="button" size="sm" variant="outline" onClick={() => pdfInputRef.current?.click()}
+              disabled={pdfBusy} className="gap-1.5 rounded-xl">{t("eb.pdfReplace")}</Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => upd({ pdfUrl: "" })}
+              className="gap-1.5 rounded-xl text-destructive hover:text-destructive">{t("eb.pdfRemove")}</Button>
+          </div>
+        ) : (
+          <Button type="button" variant="outline" onClick={() => pdfInputRef.current?.click()}
+            disabled={pdfBusy} className="h-11 w-full gap-2 rounded-xl border-dashed border-primary/40 text-primary">
+            {pdfBusy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("eb.pdfUploading")}</> : <><FileText className="h-4 w-4" /> {t("eb.pdfPick")}</>}
+          </Button>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs">{t("eb.direction")}</Label>
+            <Select value={e?.direction || "rtl"} onValueChange={(v) => upd({ direction: v as "rtl" | "ltr" })}>
+              <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="rtl">{t("eb.dirRtl")}</SelectItem>
+                <SelectItem value="ltr">{t("eb.dirLtr")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="flex items-end pb-1 text-xs leading-relaxed text-muted-foreground">{t("eb.pdfHint")}</p>
+        </div>
       </div>
 
       {/* ★ v3.20: السعر — مجاني/مدفوع بالدينار الجزائري */}

@@ -8,7 +8,7 @@
 import { mapToObj } from "@/lib/map";
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
-import { Ebook, EbookAnswer, EbookOrder, User } from "@/lib/models";
+import { Ebook, EbookAnswer, EbookOrder, EbookProgress, User } from "@/lib/models";
 import { currentUser, isStaff, requireUser } from "@/lib/auth";
 
 /** تطبيع رابط Drive — يُقبل http/https فقط وطول معقول */
@@ -19,22 +19,35 @@ function normDrive(v: unknown): string {
   return s;
 }
 
+/** ★ v3.25: تطبيع رابط PDF المرفوع — مسار الوسائط الداخلي حصراً */
+function normPdfUrl(v: unknown): string {
+  const s = String(v || "").trim();
+  return /^\/api\/media\/[A-Za-z0-9._-]+\.pdf$/.test(s) ? s : "";
+}
+
+/** ★ v3.25: اتجاه القارئ — rtl افتراضياً */
+function normDirection(v: unknown): "rtl" | "ltr" {
+  return v === "ltr" ? "ltr" : "rtl";
+}
+
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, ctx: Ctx) {
   return handle(async () => {
     const me = await currentUser();
-    if (!me) return fail(401, "سجّل الدخول للقراءة");
     const { id } = await ctx.params;
     const e = await Ebook.findById(id).lean<Record<string, unknown> | null>();
-    if (!e || (e.active === false && !isStaff(me.role)))
+    if (!e || (e.active === false && (!me || !isStaff(me.role))))
       return fail(404, "الكتاب غير موجود");
 
-    /* ★ v3.20: حق الوصول — الإدارة والمساعد دائماً، والمجاني للجميع، والمدفوع لمن دفع حصراً */
-    const staff = isStaff(me.role);
+    /* ★ v3.20: حق الوصول — الإدارة والمساعد دائماً، والمجاني للجميع (حتى الزائر — ★ v3.25)،
+       والمدفوع لمن دفع حصراً */
+    const staff = !!me && isStaff(me.role);
     const price = Math.max(0, Number(e.price) || 0);
+    /* ★ v3.25: الكتاب المدفوع يتطلب حساباً — الزائر يُدعى لتسجيل الدخول بدل الرفض الصامت */
+    if (!me && price > 0) return fail(401, "سجّل الدخول واطلب شراء الكتاب للقراءة");
     let myOrder: string | null = null;
-    if (me.role === "client") {
+    if (me && me.role === "client") {
       const o = await EbookOrder.findOne({ ebookId: id, clientId: me._id })
         .sort({ createdAt: -1 })
         .lean<{ status: string } | null>();
@@ -86,7 +99,8 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     /* ★ v3.20: غير المستحق لا يرى المحتوى ولا رابط Drive — فقط التعريف وحالة طلبه */
     const driveHas = !!e.driveLink;
     const base = { ...e, price, driveHas, myOrder };
-    const ebook = unlocked ? base : { ...base, blocks: [], driveLink: "" };
+    /* ★ v3.25: غير المستحق لا يرى المحتوى ولا رابط Drive ولا رابط PDF المدمج */
+    const ebook = unlocked ? base : { ...base, blocks: [], driveLink: "", pdfUrl: "" };
     return ok({ ebook, answersVisible, answersList, unlocked });
   });
 }
@@ -109,6 +123,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     /* ★ v3.20: السعر بالدينار ورابط Drive — نفس تطبيع الإنشاء */
     if (b.price !== undefined) e.price = Math.max(0, Math.round(Number(b.price) || 0));
     if (b.driveLink !== undefined) e.driveLink = normDrive(b.driveLink);
+    /* ★ v3.25: ملف PDF المدمج واتجاه القارئ */
+    if (b.pdfUrl !== undefined) e.pdfUrl = normPdfUrl(b.pdfUrl);
+    if (b.direction !== undefined) e.direction = normDirection(b.direction);
     if (Array.isArray(b.blocks))
       e.blocks = b.blocks
         .filter((x: { type?: string }) => x?.type === "text" || x?.type === "answer")
@@ -129,6 +146,7 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     const { id } = await ctx.params;
     await Ebook.findByIdAndDelete(id);
     await EbookAnswer.deleteMany({ ebookId: id });
+    await EbookProgress.deleteMany({ ebookId: id }); // ★ v3.25: تنظيف تقدم القراءة
     return ok();
   });
 }

@@ -3,7 +3,7 @@
  * GET: للجميع — بطاقات العنوان والنبذة والغلاف + السعر وحالة طلبي
  *      ★ v3.20: المحتوى (blocks) ورابط Drive لا يُرسَنان في القائمة أبداً
  *      (القارئ يجلب الكتاب منفرداً حيث تُطبَّق قواعد الوصول بدقة)
- * POST: الإدارة والمساعد — مع السعر بالدينار ورابط Google Drive
+ * POST: الإدارة والمساعد — مع السعر بالدينار ورابط Google Drive وملف PDF المدمج (★ v3.25)
  */
 import { NextRequest } from "next/server";
 import { ok, fail, handle } from "@/lib/api-helpers";
@@ -16,6 +16,17 @@ function normDrive(v: unknown): string {
   if (!s) return "";
   if (!/^https?:\/\/\S+$/i.test(s) || s.length > 2048) return "";
   return s;
+}
+
+/** ★ v3.25: تطبيع رابط PDF المرفوع — مسار الوسائط الداخلي حصراً */
+function normPdfUrl(v: unknown): string {
+  const s = String(v || "").trim();
+  return /^\/api\/media\/[A-Za-z0-9._-]+\.pdf$/.test(s) ? s : "";
+}
+
+/** ★ v3.25: اتجاه القارئ — rtl افتراضياً */
+function normDirection(v: unknown): "rtl" | "ltr" {
+  return v === "ltr" ? "ltr" : "rtl";
 }
 
 export async function GET(req: NextRequest) {
@@ -36,8 +47,10 @@ export async function GET(req: NextRequest) {
     return ok({
       ebooks: ebooks.map((e) => {
         const driveHas = !!e.driveLink;
-        const { blocks: _blocks, driveLink: _drive, ...rest } = e;
-        return { ...rest, driveHas, myOrder: myOrders[String(e._id)] || null };
+        /* ★ v3.25: رابط PDF المدمج لا يُكشف في القائمة — pdfHas يكفي للشارات
+           (مسار الوسائط عام والاسم العشوائي حماية إضافية، فلا يُسرَّب الرابط لغير المستحق) */
+        const { blocks: _blocks, driveLink: _drive, pdfUrl: _pdf, ...rest } = e;
+        return { ...rest, driveHas, pdfHas: !!e.pdfUrl, myOrder: myOrders[String(e._id)] || null };
       }),
     });
   });
@@ -63,6 +76,8 @@ export async function POST(req: NextRequest) {
       coverBase64: String(b.coverBase64 || ""),
       price,
       driveLink,
+      pdfUrl: normPdfUrl(b.pdfUrl),
+      direction: normDirection(b.direction),
       blocks: Array.isArray(b.blocks)
         ? b.blocks
             .filter((x: { type?: string }) => x?.type === "text" || x?.type === "answer")

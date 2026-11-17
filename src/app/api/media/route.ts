@@ -20,6 +20,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const MAX_SIZE = 200 * 1024 * 1024; // 200MB حد أعلى للفيديو الطويل
+const PDF_MAX = 100 * 1024 * 1024; // ★ v3.25: حد PDF الكتب — كفى بكتب ضخمة
 const EXT_BY_MIME: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -28,6 +29,7 @@ const EXT_BY_MIME: Record<string, string> = {
   "video/mp4": "mp4",
   "video/webm": "webm",
   "video/quicktime": "mov",
+  "application/pdf": "pdf", // ★ v3.25: كتب القارئ الداخلي
 };
 
 /**
@@ -75,14 +77,17 @@ export async function POST(req: NextRequest) {
     if (!file || typeof file === "string") return fail(400, "لم يُرفق أي ملف");
     const f = file as File;
 
-    if (f.size > MAX_SIZE) return fail(413, "الملف أكبر من الحد المسموح (200MB)");
     const mime = f.type || "application/octet-stream";
     const ext = EXT_BY_MIME[mime];
-    if (!ext) return fail(415, "صيغة غير مدعومة — الصور (JPG/PNG/WebP) والفيديو (MP4/WebM/MOV) فقط");
+    if (!ext)
+      return fail(415, "صيغة غير مدعومة — الصور (JPG/PNG/WebP) والفيديو (MP4/WebM/MOV) وPDF فقط");
+    const limit = ext === "pdf" ? PDF_MAX : MAX_SIZE;
+    if (f.size > limit)
+      return fail(413, ext === "pdf" ? "ملف PDF أكبر من الحد المسموح (100MB)" : "الملف أكبر من الحد المسموح (200MB)");
 
     const name = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
     const buf = Buffer.from(await f.arrayBuffer());
     await putMedia(name, buf, mime);
-    return ok({ url: `/api/media/${name}`, type: mime.startsWith("video") ? "video" : "image", size: f.size });
+    return ok({ url: `/api/media/${name}`, type: ext === "pdf" ? "pdf" : mime.startsWith("video") ? "video" : "image", size: f.size });
   });
 }

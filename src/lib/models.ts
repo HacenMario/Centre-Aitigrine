@@ -420,6 +420,10 @@ const EbookSchema = new Schema(
     price: { type: Number, default: 0, min: 0 },
     /** ★ v3.20: رابط الكتاب على Google Drive (PDF منظّم بالصور والجداول) — يظهر كرابط قابل للضغط للمستحقين فقط */
     driveLink: { type: String, default: "" },
+    /** ★ v3.25: ملف PDF مدمج من رفع الإدارة (GridFS عبر /api/media) — قارئ الكتاب داخل الموقع للمستحقين */
+    pdfUrl: { type: String, default: "" },
+    /** ★ v3.25: اتجاه تقليب صفحات القارئ — rtl للعربية (افتراضي) وltr للفرنسية/الإنجليزية */
+    direction: { type: String, enum: ["rtl", "ltr"], default: "rtl" },
     active: { type: Boolean, default: true },
   },
   { timestamps: true }
@@ -456,6 +460,28 @@ export type EbookOrderDoc = InferSchemaType<typeof EbookOrderSchema> & { _id: mo
 export const EbookOrder: Model<EbookOrderDoc> =
   (mongoose.models.EbookOrder as Model<EbookOrderDoc>) ||
   mongoose.model<EbookOrderDoc>("EbookOrder", EbookOrderSchema);
+
+/* ─────────────── تقدم قراءة الكتب الإلكترونية (★ v3.25) ───────────────
+ * لكل مستخدم/كتاب: الصفحة الأخيرة (استكمال القراءة) + صفحة العلامة الحمراء
+ * (علامة الحفظ التي يضعها القارئ على الصفحة التي يريد العودة إليها).
+ * الزوار غير المسجلين يحفظون محلياً في المتصفح — هذا الجدول للمستخدمين المسجلين.
+ */
+const EbookProgressSchema = new Schema(
+  {
+    ebookId: { type: Schema.Types.ObjectId, ref: "Ebook", required: true, index: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    /** آخر صفحة وصل إليها القارئ — تفتح عليها القراءة في المرة القادمة */
+    lastPage: { type: Number, default: 1, min: 1 },
+    /** صفحة العلامة الحمراء — 0 = لا علامة */
+    bookmark: { type: Number, default: 0, min: 0 },
+  },
+  { timestamps: true }
+);
+EbookProgressSchema.index({ ebookId: 1, userId: 1 }, { unique: true });
+export type EbookProgressDoc = InferSchemaType<typeof EbookProgressSchema> & { _id: mongoose.Types.ObjectId };
+export const EbookProgress: Model<EbookProgressDoc> =
+  (mongoose.models.EbookProgress as Model<EbookProgressDoc>) ||
+  mongoose.model<EbookProgressDoc>("EbookProgress", EbookProgressSchema);
 
 /* ─────────────── سجل الأنشطة العامة للإثبات الاجتماعي (v3.20) ───────────────
  * نبضات حقيقية تظهر في نافذة التحفيز: حجز موعد / مقعد تكوين / شراء كتاب
@@ -919,5 +945,3 @@ export const HrPayment: Model<HrPaymentDoc> =
   (mongoose.models.HrPayment as Model<HrPaymentDoc>) ||
   mongoose.model<HrPaymentDoc>("HrPayment", HrPaymentSchema);
 
-/* ★ v3.24.2: أُزيلت مفاتيح المرور Passkeys/WebAuthn نهائياً بطلب صاحب المركز —
-   الطرق والنماذج والمكوّنات كلها محذوفة، وجداولها القديمة في القاعدة تبقى عديمة الاستعمال */

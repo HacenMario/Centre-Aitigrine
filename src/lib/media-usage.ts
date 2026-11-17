@@ -145,7 +145,7 @@ export async function scanMediaUsage(
     errors.push(`services: ${(e as Error)?.message}`);
   }
   try {
-    await scanByRegex(Ebook, ["coverBase64"], "ebooks", map, names);
+    await scanByRegex(Ebook, ["coverBase64", "pdfUrl"], "ebooks", map, names);
   } catch (e) {
     errors.push(`ebooks: ${(e as Error)?.message}`);
   }

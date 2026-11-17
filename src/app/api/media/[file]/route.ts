@@ -28,6 +28,7 @@ const MIME_BY_EXT: Record<string, string> = {
   mp4: "video/mp4",
   webm: "video/webm",
   mov: "video/quicktime",
+  pdf: "application/pdf", // ★ v3.25: كتب القارئ الداخلي
 };
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ file: string }> }) {
