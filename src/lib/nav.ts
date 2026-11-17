@@ -24,7 +24,9 @@ export type ViewKey =
   | "record"
   | "earnings"
   | "payroll"
+  | "hr"
   | "reports"
+  | "speech"
   | "feedback"
   | "contact"
   | "faq"
@@ -54,7 +56,7 @@ export type NavItem = {
  * ★ v3.23: لوحة القيادة وإعدادات المركز للإدارة فقط — المساعد يبدأ من المواعيد والمرضى
  */
 export const ROLE_IMPORTANT: Record<Exclude<Role, "guest">, ViewKey[]> = {
-  admin: ["dashboard", "appointments", "payroll", "reports", "accounts", "settings"],
+  admin: ["dashboard", "appointments", "payroll", "hr", "reports", "accounts", "settings"],
   assistant: ["appointments", "patients"],
   specialist: ["appointments", "patients", "earnings", "profile"],
   trainer: ["articles", "courses", "profile"],
@@ -74,7 +76,11 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "accounts", label: "nav.accounts", icon: "UsersRound", roles: ["admin", "assistant"] },
   /* ★ v3.23: الأجور والمستحقات + التقارير المالية — حساب الإدارة فقط */
   { key: "payroll", label: "nav.payroll", icon: "Wallet", roles: ["admin"] },
+  /* ★ v3.24: الموارد البشرية — رواتب كل العمال والحضور والإجازات والacompte (الإدارة فقط) */
+  { key: "hr", label: "nav.hr", icon: "UsersRound", roles: ["admin"] },
   { key: "reports", label: "nav.reports", icon: "ChartLine", roles: ["admin"] },
+  /* ★ v3.24: محلل النطق الذكي — للأخصائي فقط */
+  { key: "speech", label: "nav.speech", icon: "AudioLines", roles: ["specialist"] },
   /* إعدادات المركز للإدارة فقط (حُجبت عن حساب المساعد — طلب المستخدم ★ v3.23) */
   { key: "settings", label: "nav.settings", icon: "Settings", roles: ["admin"] },
   /* إدارة الوثائق: صفحة خاصة بالقائمة الجانبية تظهر لحساب الإدارة فقط — طلب المستخدم */

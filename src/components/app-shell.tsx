@@ -53,13 +53,15 @@ import Record from "@/components/views/record";
 import Earnings from "@/components/views/earnings";
 import Payroll from "@/components/views/payroll";
 import Reports from "@/components/views/reports";
+import Hr from "@/components/views/hr"; /* ★ v3.24 */
+import SpeechAnalyzer from "@/components/views/speech"; /* ★ v3.24 */
 import Testimonials from "@/components/views/testimonials";
 import BrandSkeleton from "@/components/brand-skeleton";
 
 const STAFF_ONLY: ViewKey[] = ["accounts", "patients", "record", "orders"];
 /* ★ v3.23: لوحة القيادة + إعدادات المركز + الأجور + التقارير + الوثائق — للإدارة فقط
    (حُجبت لوحة القيادة والإعدادات عن حساب المساعد — طلب المستخدم) */
-const ADMIN_ONLY: ViewKey[] = ["documents", "dashboard", "settings", "payroll", "reports"];
+const ADMIN_ONLY: ViewKey[] = ["documents", "dashboard", "settings", "payroll", "hr", "reports"];
 
 function Shell() {
   const { t, me, hidden, ready, view, viewId, navigate } = useApp();
@@ -161,7 +163,9 @@ function Shell() {
             {view === "record" && <Record patientId={viewId} navigate={navigate} />}
             {view === "earnings" && <Earnings navigate={navigate} />}
             {view === "payroll" && <Payroll navigate={navigate} />}
+            {view === "hr" && <Hr navigate={navigate} />} {/* ★ v3.24 */}
             {view === "reports" && <Reports navigate={navigate} />}
+            {view === "speech" && <SpeechAnalyzer navigate={navigate} />} {/* ★ v3.24 */}
             {view === "settings" && <CenterSettings navigate={navigate} />}
             {view === "feedback" && <Feedback navigate={navigate} />}
             {view === "profile" && <Profile navigate={navigate} />}

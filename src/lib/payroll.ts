@@ -18,6 +18,9 @@ export type PayrollSpecRow = {
   revenue: number;
   /** المستحقات = السعر الصافي × النسبة — مقرّب للدينار */
   dues: number;
+  /** ★ v3.24: نظام الأجر — salary يعني صفر مستحقات جلسات (الراتب عبر الموارد البشرية) */
+  payModel?: "commission" | "salary";
+  salaryAmount?: number;
 };
 
 export type PayrollAssistant = {
@@ -62,8 +65,8 @@ export function isYm(s: string): boolean {
  */
 export async function specialistRowsForMonth(month: string): Promise<PayrollSpecRow[]> {
   const specs = await User.find({ role: "specialist" })
-    .select("name photoBase64 commissionRate active")
-    .lean<{ _id: unknown; name?: string; photoBase64?: string; commissionRate?: number; active?: boolean }[]>();
+    .select("name photoBase64 commissionRate payModel salaryAmount active")
+    .lean<{ _id: unknown; name?: string; photoBase64?: string; commissionRate?: number; payModel?: string; salaryAmount?: number; active?: boolean }[]>();
 
   const appts = await Appointment.find({
     status: "completed",
@@ -86,7 +89,10 @@ export async function specialistRowsForMonth(month: string): Promise<PayrollSpec
   const rows: PayrollSpecRow[] = specs.map((u) => {
     const id = String(u._id);
     const stat = agg.get(id) || { sessions: 0, revenue: 0 };
-    const rate = Math.max(0, Math.min(100, Number(u.commissionRate) || 0));
+    /* ★ v3.24: نظام الراتب الثابت — المستحقات لكل جلسة صفر والراتب يُدفع عبر الموارد البشرية */
+    const payModel: "commission" | "salary" = u.payModel === "salary" ? "salary" : "commission";
+    const salaryAmount = Math.max(0, Math.round(Number(u.salaryAmount) || 0));
+    const rate = payModel === "salary" ? 0 : Math.max(0, Math.min(100, Number(u.commissionRate) || 0));
     return {
       specialistId: id,
       name: u.name || "—",
@@ -94,7 +100,9 @@ export async function specialistRowsForMonth(month: string): Promise<PayrollSpec
       rate,
       sessions: stat.sessions,
       revenue: Math.round(stat.revenue),
-      dues: Math.round((stat.revenue * rate) / 100),
+      dues: payModel === "salary" ? 0 : Math.round((stat.revenue * rate) / 100),
+      payModel,
+      ...(payModel === "salary" ? { salaryAmount } : {}),
       /* نُبقي الأخصائيين المعطلين ظاهرين إن لهم جلسات منتهية في الشهر */
       ...(u.active === false && stat.sessions === 0 ? { _skip: 1 } : {}),
     } as PayrollSpecRow;

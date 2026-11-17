@@ -1,12 +1,14 @@
 "use client";
 /**
- * ★ v3.23 — أرباحي (للأخصائي فقط)
+ * ★ v3.23/v3.24 — أرباحي (للأخصائي فقط)
  * إحصائيات المستحقات الشهرية بناءً على الجلسات التي أتمّها فعلاً:
- *  — بطاقات: نسبته من الجلسة + جلرات الشهر الحالي + مستحقات الشهر + الإجمالي الكلي
- *  — رسم بياني لمستحقات آخر 6 أشهر
- *  — جدول شهري مفصّل (الجلسات، مجموع الجلرات، المستحقات)
+ *  — بطاقات: نظام الأجر + جلسات الشهر الحالي + مستحقات/راتب الشهر + الإجمالي الكلي
+ *  — رسم بياني لمستحقات آخر 6 أشهر (عدد الجلسات في نظام الراتب الثابت)
+ *  — جدول شهري مفصّل (الجلسات، مجموع الجلسات، المستحقات)
  * المعادلة: المستحقات = (سعر الجلسة − الخصم) × النسبة — للجلسات المنتهية فقط،
  * والنسبة تضبطها الإدارة لكل أخصائي على حدة.
+ * ★ v3.24: نظام أجر مزدوج — عمولة لكل جلسة أو راتب شهري ثابت يُصرف عبر الموارد البشرية؛
+ * في نظام الراتب تُعرض إحصائيات الجلسات للاطلاع وبلا مستحقات لكل جلسة.
  */
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/lib/app-context";
@@ -24,6 +26,9 @@ import type { Navigate } from "@/lib/nav";
 type MonthRow = { month: string; sessions: number; revenue: number; dues: number };
 type Earnings = {
   rate: number;
+  /** ★ v3.24: نظام أجر الأخصائي — commission (الافتراضي) أو salary راتب شهري ثابت */
+  mode?: "commission" | "salary";
+  salaryAmount?: number;
   current: MonthRow;
   months: MonthRow[];
   totals: { sessions: number; revenue: number; dues: number };
@@ -69,31 +74,41 @@ export default function Earnings({ navigate }: { navigate: Navigate }) {
     }
   };
 
-  const cards: { icon: typeof Coins; label: string; value: string; cls?: string }[] = [
-    {
-      icon: Percent,
-      label: t("earn.rate"),
-      value: `${data?.rate ?? 0}%`,
-      cls: "text-primary",
-    },
-    {
-      icon: CalendarCheck2,
-      label: t("earn.sessionsThisMonth"),
-      value: String(data?.current?.sessions ?? "—"),
-    },
-    {
-      icon: Wallet,
-      label: t("earn.duesThisMonth"),
-      value: money(data?.current?.dues || 0),
-      cls: "text-emerald-600 dark:text-emerald-400",
-    },
-    {
-      icon: PiggyBank,
-      label: t("earn.duesTotal"),
-      value: money(data?.totals?.dues || 0),
-      cls: "text-amber-600 dark:text-amber-400",
-    },
-  ];
+  /* ★ v3.24: نظام الأجر — عمولة أو راتب شهري ثابت */
+  const isSalary = (data?.mode ?? "commission") === "salary";
+
+  const cards: { icon: typeof Coins; label: string; value: string; cls?: string }[] = isSalary
+    ? [
+        { icon: Wallet, label: t("earn.payModelCard"), value: t("pm.salary"), cls: "text-primary" },
+        { icon: CalendarCheck2, label: t("earn.sessionsThisMonth"), value: String(data?.current?.sessions ?? "—") },
+        { icon: PiggyBank, label: t("earn.salaryCard"), value: money(data?.salaryAmount || 0), cls: "text-emerald-600 dark:text-emerald-400" },
+        { icon: Coins, label: t("earn.sessionsTotalCard"), value: String(data?.totals?.sessions ?? "—"), cls: "text-amber-600 dark:text-amber-400" },
+      ]
+    : [
+        {
+          icon: Percent,
+          label: t("earn.rate"),
+          value: `${data?.rate ?? 0}%`,
+          cls: "text-primary",
+        },
+        {
+          icon: CalendarCheck2,
+          label: t("earn.sessionsThisMonth"),
+          value: String(data?.current?.sessions ?? "—"),
+        },
+        {
+          icon: Wallet,
+          label: t("earn.duesThisMonth"),
+          value: money(data?.current?.dues || 0),
+          cls: "text-emerald-600 dark:text-emerald-400",
+        },
+        {
+          icon: PiggyBank,
+          label: t("earn.duesTotal"),
+          value: money(data?.totals?.dues || 0),
+          cls: "text-amber-600 dark:text-amber-400",
+        },
+      ];
 
   return (
     <div className="space-y-5">
@@ -109,10 +124,18 @@ export default function Earnings({ navigate }: { navigate: Navigate }) {
         </Button>
       </div>
 
-      <p className="flex items-start gap-2 rounded-xl bg-primary/6 border border-primary/15 px-4 py-2.5 text-sm text-primary">
-        <Info className="h-4 w-4 shrink-0 mt-0.5" />
-        <span className="leading-relaxed">{t("earn.note", { rate: data?.rate ?? me?.commissionRate ?? 0 })}</span>
-      </p>
+      {isSalary && data ? (
+        /* ★ v3.24: لافتة نظام الراتب الثابت — بدل معادلة النسبة */
+        <p className="flex items-start gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.07] p-3.5 text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+          <Wallet className="h-4 w-4 shrink-0 mt-0.5" />
+          <span className="leading-relaxed break-words">{t("earn.salaryBanner", { n: money(data.salaryAmount || 0) })}</span>
+        </p>
+      ) : (
+        <p className="flex items-start gap-2 rounded-xl bg-primary/6 border border-primary/15 px-4 py-2.5 text-sm text-primary">
+          <Info className="h-4 w-4 shrink-0 mt-0.5" />
+          <span className="leading-relaxed">{t("earn.note", { rate: data?.rate ?? me?.commissionRate ?? 0 })}</span>
+        </p>
+      )}
 
       {loading ? (
         <PageSkeleton kind="cards" count={4} label={t("common.loading")} />
@@ -164,9 +187,17 @@ export default function Earnings({ navigate }: { navigate: Navigate }) {
                     <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
                     <Tooltip
                       contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12 }}
-                      formatter={(v: number | string) => [money(Number(v)), t("earn.dues")] as [string, string]}
+                      formatter={(v: number | string) =>
+                        [isSalary ? String(v) : money(Number(v)), isSalary ? t("earn.chartSessions") : t("earn.dues")] as [string, string]
+                      }
                     />
-                    <Bar dataKey="dues" name={t("earn.dues")} fill="#0f766e" radius={[6, 6, 0, 0]} barSize={26} />
+                    <Bar
+                      dataKey={isSalary ? "sessions" : "dues"}
+                      name={isSalary ? t("earn.chartSessions") : t("earn.dues")}
+                      fill={isSalary ? "#7c3aed" : "#0f766e"}
+                      radius={[6, 6, 0, 0]}
+                      barSize={26}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -195,21 +226,23 @@ export default function Earnings({ navigate }: { navigate: Navigate }) {
                       <span className="text-xs text-muted-foreground tabular-nums">
                         {t("earn.revenue")}: {money(m.revenue)}
                       </span>
-                      <span className="text-sm font-black tabular-nums text-emerald-600 dark:text-emerald-400">
-                        {money(m.dues)}
+                      <span className={isSalary ? "text-sm font-bold tabular-nums text-muted-foreground" : "text-sm font-black tabular-nums text-emerald-600 dark:text-emerald-400"}>
+                        {isSalary ? "—" : money(m.dues)}
                       </span>
                     </div>
                   </div>
                 ))}
               </div>
-              {/* الإجمالي الكلي */}
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-gradient-to-r from-primary to-primary/85 px-4 py-3.5 text-primary-foreground shadow-md shadow-primary/20">
-                <span className="flex items-center gap-2 font-black text-sm sm:text-base">
-                  <PiggyBank className="h-5 w-5 shrink-0" />
-                  {t("earn.grandTotal", { n: data.totals.sessions })}
-                </span>
-                <span className="text-lg sm:text-xl font-black tabular-nums break-all">{money(data.totals.dues)}</span>
-              </div>
+              {/* الإجمالي الكلي — في نظام الراتب يُستبدل بلفتة صرف الراتب الشهري */}
+              {!isSalary && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-gradient-to-r from-primary to-primary/85 px-4 py-3.5 text-primary-foreground shadow-md shadow-primary/20">
+                  <span className="flex items-center gap-2 font-black text-sm sm:text-base">
+                    <PiggyBank className="h-5 w-5 shrink-0" />
+                    {t("earn.grandTotal", { n: data.totals.sessions })}
+                  </span>
+                  <span className="text-lg sm:text-xl font-black tabular-nums break-all">{money(data.totals.dues)}</span>
+                </div>
+              )}
               <p className="flex items-start gap-2 text-[11px] leading-relaxed text-muted-foreground">
                 {data.formula}
               </p>

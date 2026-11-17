@@ -1,12 +1,13 @@
 "use client";
 /**
- * ★ v3.23 — لوحة تقويم المواعيد للأخصائي (Calendar Sync)
+ * ★ v3.23/v3.24 — لوحة تقويم المواعيد للأخصائي (Calendar Sync)
  * ترقية صفحة «مواعيدي» إلى لوحة تحكم كاملة:
  *  — عرض شهري: شبكة الشهر مع نقاط ملوّنة بحالة كل يوم (قيد الانتظار/مؤكد/منتهي/ملغي)
  *    والنقر على أي يوم يفتح أجندته
  *  — عرض أسبوعي: أعمدة الأيام السبعة بمواعيد كل يوم (مكدسة على الهاتف)
  *  — عرض يومي: أجندة اليوم بأكملها مع إجراءات الحالة (تأكيد/إنهاء/إلغاء)
- * الحالات بألوان موحّدة مع شارات القائمة، وتجاوب كامل (هاتف/حاسوب) وRTL/LTR.
+ * ★ v3.24: بطاقة الأجندة اليومية بتفاصيل أعمق لكل موعد — نوع الخدمة، هاتف العميل
+ *   (اتصال بنقرة)، سن العميل وجنسه — نظرة مسبقة قبل الجلسة. تجاوب كامل وRTL/LTR.
  */
 import { useMemo, useState } from "react";
 import { useApp } from "@/lib/app-context";
@@ -16,7 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ChevronLeft, ChevronRight, CheckCircle2, XCircle, CircleCheckBig,
-  CalendarDays, UserRound, Tag, Clock,
+  CalendarDays, UserRound, Tag, Clock, Phone, Cake,
 } from "lucide-react";
 import { toast } from "sonner";
 import { pickTri } from "@/components/tri-input";
@@ -33,6 +34,10 @@ export type CalAppt = {
   serviceTitleFr?: string;
   serviceTitleEn?: string;
   notes?: string;
+  /* ★ v3.24: تفاصيل العميل في بطاقة اليوم */
+  clientPhone?: string;
+  clientAge?: number | null;
+  clientGender?: string | null;
 };
 
 /* أسماء الأيام حسب اللغة (0 = الأحد) — نفس ترتيب صفحة المواعيد */
@@ -196,6 +201,29 @@ export default function ApptCalendar({ appts, onReload }: { appts: CalAppt[]; on
               <Tag className="h-3 w-3 shrink-0" />
               {pickTri(a as unknown as Record<string, unknown>, "serviceTitle", lang)}
             </p>
+          )}
+          {/* ★ v3.24: تفاصيل العميل — هاتف (اتصال بنقرة) + سن + جنس — تلتف بأمان على الهاتف */}
+          {(a.clientPhone || (a.clientAge ?? null) !== null || a.clientGender) && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+              {a.clientPhone && (
+                <a href={`tel:${a.clientPhone}`} dir="ltr"
+                  className="flex items-center gap-1 font-bold text-primary hover:underline">
+                  <Phone className="h-3 w-3 shrink-0" /> {a.clientPhone}
+                </a>
+              )}
+              {(a.clientAge ?? null) !== null && (
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <Cake className="h-3 w-3 shrink-0" />
+                  <span className="tabular-nums">{t("cld.years", { n: a.clientAge as number })}</span>
+                </span>
+              )}
+              {a.clientGender && (
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <UserRound className="h-3 w-3 shrink-0" />
+                  {a.clientGender === "male" ? t("cld.male") : t("cld.female")}
+                </span>
+              )}
+            </div>
           )}
           {a.notes && <p className="text-[11px] text-muted-foreground break-words">{a.notes}</p>}
         </div>

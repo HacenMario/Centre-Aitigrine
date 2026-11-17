@@ -28,7 +28,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Power, Search, UsersRound, Phone, KeyRound, BellRing, X, Droplet, Lock, Percent } from "lucide-react";
+import { Plus, Pencil, Trash2, Power, Search, UsersRound, Phone, KeyRound, BellRing, X, Droplet, Lock, Percent, Wallet, Cake, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { TriInput, TriTextarea, flattenTri, triFrom, triName, TRI3, pickTri } from "@/components/tri-input";
 import { FullAvatar } from "@/components/full-image";
@@ -47,6 +47,12 @@ type Account = {
   bio?: string; bioFr?: string; bioEn?: string; yearsExperience?: number; specialties?: string[];
   /** ★ v3.23: نسبة الأخصائي من كل جلسة (%) — تضبطها الإدارة */
   commissionRate?: number;
+  /** ★ v3.24: نظام أجر الأخصائي — عمولة لكل جلسة أو راتب شهري ثابت (الموارد البشرية) */
+  payModel?: "commission" | "salary";
+  salaryAmount?: number;
+  /** ★ v3.24: سن وجنس العميل — نظرة مسبقة للأخصائي */
+  age?: number | null;
+  gender?: "male" | "female" | null;
   /** ★ v3.12: الخدمات التي يجيدها الأخصائي */
   serviceIds?: string[];
   photoBase64?: string;
@@ -251,10 +257,26 @@ export default function Accounts({ navigate }: { navigate: Navigate }) {
                   </span>
                 )}
                 {/* ★ v3.23: شارة نسبة الأخصائي — مرئية للإدارة في قائمة الحسابات */}
-                {a.role === "specialist" && (a.commissionRate ?? 0) > 0 && (
+                {a.role === "specialist" && a.payModel === "salary" ? (
+                  <Badge variant="outline" className="bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/25 gap-1">
+                    <Wallet className="h-3 w-3" aria-hidden="true" />
+                    <span className="font-bold">{t("pm.salaryBadge")}</span>
+                  </Badge>
+                ) : a.role === "specialist" && (a.commissionRate ?? 0) > 0 ? (
                   <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 gap-1">
                     <Percent className="h-3 w-3" aria-hidden="true" />
                     <span className="font-bold tabular-nums">{a.commissionRate}%</span>
+                  </Badge>
+                ) : null}
+                {/* ★ v3.24: شارة سن وجنس العميل في قائمة الحسابات */}
+                {a.role === "client" && (a.gender || (a.age ?? null) !== null) && (
+                  <Badge variant="outline" className="bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/25 gap-1">
+                    {a.gender === "male" ? <UserRound className="h-3 w-3" aria-hidden="true" /> : a.gender === "female" ? <UserRound className="h-3 w-3" aria-hidden="true" /> : <Cake className="h-3 w-3" aria-hidden="true" />}
+                    <span className="font-bold">
+                      {a.gender === "male" ? t("cld.male") : a.gender === "female" ? t("cld.female") : ""}
+                      {a.gender && (a.age ?? null) !== null ? " · " : ""}
+                      {(a.age ?? null) !== null ? t("cld.years", { n: a.age as number }) : ""}
+                    </span>
                   </Badge>
                 )}
                 {(a.role === "specialist" || a.role === "trainer") && (a.yearsExperience || 0) > 0 && (
@@ -444,6 +466,7 @@ function AccountForm({
           {t("acc.assistantLimit")}
         </p>
         {value?.role === "client" && (
+          <>
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
               <Droplet className="h-3.5 w-3.5 text-primary" />
@@ -462,6 +485,43 @@ function AccountForm({
               </SelectContent>
             </Select>
           </div>
+          {/* ★ v3.24: سن وجنس العميل — للمساعد أيضاً (اختياريان) */}
+          <div className="grid grid-cols-1 gap-3 rounded-xl border border-primary/15 bg-primary/[0.04] p-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Cake className="h-3.5 w-3.5 text-primary" />
+                {t("client.age")}
+              </Label>
+              <Input
+                type="number" min={0} max={120}
+                value={value?.age ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  upd({ age: v === "" ? null : Math.max(0, Math.min(120, Math.round(Number(v) || 0))) });
+                }}
+                className="h-11 tabular-nums"
+                aria-label={t("client.age")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <UserRound className="h-3.5 w-3.5 text-primary" />
+                {t("client.gender")}
+              </Label>
+              <Select
+                value={value?.gender || "none"}
+                onValueChange={(v) => upd({ gender: v === "none" ? null : (v as "male" | "female") })}
+              >
+                <SelectTrigger className="h-11" aria-label={t("client.gender")}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t("client.genderSelect")}</SelectItem>
+                  <SelectItem value="male">{t("client.male")}</SelectItem>
+                  <SelectItem value="female">{t("client.female")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          </>
         )}
         {!isNew && (
           <label className="flex items-center justify-between rounded-xl border p-3">
@@ -540,23 +600,54 @@ function AccountForm({
                 />
               </div>
             </div>
-            {/* ★ v3.23: نسبة الأخصائي من كل جلسة (%) — أساس احتساب مستحقاته الشهرية */}
-            <div className="space-y-2">
+            {/* ★ v3.24: نظام أجر الأخصائي — عمولة لكل جلسة أو راتب شهري ثابت عبر الموارد البشرية */}
+            <div className="space-y-2 rounded-xl border border-primary/15 bg-primary/[0.04] p-3">
               <Label className="flex items-center gap-1.5">
-                <Percent className="h-3.5 w-3.5 text-primary" />
-                {t("acc.commissionRate")}
+                <Wallet className="h-3.5 w-3.5 text-primary" />
+                {t("pm.title")}
               </Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number" min={0} max={100} step={1}
-                  value={value?.commissionRate ?? 0}
-                  onChange={(e) => upd({ commissionRate: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
-                  className="h-11 tabular-nums"
-                  aria-label={t("acc.commissionRate")}
-                />
-                <span className="text-sm font-black text-muted-foreground">%</span>
-              </div>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">{t("acc.commissionHint")}</p>
+              <Select
+                value={value?.payModel || "commission"}
+                onValueChange={(v) => upd({ payModel: v as "commission" | "salary" })}
+              >
+                <SelectTrigger className="h-11" aria-label={t("pm.title")}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="commission">{t("pm.commission")}</SelectItem>
+                  <SelectItem value="salary">{t("pm.salary")}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">{t("pm.note")}</p>
+              {(value?.payModel || "commission") === "commission" ? (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Percent className="h-3.5 w-3.5 text-primary" />
+                    {t("acc.commissionRate")}
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number" min={0} max={100} step={1}
+                      value={value?.commissionRate ?? 0}
+                      onChange={(e) => upd({ commissionRate: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
+                      className="h-11 tabular-nums"
+                      aria-label={t("acc.commissionRate")}
+                    />
+                    <span className="text-sm font-black text-muted-foreground">%</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">{t("acc.commissionHint")}</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>{t("pm.salaryAmount")}</Label>
+                  <Input
+                    type="number" min={0} step={500}
+                    value={value?.salaryAmount ?? 0}
+                    onChange={(e) => upd({ salaryAmount: Math.max(0, Number(e.target.value) || 0) })}
+                    className="h-11 tabular-nums"
+                    aria-label={t("pm.salaryAmount")}
+                  />
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">{t("earn.formulaSalary")}</p>
+                </div>
+              )}
             </div>
             </>
           ) : (
@@ -658,6 +749,43 @@ function AccountForm({
 
       {value?.role === "client" && (
         <>
+          {/* ★ v3.24: سن وجنس العميل — نظرة مسبقة للأخصائي (اختياريان) */}
+          <div className="grid grid-cols-1 gap-3 rounded-xl border border-primary/15 bg-primary/[0.04] p-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Cake className="h-3.5 w-3.5 text-primary" />
+                {t("client.age")}
+              </Label>
+              <Input
+                type="number" min={0} max={120}
+                value={value?.age ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  upd({ age: v === "" ? null : Math.max(0, Math.min(120, Math.round(Number(v) || 0))) });
+                }}
+                className="h-11 tabular-nums"
+                aria-label={t("client.age")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 text-primary" />
+                {t("client.gender")}
+              </Label>
+              <Select
+                value={value?.gender || "none"}
+                onValueChange={(v) => upd({ gender: v === "none" ? null : (v as "male" | "female") })}
+              >
+                <SelectTrigger className="h-11" aria-label={t("client.gender")}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t("client.genderSelect")}</SelectItem>
+                  <SelectItem value="male">{t("client.male")}</SelectItem>
+                  <SelectItem value="female">{t("client.female")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-[11px] leading-relaxed text-muted-foreground sm:col-span-2">{t("client.ageGenderNote")}</p>
+          </div>
           {/* ★ v3.19: زمرة الدم — تضيفها/تعدّلها الإدارة (والمساعد عبر نفس النموذج) */}
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">

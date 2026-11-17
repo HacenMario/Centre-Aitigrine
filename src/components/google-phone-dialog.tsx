@@ -32,6 +32,8 @@ export default function GooglePhoneDialog() {
   const { t, me, setMe, ready } = useApp();
   const [value, setValue] = useState("");
   const [bloodType, setBloodType] = useState(""); /* ★ v3.19: إلزامية في إكمال حساب Google */
+  const [age, setAge] = useState(""); /* ★ v3.24: سن العميل (اختياري) */
+  const [gender, setGender] = useState(""); /* ★ v3.24: جنس العميل (اختياري) */
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
@@ -58,7 +60,7 @@ export default function GooglePhoneDialog() {
       const r = await fetch("/api/auth/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: digits, bloodType }),
+        body: JSON.stringify({ phone: digits, bloodType, age: age === "" ? null : Number(age), gender: gender || null }),
       });
       const j = await r.json().catch(() => null);
       if (r.ok && j?.user) {
@@ -122,6 +124,32 @@ export default function GooglePhoneDialog() {
           </div>
 
           {/* ★ v3.19: زمرة الدم — إلزامية لإكمال حساب عميل Google (مصدرها نفس قاعدة التسجيل الذاتي) */}
+          {/* ★ v3.24: سن وجنس العميل — اختياريان في إكمال حساب Google */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="gp-age" className="flex items-center gap-1.5 text-sm font-bold">
+                {t("client.age")}
+              </label>
+              <Input id="gp-age" type="number" min={0} max={120} value={age}
+                onChange={(e) => setAge(e.target.value)} className="h-12 tabular-nums" inputMode="numeric" />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="gp-gender" className="flex items-center gap-1.5 text-sm font-bold">
+                {t("client.gender")}
+              </label>
+              <Select value={gender || "none"} onValueChange={setGender}>
+                <SelectTrigger id="gp-gender" className="h-12" aria-label={t("client.gender")}>
+                  <SelectValue placeholder={t("client.genderSelect")} />
+                </SelectTrigger>
+                <SelectContent className="z-[710]" position="popper">
+                  <SelectItem value="none">{t("client.genderSelect")}</SelectItem>
+                  <SelectItem value="male">{t("client.male")}</SelectItem>
+                  <SelectItem value="female">{t("client.female")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <label htmlFor="gp-blood" className="flex items-center gap-1.5 text-sm font-bold">
               <Droplet className="h-3.5 w-3.5 text-primary" />

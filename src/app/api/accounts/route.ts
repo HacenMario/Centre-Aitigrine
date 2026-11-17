@@ -65,6 +65,16 @@ export async function POST(req: NextRequest) {
       /* ★ v3.23: نسبة الأخصائي من كل جلسة (%) — للأخصائي فقط */
       commissionRate:
         role === "specialist" ? Math.max(0, Math.min(100, Math.round(Number(b.commissionRate) || 0))) : 0,
+      /* ★ v3.24: نظام أجر الأخصائي — عمولة أو راتب شهري ثابت (للأخصائي فقط) */
+      payModel: role === "specialist" && b.payModel === "salary" ? "salary" : "commission",
+      salaryAmount: role === "specialist" ? Math.max(0, Math.round(Number(b.salaryAmount) || 0)) : 0,
+      /* ★ v3.24: سن وجنس العميل — اختياريان (للعملاء فقط) */
+      age:
+        role === "client" && b.age !== undefined && b.age !== null && b.age !== ""
+          ? Math.max(0, Math.min(120, Math.round(Number(b.age) || 0)))
+          : null,
+      gender:
+        role === "client" && (b.gender === "male" || b.gender === "female") ? b.gender : null,
       photoBase64: String(b.photoBase64 || ""),
       /* ساعات العمل: للأخصائي فقط (المكوّن لا يستقبل مواعيد أصلاً) */
       weeklyHours: role === "specialist" ? b.weeklyHours || {} : {},

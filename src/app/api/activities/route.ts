@@ -35,6 +35,11 @@ export async function GET() {
           es: labels.es || labels.en || labels.ar || "",
         },
         at: r.createdAt,
+        /* ★ v3.24: تفاصيل إضافية آمنة (طريقة الجلسة / موعدها) */
+        meta: {
+          mode: ((r.meta as { mode?: string } | undefined)?.mode || "") as string,
+          when: ((r.meta as { when?: string } | undefined)?.when || "") as string,
+        },
       });
       if (items.length >= MAX) break;
     }

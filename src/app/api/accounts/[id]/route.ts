@@ -39,7 +39,17 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
           }
         }
       }
-      if (!Object.keys($setA).length) return fail(403, "المساعد يغيّر التفعيل وزمرة الدم فقط");
+      /* ★ v3.24: سن وجنس العميل — للمساعد أيضاً على حسابات العملاء */
+      if (b.age !== undefined) {
+        if (target.role !== "client") return fail(400, "سن العميل يُضبط لحسابات العملاء فقط");
+        const n = Number(b.age);
+        $setA.age = b.age === null || b.age === "" || !Number.isFinite(n) ? null : Math.max(0, Math.min(120, Math.round(n)));
+      }
+      if (b.gender !== undefined) {
+        if (target.role !== "client") return fail(400, "جنس العميل يُضبط لحسابات العملاء فقط");
+        $setA.gender = b.gender === "male" || b.gender === "female" ? b.gender : null;
+      }
+      if (!Object.keys($setA).length) return fail(403, "المساعد يغيّر التفعيل وزمرة الدم وبيانات العميل الأساسية فقط");
       const u = await User.findByIdAndUpdate(id, { $set: $setA }, { new: true }).lean();
       if ($setA.bloodType !== undefined) {
         await logAudit(
@@ -91,6 +101,25 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     /* ★ v3.23: نسبة الأخصائي من كل جلسة (%) — للإدارة على حسابات الأخصائيين */
     if (b.commissionRate !== undefined)
       $set.commissionRate = Math.max(0, Math.min(100, Math.round(Number(b.commissionRate) || 0)));
+    /* ★ v3.24: نظام أجر الأخصائي — عمولة لكل جلسة أو راتب شهري ثابت عبر الموارد البشرية */
+    if (b.payModel !== undefined) {
+      if (target.role !== "specialist") return fail(400, "نظام الأجر يُضبط لحسابات الأخصائيين فقط");
+      $set.payModel = b.payModel === "salary" ? "salary" : "commission";
+    }
+    if (b.salaryAmount !== undefined) {
+      if (target.role !== "specialist") return fail(400, "الراتب الثابت يُضبط لحسابات الأخصائيين فقط");
+      $set.salaryAmount = Math.max(0, Math.round(Number(b.salaryAmount) || 0));
+    }
+    /* ★ v3.24: سن وجنس العميل — للإدارة والمساعد على حسابات العملاء (اختياريان) */
+    if (b.age !== undefined) {
+      if (target.role !== "client") return fail(400, "سن العميل يُضبط لحسابات العملاء فقط");
+      const n = Number(b.age);
+      $set.age = b.age === null || b.age === "" || !Number.isFinite(n) ? null : Math.max(0, Math.min(120, Math.round(n)));
+    }
+    if (b.gender !== undefined) {
+      if (target.role !== "client") return fail(400, "جنس العميل يُضبط لحسابات العملاء فقط");
+      $set.gender = b.gender === "male" || b.gender === "female" ? b.gender : null;
+    }
     /* ★ v3.19: زمرة الدم — للإدارة على حسابات العملاء؛ الفراغ = حذف (غير محددة) */
     if (b.bloodType !== undefined) {
       if (target.role !== "client") {

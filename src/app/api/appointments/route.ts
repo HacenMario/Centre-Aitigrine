@@ -56,17 +56,22 @@ export async function GET(req: NextRequest) {
       ids.add(String(a.specialistId));
     });
     const users = await User.find({ _id: { $in: [...ids] } })
-      .select("name role phone")
-      .lean<{ _id: unknown; name: string; role: string; phone?: string }[]>();
+      .select("name role phone age gender")
+      .lean<{ _id: unknown; name: string; role: string; phone?: string; age?: number | null; gender?: string | null }[]>();
     const nameMap = new Map(users.map((u) => [String(u._id), u.name]));
     /* ★ v3.16: هاتف العميل — يظهر على بطاقة الموعد لحسابَي الإدارة والمساعد */
     const phoneMap = new Map(users.map((u) => [String(u._id), u.phone || ""]));
+    /* ★ v3.24: سن وجنس العميل — نظرة مسبقة للأخصائي في تفاصيل التقويم والقائمة */
+    const ageMap = new Map(users.map((u) => [String(u._id), u.age ?? null]));
+    const genderMap = new Map(users.map((u) => [String(u._id), u.gender ?? null]));
     return ok({
       appointments: appts.map((a) => ({
         ...a,
         clientName: nameMap.get(String(a.clientId)) || "—",
         specialistName: nameMap.get(String(a.specialistId)) || "—",
         clientPhone: phoneMap.get(String(a.clientId)) || "",
+        clientAge: ageMap.get(String(a.clientId)) ?? null,
+        clientGender: genderMap.get(String(a.clientId)) ?? null,
       })),
     });
   });
@@ -215,6 +220,8 @@ export async function POST(req: NextRequest) {
           tr: svcTitleEn || svcTitle,
           es: svcTitleEn || svcTitle,
         },
+        /* ★ v3.24: تفاصيل آمنة للنافذة الاجتماعية — طريقة الجلسة وموعدها (بلا هوية) */
+        meta: { mode: String(b.mode) === "remote" ? "remote" : "onsite", when: `${date} ${time}` },
       }).catch(() => {});
     }
 

@@ -1,10 +1,8 @@
 /**
- * أرباح الأخصائي (★ v3.23) — للأخصائي نفسه فقط
- * GET → نسبته + إحصائيات مستحقاته الشهرية:
- *  — الشهر الحالي: الجلسات المنتهية + المستحقات
- *  — آخر 6 أشهر: سلسلة شهرية (الجلسات، السعر الصافي، المستحقات)
- *  — الإجمالي الكلي منذ التفعيل
- * المستحقات = مجموع (سعر الجلسة − الخصم) × النسبة — للجلسات المنتهية فقط.
+ * أرباح الأخصائي (★ v3.23 / v3.24) — للأخصائي نفسه فقط
+ * GET → نظام أجره + إحصائياته الشهرية:
+ *  — commission (v3.23): المستحقات = مجموع (سعر الجلسة − الخصم) × النسبة — للجلسات المنتهية فقط
+ *  — salary (★ v3.24): راتب شهري ثابت يُصرف عبر الموارد البشرية — الجلسات إحصائية فقط وبلا مستحقات
  */
 import { ok, handle } from "@/lib/api-helpers";
 import { requireUser } from "@/lib/auth";
@@ -14,7 +12,10 @@ import { ymOf } from "@/lib/payroll";
 export async function GET() {
   return handle(async () => {
     const me = await requireUser(["specialist"]);
-    const rate = Math.max(0, Math.min(100, Number(me.commissionRate) || 0));
+    /* ★ v3.24: نظام الأجر — salary يجعل النسبة بلا أثر في المستحقات */
+    const mode: "commission" | "salary" = (me as { payModel?: string }).payModel === "salary" ? "salary" : "commission";
+    const salaryAmount = Math.max(0, Math.round(Number((me as { salaryAmount?: number }).salaryAmount) || 0));
+    const rate = mode === "salary" ? 0 : Math.max(0, Math.min(100, Number(me.commissionRate) || 0));
 
     /* كل الجلسات المنتهية لهذا الأخصائي — الكميات صغيرة (حقل نصي YYYY-MM-DD) */
     const rows = await Appointment.find({ specialistId: me._id, status: "completed" })
@@ -57,11 +58,16 @@ export async function GET() {
 
     return ok({
       rate,
+      mode,
+      salaryAmount,
       current,
       months,
       totals,
       /* كيف تُحسب المستحقات — تُعرض للشفافية في الواجهة */
-      formula: "المستحقات = (سعر الجلسة − الخصم) × النسبة — للجلسات المنتهية فقط",
+      formula:
+        mode === "salary"
+          ? "نظام الراتب الثابت — راتب شهري متفق عليه يُصرف عبر نظام الموارد البشرية (لا مستحقات لكل جلسة)"
+          : "المستحقات = (سعر الجلسة − الخصم) × النسبة — للجلسات المنتهية فقط",
     });
   });
 }

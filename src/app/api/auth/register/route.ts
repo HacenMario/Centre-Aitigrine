@@ -28,6 +28,14 @@ export async function POST(req: NextRequest) {
     }
     if (!bloodType) return fail(400, "زمرة الدم إلزامية عند إنشاء الحساب");
 
+    /* ★ v3.24: سن وجنس العميل — اختياريان، يعطيان الأخصائي نظرة مسبقة حول العميل */
+    const ageRaw = Number(body.age);
+    const age =
+      body.age !== undefined && body.age !== null && body.age !== "" && Number.isFinite(ageRaw)
+        ? Math.max(0, Math.min(120, Math.round(ageRaw)))
+        : null;
+    const gender = body.gender === "male" || body.gender === "female" ? body.gender : null;
+
     if (name.length < 3) return fail(400, "يرجى إدخال الاسم الكامل");
     if (!/^[0-9+\s-]{8,15}$/.test(phone)) return fail(400, "رقم الهاتف غير صحيح");
     if (password.length < 6) return fail(400, "كلمة المرور يجب أن تكون 6 أحرف على الأقل");
@@ -46,6 +54,8 @@ export async function POST(req: NextRequest) {
       role: "client",
       langs: ["ar"],
       bloodType, /* ★ v3.19 */
+      age, /* ★ v3.24: سن العميل (اختياري) */
+      gender, /* ★ v3.24: جنس العميل (اختياري) */
       active: true,
     });
 

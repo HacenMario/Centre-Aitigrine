@@ -34,6 +34,8 @@ export async function POST(_req: NextRequest, ctx: Ctx) {
         tr: c.titleEn || c.title,
         es: c.titleEn || c.title,
       },
+      /* ★ v3.24: موعد انطلاق التكوين إن توفر */
+      meta: { mode: "", when: String((c as unknown as { startDate?: string }).startDate || "") },
     }).catch(() => {});
     notifyStaff(
       enrollRequestText({ clientName: me.name, clientPhone: me.phone, courseTitle: c.title }),

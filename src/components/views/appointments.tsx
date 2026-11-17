@@ -42,6 +42,7 @@ const PAGE_SIZE = 12;
 
 type Appt = {
   _id: string; clientId: string; specialistId: string; clientName?: string; specialistName?: string; clientPhone?: string;
+  clientAge?: number | null; clientGender?: string | null; /* ★ v3.24 */
   serviceTitle: string; serviceTitleFr?: string; serviceTitleEn?: string;
   kind: string; date: string; time: string; status: string; notes: string;
   price?: number; paymentStatus?: string;

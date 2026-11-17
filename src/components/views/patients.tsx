@@ -21,7 +21,7 @@ import type { Navigate } from "@/lib/nav";
 const PAT_PAGE_SIZE = 12;
 
 type PatientRow = {
-  user: { _id: string; name: string; phone: string; photoBase64?: string; assignedSpecialistId?: string | null; bloodType?: string | null };
+  user: { _id: string; name: string; phone: string; photoBase64?: string; assignedSpecialistId?: string | null; bloodType?: string | null; age?: number | null; gender?: string | null };
   hasRecord: boolean;
   diagnosis: string;
   birthDate: string;
@@ -134,6 +134,17 @@ export default function Patients({ navigate }: { navigate: Navigate }) {
                       <Badge variant="outline" className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25 gap-0.5 px-1.5 py-0">
                         <Droplet className="h-2.5 w-2.5" aria-hidden="true" />
                         <span dir="ltr" className="text-[10px] font-bold tabular-nums">{p.user.bloodType}</span>
+                      </Badge>
+                    )}
+                    {/* ★ v3.24: سن وجنس العميل — نظرة مسبقة في قائمة مرضى الأخصائي */}
+                    {(p.user.age ?? null) !== null && (
+                      <Badge variant="outline" className="bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/25 gap-0.5 px-1.5 py-0">
+                        <span className="text-[10px] font-bold tabular-nums">{t("cld.years", { n: p.user.age as number })}</span>
+                      </Badge>
+                    )}
+                    {p.user.gender && (
+                      <Badge variant="outline" className="bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/25 gap-0.5 px-1.5 py-0">
+                        <span className="text-[10px] font-bold">{p.user.gender === "male" ? t("cld.male") : t("cld.female")}</span>
                       </Badge>
                     )}
                   </div>

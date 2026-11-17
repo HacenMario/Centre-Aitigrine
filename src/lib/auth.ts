@@ -41,6 +41,12 @@ export type SafeUser = {
   assignedSpecialistId: string | null;
   /** ★ v3.19: زمرة الدم — رمز عالمي (A+/A-/…) أو null للمسجّلين سابقاً قبل الإضافة */
   bloodType: string | null;
+  /** ★ v3.24: سن العميل وجنسه — نظرة مسبقة للأخصائي وتمييز أسهل للعملاء */
+  age: number | null;
+  gender: "male" | "female" | null;
+  /** ★ v3.24: نظام أجر الأخصائي + الراتب الشهري الثابت (نظام الموارد البشرية) */
+  payModel: "commission" | "salary";
+  salaryAmount: number;
   active: boolean;
 };
 
@@ -82,6 +88,10 @@ export function toSafeUser(u: UserDoc): SafeUser {
     weeklyHours,
     assignedSpecialistId: u.assignedSpecialistId ? String(u.assignedSpecialistId) : null,
     bloodType: (u as { bloodType?: string | null }).bloodType ?? null,
+    age: (u as { age?: number | null }).age ?? null,
+    gender: ((u as { gender?: string | null }).gender ?? null) as "male" | "female" | null,
+    payModel: ((u as { payModel?: string }).payModel === "salary" ? "salary" : "commission") as "commission" | "salary",
+    salaryAmount: Math.max(0, Math.round(Number((u as { salaryAmount?: number }).salaryAmount) || 0)),
     active: u.active ?? true,
   };
 }

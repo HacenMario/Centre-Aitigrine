@@ -41,6 +41,12 @@ const UserSchema = new Schema(
     /** ★ v3.23: نسبة الأخصائي من كل جلسة (%) — تضبطها الإدارة لكل أخصائي على حدة (0-100)
      *  المستحقات الشهرية = مجموع (سعر الجلسة الصافي بعد الخصم × النسبة) للجلسات المنتهية */
     commissionRate: { type: Number, default: 0, min: 0, max: 100 },
+    /** ★ v3.24: نظام أجر الأخصائي — يختار صاحب المركز لكل أخصائي على حدة:
+     *  — commission: نسبة من كل جلسة منتهية (سلوك v3.23)
+     *  — salary: راتب شهري ثابت يُدار ويُصرف عبر نظام الموارد البشرية (تُهمل النسبة في المستحقات) */
+    payModel: { type: String, enum: ["commission", "salary"], default: "commission" },
+    /** ★ v3.24: الراتب الشهري الثابت (دج) لنظام الراتب — يظهر في نظام الموارد البشرية */
+    salaryAmount: { type: Number, default: 0, min: 0 },
     /** التخصصات المرتبطة بالأخصائي — مراجع مجموعة التخصصات */
     specialties: [{ type: Schema.Types.ObjectId, ref: "Specialty" }],
     /** ★ v3.12: الخدمات التي يجيدها الأخصائي — عند الحجز يختار العميل من بينها فقط
@@ -57,6 +63,10 @@ const UserSchema = new Schema(
       enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
       default: null,
     },
+    /** ★ v3.24: سن العميل (اختياري) — نظرة مسبقة للأخصائي حول العميل وتسهّل التمييز بين العملاء */
+    age: { type: Number, default: null, min: 0, max: 120 },
+    /** ★ v3.24: جنس العميل — ذكر أو أنثى (قائمة منسدلة، اختياري) */
+    gender: { type: String, enum: ["male", "female"], default: null },
     /** عبارة الاسترجاع (نمط طمأنينة) — تُحفظ مشفّرة SHA-256 + ملح، لا تُرسل أبداً للواجهة
      *  العميل يستعيد حسابه فورياً بها دون انتظار الإدارة */
     recoveryHash: { type: String, default: null },
@@ -463,6 +473,12 @@ const ActivityLogSchema = new Schema(
       tr: { type: String, default: "" },
       es: { type: String, default: "" },
     },
+    /** ★ v3.24: تفاصيل إضافية آمنة للنافذة الاجتماعية (بلا أي معطيات هوية):
+     *  mode: طريقة الجلسة (onsite/remote) — when: موعد الجلسة القادم أو انطلاق التكوين (YYYY-MM-DD HH:mm) */
+    meta: {
+      mode: { type: String, default: "" },
+      when: { type: String, default: "" },
+    },
   },
   { timestamps: true }
 );
@@ -809,3 +825,136 @@ export type PayrollAdjustmentDoc = InferSchemaType<typeof PayrollAdjustmentSchem
 export const PayrollAdjustment: Model<PayrollAdjustmentDoc> =
   (mongoose.models.PayrollAdjustment as Model<PayrollAdjustmentDoc>) ||
   mongoose.model<PayrollAdjustmentDoc>("PayrollAdjustment", PayrollAdjustmentSchema);
+
+/* ─────────────── نظام الموارد البشرية (★ v3.24) ───────────────
+ * إدارة كاملة لعمال المركز: الأخصائيون، المساعد(ة)، عاملة التنظيف، الحارس وغيرهم
+ * — موظفون برواتب أساسية (حتى من لا يملك حساباً في الموقع)
+ * — الحضور والغياب اليومي + الإجازات
+ * — الدفعات: acompte (دفعة مقدمة) / صرف الراتب / مكافأة / خصم
+ * — وثائق الرواتب (ورقة راتب قابلة للطباعة لكل موظف/شهر)
+ */
+const HrEmployeeSchema = new Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    /** الوظيفة: أخصائي | مساعد(ة) | عاملة تنظيف | حارس | أخرى */
+    role: {
+      type: String,
+      enum: ["specialist", "assistant", "cleaner", "guard", "other"],
+      default: "other",
+      index: true,
+    },
+    /** ربط اختياري بحساب في الموقع (أخصائي بنظام الراتب أو المساعد) — يستورد الاسم والراتب تلقائياً */
+    userId: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
+    /** الراتب الأساسي الشهري (دج) */
+    baseSalary: { type: Number, default: 0, min: 0 },
+    phone: { type: String, default: "" },
+    notes: { type: String, default: "", maxlength: 500 },
+    active: { type: Boolean, default: true, index: true },
+  },
+  { timestamps: true }
+);
+HrEmployeeSchema.index({ name: 1, userId: 1 });
+export type HrEmployeeDoc = InferSchemaType<typeof HrEmployeeSchema> & { _id: mongoose.Types.ObjectId };
+export const HrEmployee: Model<HrEmployeeDoc> =
+  (mongoose.models.HrEmployee as Model<HrEmployeeDoc>) ||
+  mongoose.model<HrEmployeeDoc>("HrEmployee", HrEmployeeSchema);
+
+/** الحضور اليومي: سجل لكل موظف/يوم — ما لا يُسجَّل يُعد حاضراً (نمط العيادات الصغيرة) */
+const HrAttendanceSchema = new Schema(
+  {
+    employeeId: { type: Schema.Types.ObjectId, ref: "HrEmployee", required: true, index: true },
+    /** التاريخ YYYY-MM-DD */
+    date: { type: String, required: true },
+    /** present حاضر | absent غياب | leave إجازة | holiday عطلة رسمية */
+    status: { type: String, enum: ["present", "absent", "leave", "holiday"], default: "present" },
+    note: { type: String, default: "", maxlength: 200 },
+  },
+  { timestamps: true }
+);
+HrAttendanceSchema.index({ employeeId: 1, date: 1 }, { unique: true, name: "uniq_emp_day" });
+export type HrAttendanceDoc = InferSchemaType<typeof HrAttendanceSchema> & { _id: mongoose.Types.ObjectId };
+export const HrAttendance: Model<HrAttendanceDoc> =
+  (mongoose.models.HrAttendance as Model<HrAttendanceDoc>) ||
+  mongoose.model<HrAttendanceDoc>("HrAttendance", HrAttendanceSchema);
+
+/** الإجازات: فترة من/إلى بنوعها (مدفوعة/بدون أجر) */
+const HrLeaveSchema = new Schema(
+  {
+    employeeId: { type: Schema.Types.ObjectId, ref: "HrEmployee", required: true, index: true },
+    start: { type: String, required: true }, // YYYY-MM-DD
+    end: { type: String, required: true }, // YYYY-MM-DD (شامل)
+    /** paid مدفوعة | unpaid بدون أجر */
+    type: { type: String, enum: ["paid", "unpaid"], default: "paid" },
+    note: { type: String, default: "", maxlength: 200 },
+  },
+  { timestamps: true }
+);
+export type HrLeaveDoc = InferSchemaType<typeof HrLeaveSchema> & { _id: mongoose.Types.ObjectId };
+export const HrLeave: Model<HrLeaveDoc> =
+  (mongoose.models.HrLeave as Model<HrLeaveDoc>) ||
+  mongoose.model<HrLeaveDoc>("HrLeave", HrLeaveSchema);
+
+/** الدفعات المالية لكل موظف/شهر: دفعة مقدمة (acompte) أو صرف الراتب أو مكافأة أو خصم */
+const HrPaymentSchema = new Schema(
+  {
+    employeeId: { type: Schema.Types.ObjectId, ref: "HrEmployee", required: true, index: true },
+    /** الشهر بصيغة YYYY-MM */
+    month: { type: String, required: true, index: true },
+    /** acompte دفعة مقدمة | salary صرف الراتب | bonus مكافأة | deduction خصم إداري */
+    type: { type: String, enum: ["acompte", "salary", "bonus", "deduction"], required: true },
+    amount: { type: Number, required: true, min: 0 },
+    /** تاريخ الدفع الفعلي YYYY-MM-DD */
+    date: { type: String, required: true },
+    note: { type: String, default: "", maxlength: 200 },
+    /** من صرف الدفعة (لقطة اسم الأدمين) */
+    byName: { type: String, default: "" },
+  },
+  { timestamps: true }
+);
+export type HrPaymentDoc = InferSchemaType<typeof HrPaymentSchema> & { _id: mongoose.Types.ObjectId };
+export const HrPayment: Model<HrPaymentDoc> =
+  (mongoose.models.HrPayment as Model<HrPaymentDoc>) ||
+  mongoose.model<HrPaymentDoc>("HrPayment", HrPaymentSchema);
+
+/* ─────────────── مفاتيح المرور Passkeys (★ v3.24) ───────────────
+ * دخول بلا كلمة مرور: بصمة الإصبع / الوجه / رمز قفل الشاشة (WebAuthn)
+ * — كل مفتاح مرتبط بحساب مستخدم ويُحفظ مفتاحه العام فقط (لا أسرار حساسة)
+ * — تحديات التسجيل/الدخول تُحفظ لمرة واحدة مع انتهاء صلاحية
+ */
+const PasskeyCredentialSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    /** معرّف المفتاح base64url — فريد عالمياً */
+    credId: { type: String, required: true, unique: true, index: true },
+    /** المفتاح العام base64url */
+    publicKey: { type: String, required: true },
+    counter: { type: Number, default: 0, min: 0 },
+    /** singleDevice | multiDevice */
+    deviceType: { type: String, default: "singleDevice" },
+    /** backedUp: هل المفتاح متزامن سحابياً */
+    backedUp: { type: Boolean, default: false },
+    transports: { type: [String], default: [] },
+    label: { type: String, default: "", maxlength: 80 },
+  },
+  { timestamps: true }
+);
+export type PasskeyCredentialDoc = InferSchemaType<typeof PasskeyCredentialSchema> & { _id: mongoose.Types.ObjectId };
+export const PasskeyCredential: Model<PasskeyCredentialDoc> =
+  (mongoose.models.PasskeyCredential as Model<PasskeyCredentialDoc>) ||
+  mongoose.model<PasskeyCredentialDoc>("PasskeyCredential", PasskeyCredentialSchema);
+
+/** تحدي WebAuthn لمرة واحدة (5 دقائق صلاحية) — purpose: register | auth */
+const WebauthnChallengeSchema = new Schema(
+  {
+    challenge: { type: String, required: true, unique: true, index: true },
+    purpose: { type: String, enum: ["register", "auth"], required: true },
+    /** للمستخدمين المسجلين: معرف المستخدم المرتبط بالتحدي */
+    userId: { type: String, default: "" },
+    expiresAt: { type: Date, required: true },
+  },
+  { timestamps: true }
+);
+export type WebauthnChallengeDoc = InferSchemaType<typeof WebauthnChallengeSchema> & { _id: mongoose.Types.ObjectId };
+export const WebauthnChallenge: Model<WebauthnChallengeDoc> =
+  (mongoose.models.WebauthnChallenge as Model<WebauthnChallengeDoc>) ||
+  mongoose.model<WebauthnChallengeDoc>("WebauthnChallenge", WebauthnChallengeSchema);

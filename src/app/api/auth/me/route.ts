@@ -16,7 +16,7 @@ export async function PATCH(req: NextRequest) {
   return handle(async () => {
     const me = await requireUser();
     const body = await req.json().catch(() => ({}));
-    const { oldPass, newPass, name, bio, title, langs, photoBase64, phone, bloodType } = body;
+    const { oldPass, newPass, name, bio, title, langs, photoBase64, phone, bloodType, age, gender } = body;
 
     const $set: Record<string, unknown> = {};
     const $unset: Record<string, string> = {};
@@ -62,6 +62,20 @@ export async function PATCH(req: NextRequest) {
         return fail(400, "زمرة الدم غير صحيحة — اختر إحدى الفصائل الثماني");
       }
       if (!$set.bloodType) return fail(400, "زمرة الدم إلزامية عند إنشاء الحساب");
+    }
+
+    /* ★ v3.24: سن وجنس العميل — يُقبلان في نفس نافذة إكمال حساب Google (اختياريان) */
+    if (age !== undefined || gender !== undefined) {
+      const isGoogleCompletion = /^g-[A-Za-z0-9_-]{6,}$/.test(String(me.phone || ""));
+      if (!isGoogleCompletion || me.role !== "client")
+        return fail(403, "تعديل سن وجنس العميل يتم من الإدارة أو المساعد أو الأخصائي المعالج");
+      if (age !== undefined) {
+        const n = Number(age);
+        $set.age = age === null || age === "" || !Number.isFinite(n) ? null : Math.max(0, Math.min(120, Math.round(n)));
+      }
+      if (gender !== undefined) {
+        $set.gender = gender === "male" || gender === "female" ? gender : null;
+      }
     }
 
     if (!Object.keys($set).length && !Object.keys($unset).length)
