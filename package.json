@@ -1,9 +1,10 @@
 {
   "name": "ait-tegrine-center",
-  "version": "3.25.0",
+  "version": "3.25.1",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
+    "prebuild": "node scripts/purge-passkeys.mjs",
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "eslint .",

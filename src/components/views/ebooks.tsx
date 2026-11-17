@@ -340,7 +340,7 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
       {/* القارئ الداخلي */}
       {reading && (
         <EbookReader ebook={reading} onClose={() => { setReading(null); load(); }} buy={buy} waHref={waHref}
-          onOpenFlip={() => { const bk = reading; setReading(null); setFlipping(bk); }} />
+          onOpenFlip={(bk) => { setReading(null); setFlipping(bk); }} />
       )}
 
       {/* ★ v3.25: القارئ التفاعلي — طبقة ملء الشاشة مستقلة، وإغلاقه يعيد نافذة الكتاب */}
@@ -391,7 +391,7 @@ function EbookReader({
   onClose: () => void;
   buy: (e: Ebook) => void;
   waHref: (e: Ebook) => string;
-  onOpenFlip: () => void;
+  onOpenFlip: (b: Ebook) => void;
 }) {
   const { t, me, lang, settings } = useApp();
   const isClient = me?.role === "client";
@@ -574,7 +574,7 @@ function EbookReader({
 
         {/* ★ v3.25: المستحق وملف PDF مدمج — زر فتح القارئ التفاعلي (تجربة الكتاب الحقيقي) */}
         {unlocked && book.pdfUrl && (
-          <Button onClick={onOpenFlip}
+          <Button onClick={() => onOpenFlip(book)}
             className="h-12 w-full gap-2 rounded-xl text-sm font-bold shadow-md shadow-primary/20">
             <BookOpenText className="h-5 w-5" /> {t("eb.readerOpen")}
           </Button>

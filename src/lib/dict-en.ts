@@ -1007,7 +1007,7 @@ export const en: Record<string, string> = {
   "eb.loginToRead": "Sign in to read this book or buy it",
   "eb.driveOpen": "Open the book on Google Drive",
   /* ★ v3.25 — القارئ التفاعلي للكتب: قلب الصفحات + العلامة الحمراء + الاستكمال + الزوم */
-  "eb.readerOpen": "Open the interactive reader — page flip, bookmark & zoom",
+  "eb.readerOpen": "Open the interactive reader",
   "eb.pdfBadge": "Interactive reader",
   "eb.readerLoading": "Preparing the book…",
   "eb.readerError": "Could not open the PDF — check the file and try again",
