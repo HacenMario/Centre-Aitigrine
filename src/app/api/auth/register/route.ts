@@ -28,12 +28,14 @@ export async function POST(req: NextRequest) {
     }
     if (!bloodType) return fail(400, "زمرة الدم إلزامية عند إنشاء الحساب");
 
-    /* ★ v3.24: سن وجنس العميل — اختياريان، يعطيان الأخصائي نظرة مسبقة حول العميل */
+    /* ★ v3.24.2: تاريخ الميلاد الكامل بدل السن اليدوي — السن تُحسب لحظياً عند كل قراءة
+       فيتحدّث عرضها تلقائياً كل سنة دون أي إدخال؛ رقم السن القديم يبقى مقبولاً للتوافق */
+    const birth = String(body.birthDate || "").trim();
+    const birthOk = /^\d{4}-\d{2}-\d{2}$/.test(birth) ? birth : "";
     const ageRaw = Number(body.age);
-    const age =
-      body.age !== undefined && body.age !== null && body.age !== "" && Number.isFinite(ageRaw)
-        ? Math.max(0, Math.min(120, Math.round(ageRaw)))
-        : null;
+    const age = birthOk ? null : body.age !== undefined && body.age !== null && body.age !== "" && Number.isFinite(ageRaw)
+      ? Math.max(0, Math.min(120, Math.round(ageRaw)))
+      : null;
     const gender = body.gender === "male" || body.gender === "female" ? body.gender : null;
 
     if (name.length < 3) return fail(400, "يرجى إدخال الاسم الكامل");
@@ -54,7 +56,8 @@ export async function POST(req: NextRequest) {
       role: "client",
       langs: ["ar"],
       bloodType, /* ★ v3.19 */
-      age, /* ★ v3.24: سن العميل (اختياري) */
+      birthDate: birthOk, /* ★ v3.24.2: تاريخ الميلاد الكامل — السن يُحسب تلقائياً عند كل قراءة */
+      age, /* ★ v3.24: رقم السن للتوافق مع القديمين فقط */
       gender, /* ★ v3.24: جنس العميل (اختياري) */
       active: true,
     });

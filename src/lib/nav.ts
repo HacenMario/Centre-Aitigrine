@@ -85,11 +85,11 @@ export const NAV_ITEMS: NavItem[] = [
   /* إعدادات المركز للإدارة فقط (حُجبت عن حساب المساعد — طلب المستخدم ★ v3.23) */
   { key: "settings", label: "nav.settings", icon: "Settings", roles: ["admin"] },
   /* إدارة الوثائق: صفحة خاصة بالقائمة الجانبية تظهر لحساب الإدارة فقط — طلب المستخدم */
-  { key: "documents", label: "nav.documents", icon: "FileBadge2", roles: ["admin"], divider: true },
+  { key: "documents", label: "nav.documents", icon: "FileStack", roles: ["admin"], divider: true },
   /* v3.20: طلبات شراء الكتب الإلكترونية — إدارة ومساعد */
   { key: "orders", label: "nav.orders", icon: "ShoppingBag", roles: ["admin", "assistant"] },
   { key: "specialists", label: "nav.specialists", icon: "Stethoscope", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"] },
-  { key: "services", label: "nav.services", icon: "Sparkles", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"] },
+  { key: "services", label: "nav.services", icon: "HandHeart", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"] },
   { key: "courses", label: "nav.courses", icon: "GraduationCap", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"] },
   { key: "ebooks", label: "nav.ebooks", icon: "BookOpenText", roles: ["guest", "admin", "assistant", "specialist", "trainer", "client"] },
   /* v3.6.0: المقالات العلمية — القراءة للجميع والنشر للأخصائيين والمكوّنين والإدارة (★ v3.11) */
@@ -107,7 +107,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 /** بوابات الدخول الثلاث للزوار (نمط طمأنينة — بلا زر دخول في الهيدر) */
 export const LOGIN_ENTRIES: { as: "client" | "specialist" | "admin"; label: string; icon: string }[] = [
-  { as: "client", label: "nav.loginClient", icon: "UserRound" },
-  { as: "specialist", label: "nav.loginSpecialist", icon: "Stethoscope" },
-  { as: "admin", label: "nav.loginAdmin", icon: "ShieldCheck" },
+  { as: "client", label: "nav.loginClient", icon: "CircleUserRound" },
+  { as: "specialist", label: "nav.loginSpecialist", icon: "Brain" },
+  { as: "admin", label: "nav.loginAdmin", icon: "KeyRound" },
 ];

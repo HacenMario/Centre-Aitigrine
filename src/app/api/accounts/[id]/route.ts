@@ -45,6 +45,19 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
           }
         }
       }
+      /* ★ v3.24.2: تاريخ الميلاد الكامل — للمساعد أيضاً على حسابات العملاء (نفس نمط التسامح) */
+      if (b.birthDate !== undefined) {
+        const bd = String(b.birthDate || "").trim();
+        if (target.role !== "client") {
+          if (bd) return fail(400, "تاريخ الميلاد يُضبط لحسابات العملاء فقط");
+        } else if (bd === "") {
+          $setA.birthDate = "";
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(bd)) {
+          $setA.birthDate = bd;
+        } else {
+          return fail(400, "تاريخ الميلاد غير صحيح — الصيغة يوم/شهر/سنة كاملة");
+        }
+      }
       /* ★ v3.24: سن وجنس العميل — للمساعد أيضاً على حسابات العملاء
          ★ v3.24.1: على غير العميل — الفراغ يُتجاهل بهدوء والقيمة الفعلية وحدها تُرفض */
       if (b.age !== undefined) {
@@ -136,6 +149,19 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
         if (n > 0) return fail(400, "الراتب الثابت يُضبط لحسابات الأخصائيين فقط");
       } else {
         $set.salaryAmount = n;
+      }
+    }
+    /* ★ v3.24.2: تاريخ الميلاد الكامل — للإدارة على حسابات العملاء (نفس نمط التسامح) */
+    if (b.birthDate !== undefined) {
+      const bd = String(b.birthDate || "").trim();
+      if (target.role !== "client") {
+        if (bd) return fail(400, "تاريخ الميلاد يُضبط لحسابات العملاء فقط");
+      } else if (bd === "") {
+        $set.birthDate = "";
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(bd)) {
+        $set.birthDate = bd;
+      } else {
+        return fail(400, "تاريخ الميلاد غير صحيح — الصيغة يوم/شهر/سنة كاملة");
       }
     }
     /* ★ v3.24: سن وجنس العميل — للإدارة والمساعد على حسابات العملاء (اختياريان)

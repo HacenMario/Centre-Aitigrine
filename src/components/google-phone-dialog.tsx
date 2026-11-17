@@ -32,7 +32,7 @@ export default function GooglePhoneDialog() {
   const { t, me, setMe, ready } = useApp();
   const [value, setValue] = useState("");
   const [bloodType, setBloodType] = useState(""); /* ★ v3.19: إلزامية في إكمال حساب Google */
-  const [age, setAge] = useState(""); /* ★ v3.24: سن العميل (اختياري) */
+  const [birthDate, setBirthDate] = useState(""); /* ★ v3.24.2: تاريخ الميلاد الكامل — السن تُحسب تلقائياً وتُحدَّث ذاتياً كل سنة */
   const [gender, setGender] = useState(""); /* ★ v3.24: جنس العميل (اختياري) */
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -60,7 +60,7 @@ export default function GooglePhoneDialog() {
       const r = await fetch("/api/auth/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: digits, bloodType, age: age === "" ? null : Number(age), gender: gender || null }),
+        body: JSON.stringify({ phone: digits, bloodType, birthDate, gender: gender || null }),
       });
       const j = await r.json().catch(() => null);
       if (r.ok && j?.user) {
@@ -127,11 +127,13 @@ export default function GooglePhoneDialog() {
           {/* ★ v3.24: سن وجنس العميل — اختياريان في إكمال حساب Google */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label htmlFor="gp-age" className="flex items-center gap-1.5 text-sm font-bold">
-                {t("client.age")}
+              <label htmlFor="gp-birth" className="flex items-center gap-1.5 text-sm font-bold">
+                {t("client.birthDate")}
               </label>
-              <Input id="gp-age" type="number" min={0} max={120} value={age}
-                onChange={(e) => setAge(e.target.value)} className="h-12 tabular-nums" inputMode="numeric" />
+              <Input id="gp-birth" type="date" value={birthDate}
+                min={`${new Date().getFullYear() - 120}-01-01`}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setBirthDate(e.target.value)} className="h-12 tabular-nums" autoComplete="bday" />
             </div>
             <div className="space-y-1.5">
               <label htmlFor="gp-gender" className="flex items-center gap-1.5 text-sm font-bold">

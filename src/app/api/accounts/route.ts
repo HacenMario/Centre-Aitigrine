@@ -68,9 +68,13 @@ export async function POST(req: NextRequest) {
       /* ★ v3.24: نظام أجر الأخصائي — عمولة أو راتب شهري ثابت (للأخصائي فقط) */
       payModel: role === "specialist" && b.payModel === "salary" ? "salary" : "commission",
       salaryAmount: role === "specialist" ? Math.max(0, Math.round(Number(b.salaryAmount) || 0)) : 0,
-      /* ★ v3.24: سن وجنس العميل — اختياريان (للعملاء فقط) */
+      /* ★ v3.24.2: تاريخ الميلاد الكامل بدل السن اليدوي — السن تُحسب لحظياً عند كل قراءة فيتحديث العرض ذاتياً كل سنة */
+      birthDate:
+        role === "client" && /^\d{4}-\d{2}-\d{2}$/.test(String(b.birthDate || "").trim())
+          ? String(b.birthDate).trim()
+          : "",
       age:
-        role === "client" && b.age !== undefined && b.age !== null && b.age !== ""
+        role === "client" && !b.birthDate && b.age !== undefined && b.age !== null && b.age !== ""
           ? Math.max(0, Math.min(120, Math.round(Number(b.age) || 0)))
           : null,
       gender:

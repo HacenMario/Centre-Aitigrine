@@ -41,7 +41,9 @@ export type SafeUser = {
   assignedSpecialistId: string | null;
   /** ★ v3.19: زمرة الدم — رمز عالمي (A+/A-/…) أو null للمسجّلين سابقاً قبل الإضافة */
   bloodType: string | null;
-  /** ★ v3.24: سن العميل وجنسه — نظرة مسبقة للأخصائي وتمييز أسهل للعملاء */
+  /** ★ v3.24.2: تاريخ الميلاد الكامل (YYYY-MM-DD) — والسن تُحسب لحظياً فيتحديث العرض ذاتياً كل سنة */
+  birthDate: string;
+  /** ★ v3.24: سن العميل وجنسه — تُشتق السن من تاريخ الميلاد عند توفره */
   age: number | null;
   gender: "male" | "female" | null;
   /** ★ v3.24: نظام أجر الأخصائي + الراتب الشهري الثابت (نظام الموارد البشرية) */
@@ -49,6 +51,12 @@ export type SafeUser = {
   salaryAmount: number;
   active: boolean;
 };
+
+/**
+ * ★ v3.24.2: حساب السن من تاريخ الميلاد — الوحدة المشتركة في lib/age.ts (عميل/خادم)
+ */
+import { ageFromBirth } from "./age";
+export { ageFromBirth };
 
 export function toSafeUser(u: UserDoc): SafeUser {
   /* weeklyHours قد تعود Map (mongoose) أو كائناً عادياً (lean) — نتعامل مع الحالتين */
@@ -88,7 +96,9 @@ export function toSafeUser(u: UserDoc): SafeUser {
     weeklyHours,
     assignedSpecialistId: u.assignedSpecialistId ? String(u.assignedSpecialistId) : null,
     bloodType: (u as { bloodType?: string | null }).bloodType ?? null,
-    age: (u as { age?: number | null }).age ?? null,
+    birthDate: String((u as { birthDate?: string }).birthDate || ""),
+    /* ★ v3.24.2: السن تُحسب لحظياً من تاريخ الميلاد — تحديث ذاتي كل سنة، والقديم الرقمي احتياط */
+    age: ageFromBirth((u as { birthDate?: string }).birthDate) ?? ((u as { age?: number | null }).age ?? null),
     gender: ((u as { gender?: string | null }).gender ?? null) as "male" | "female" | null,
     payModel: ((u as { payModel?: string }).payModel === "salary" ? "salary" : "commission") as "commission" | "salary",
     salaryAmount: Math.max(0, Math.round(Number((u as { salaryAmount?: number }).salaryAmount) || 0)),

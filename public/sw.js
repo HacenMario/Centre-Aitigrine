@@ -6,7 +6,7 @@
  *   - صفحة offline أنيقة داخلية بلا ملف خارجي (تعمل حتى إن لم تُخزن مسبقاً)
  * Push — يظهر الإشعار حتى والموقع مغلق — ثلاثي اللغة حسب لغة الجهاز (كما هو)
  */
-const CACHE = "ait-tegrine-v3.10.0";
+const CACHE = "ait-tegrine-v3.24.2"; /* ★ v3.24.2: يُرقَّم إلزامياً مع كل إصدار — يفرغ الكاش القديم ويجبر كل المستخدمين على تحديث الأصول */
 const ASSETS = ["/", "/manifest.webmanifest", "/logo.png", "/logo.svg"];
 
 self.addEventListener("install", (e) => {

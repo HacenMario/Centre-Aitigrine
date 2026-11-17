@@ -63,7 +63,10 @@ const UserSchema = new Schema(
       enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
       default: null,
     },
-    /** ★ v3.24: سن العميل (اختياري) — نظرة مسبقة للأخصائي حول العميل وتسهّل التمييز بين العملاء */
+    /** ★ v3.24.2: تاريخ الميلاد الكامل (YYYY-MM-DD) — السن يُحسب لحظياً عند كل قراءة
+     *  فيتحدَّث تلقائياً كل سنة دون أي إدخال يدوي، والسن المخزّن تبقى للتوافق مع القديمين */
+    birthDate: { type: String, default: "" },
+    /** ★ v3.24: سن العميل (اختياري) — يُشتق تلقائياً من تاريخ الميلاد عند توفره */
     age: { type: Number, default: null, min: 0, max: 120 },
     /** ★ v3.24: جنس العميل — ذكر أو أنثى (قائمة منسدلة، اختياري) */
     gender: { type: String, enum: ["male", "female"], default: null },
@@ -916,45 +919,5 @@ export const HrPayment: Model<HrPaymentDoc> =
   (mongoose.models.HrPayment as Model<HrPaymentDoc>) ||
   mongoose.model<HrPaymentDoc>("HrPayment", HrPaymentSchema);
 
-/* ─────────────── مفاتيح المرور Passkeys (★ v3.24) ───────────────
- * دخول بلا كلمة مرور: بصمة الإصبع / الوجه / رمز قفل الشاشة (WebAuthn)
- * — كل مفتاح مرتبط بحساب مستخدم ويُحفظ مفتاحه العام فقط (لا أسرار حساسة)
- * — تحديات التسجيل/الدخول تُحفظ لمرة واحدة مع انتهاء صلاحية
- */
-const PasskeyCredentialSchema = new Schema(
-  {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    /** معرّف المفتاح base64url — فريد عالمياً */
-    credId: { type: String, required: true, unique: true, index: true },
-    /** المفتاح العام base64url */
-    publicKey: { type: String, required: true },
-    counter: { type: Number, default: 0, min: 0 },
-    /** singleDevice | multiDevice */
-    deviceType: { type: String, default: "singleDevice" },
-    /** backedUp: هل المفتاح متزامن سحابياً */
-    backedUp: { type: Boolean, default: false },
-    transports: { type: [String], default: [] },
-    label: { type: String, default: "", maxlength: 80 },
-  },
-  { timestamps: true }
-);
-export type PasskeyCredentialDoc = InferSchemaType<typeof PasskeyCredentialSchema> & { _id: mongoose.Types.ObjectId };
-export const PasskeyCredential: Model<PasskeyCredentialDoc> =
-  (mongoose.models.PasskeyCredential as Model<PasskeyCredentialDoc>) ||
-  mongoose.model<PasskeyCredentialDoc>("PasskeyCredential", PasskeyCredentialSchema);
-
-/** تحدي WebAuthn لمرة واحدة (5 دقائق صلاحية) — purpose: register | auth */
-const WebauthnChallengeSchema = new Schema(
-  {
-    challenge: { type: String, required: true, unique: true, index: true },
-    purpose: { type: String, enum: ["register", "auth"], required: true },
-    /** للمستخدمين المسجلين: معرف المستخدم المرتبط بالتحدي */
-    userId: { type: String, default: "" },
-    expiresAt: { type: Date, required: true },
-  },
-  { timestamps: true }
-);
-export type WebauthnChallengeDoc = InferSchemaType<typeof WebauthnChallengeSchema> & { _id: mongoose.Types.ObjectId };
-export const WebauthnChallenge: Model<WebauthnChallengeDoc> =
-  (mongoose.models.WebauthnChallenge as Model<WebauthnChallengeDoc>) ||
-  mongoose.model<WebauthnChallengeDoc>("WebauthnChallenge", WebauthnChallengeSchema);
+/* ★ v3.24.2: أُزيلت مفاتيح المرور Passkeys/WebAuthn نهائياً بطلب صاحب المركز —
+   الطرق والنماذج والمكوّنات كلها محذوفة، وجداولها القديمة في القاعدة تبقى عديمة الاستعمال */

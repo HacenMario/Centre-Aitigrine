@@ -12,13 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { UserRound, KeyRound, Phone, BadgeCheck, EyeOff, ShieldCheck, Trash2, Droplet, Fingerprint, Plus, CloudUpload, Smartphone, Cake } from "lucide-react";
+import { UserRound, KeyRound, Phone, BadgeCheck, EyeOff, ShieldCheck, Trash2, Droplet, Cake } from "lucide-react";
 import { toast } from "sonner";
 import { getQuickHideConfig, saveQuickHideConfig } from "@/lib/quick-hide";
-import { browserSupportsWebAuthn, platformAuthenticatorIsAvailable, startRegistration } from "@simplewebauthn/browser";
+import { ageFromBirth } from "@/lib/age";
 import type { Navigate } from "@/lib/nav";
-
-type PkRow = { credId: string; deviceType: string; backedUp: boolean; label: string; createdAt: string };
 
 export default function Profile({ navigate }: { navigate: Navigate }) {
   const { t, me, setMe, setHidden } = useApp();
@@ -27,14 +25,14 @@ export default function Profile({ navigate }: { navigate: Navigate }) {
   const [newPass, setNewPass] = useState("");
   const [busy, setBusy] = useState(false);
 
-  /* ★ v3.24.1: سن وجنس العميل — عرض وتعديل ذاتي من الملف الشخصي */
-  const [clAge, setClAge] = useState(me?.role === "client" && me.age != null ? String(me.age) : "");
+  /* ★ v3.24.2: تاريخ ميلاد العميل وجنسه — عرض وتعديل ذاتي، والسن تُحسب لحظياً وتُحدَّث ذاتياً كل سنة */
+  const [clBirth, setClBirth] = useState(me?.role === "client" ? me.birthDate || "" : "");
   const [clGender, setClGender] = useState(me?.role === "client" && me.gender ? me.gender : "none");
   const [clBusy, setClBusy] = useState(false);
 
   useEffect(() => {
     if (me?.role === "client") {
-      setClAge(me.age != null ? String(me.age) : "");
+      setClBirth(me.birthDate || "");
       setClGender(me.gender ? me.gender : "none");
     }
   }, [me]);
@@ -45,73 +43,9 @@ export default function Profile({ navigate }: { navigate: Navigate }) {
   const [qhPin2, setQhPin2] = useState("");
   const [qhBusy, setQhBusy] = useState(false);
 
-  /* ★ v3.24: مفاتيح المرور — قائمة مفاتيحي + دعم الجهاز */
-  const [pkAvail, setPkAvail] = useState(false);
-  const [pkList, setPkList] = useState<PkRow[]>([]);
-  const [pkBusy, setPkBusy] = useState(false);
-
   useEffect(() => {
     setQhEnabled(getQuickHideConfig().enabled);
   }, [me]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        if (browserSupportsWebAuthn?.()) {
-          const plat = await platformAuthenticatorIsAvailable().catch(() => false);
-          setPkAvail(true);
-          if (!plat) setPkAvail(true); /* مفاتيح خارجية مدعومة أيضاً */
-        }
-      } catch {}
-    })();
-  }, []);
-
-  const loadPasskeys = async () => {
-    try {
-      const r = await fetch("/api/auth/passkey", { cache: "no-store" });
-      if (r.ok) {
-        const j = await r.json();
-        setPkList(j.passkeys || []);
-      }
-    } catch {}
-  };
-  useEffect(() => { if (me) void loadPasskeys(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [me]);
-
-  /* ★ v3.24: تفعيل مفتاح مرور لهذا الجهاز — بصمة/وجه/رمز القفل */
-  const addPasskey = async () => {
-    setPkBusy(true);
-    try {
-      const r1 = await fetch("/api/auth/passkey", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "register-options" }),
-      });
-      const o = await r1.json().catch(() => ({}));
-      if (!r1.ok) { toast.error(o.error || t("common.error")); setPkBusy(false); return; }
-      const att = await startRegistration({ optionsJSON: o.options });
-      const r2 = await fetch("/api/auth/passkey", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "register", response: att }),
-      });
-      const j = await r2.json().catch(() => ({}));
-      if (r2.ok) {
-        toast.success(t("pk.registered"));
-        await loadPasskeys();
-      } else toast.error(j.error || t("common.error"));
-    } catch {
-      toast.error(t("pk.cancelled"));
-    }
-    setPkBusy(false);
-  };
-
-  const delPasskey = async (credId: string) => {
-    setPkBusy(true);
-    try {
-      const r = await fetch(`/api/auth/passkey?credId=${encodeURIComponent(credId)}`, { method: "DELETE" });
-      if (r.ok) { toast.success(t("pk.deleted")); await loadPasskeys(); }
-      else toast.error(t("common.error"));
-    } catch { toast.error(t("err.conn")); }
-    setPkBusy(false);
-  };
 
   if (!me) {
     return (
@@ -148,12 +82,12 @@ export default function Profile({ navigate }: { navigate: Navigate }) {
     else toast.error(j.error || t("common.error"));
   };
 
-  /* ★ v3.24.1: حفظ سن وجنس العميل من ملفه — الحقلان اختياريان */
+  /* ★ v3.24.2: حفظ تاريخ الميلاد وجنس العميل من ملفه — الحقلان اختياريان والسن تُحسب تلقائياً */
   const saveClientInfo = async () => {
     setClBusy(true);
     const r = await fetch("/api/auth/me", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ age: clAge === "" ? null : Number(clAge), gender: clGender === "none" ? null : clGender }),
+      body: JSON.stringify({ birthDate: clBirth, gender: clGender === "none" ? null : clGender }),
     });
     const j = await r.json().catch(() => ({}));
     setClBusy(false);
@@ -248,16 +182,18 @@ export default function Profile({ navigate }: { navigate: Navigate }) {
             </div>
           </div>
 
-          {/* ★ v3.24.1: سن وجنس العميل — ربط الملف الشخصي ببيانات المريض (اختياريان) */}
+          {/* ★ v3.24.2: تاريخ ميلاد العميل وجنسه — ربط الملف الشخصي ببيانات المريض (اختياريان)، والسن تُحسب وتُحدَّث ذاتياً كل سنة */}
           {me.role === "client" && (
             <div className="space-y-3 border-t pt-4">
               <Label className="flex items-center gap-2"><Cake className="h-4 w-4 text-primary" /> {t("prof.clientInfo")}</Label>
               <p className="text-[12.5px] leading-relaxed text-muted-foreground">{t("client.ageGenderNote")}</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">{t("client.age")}</Label>
-                  <Input type="number" min={0} max={120} value={clAge}
-                    onChange={(e) => setClAge(e.target.value)} className="h-11 tabular-nums" />
+                  <Label className="text-xs">{t("client.birthDate")}</Label>
+                  <Input type="date" value={clBirth}
+                    min={`${new Date().getFullYear() - 120}-01-01`}
+                    max={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => setClBirth(e.target.value)} className="h-11 tabular-nums" autoComplete="bday" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">{t("client.gender")}</Label>
@@ -271,6 +207,13 @@ export default function Profile({ navigate }: { navigate: Navigate }) {
                   </Select>
                 </div>
               </div>
+              {ageFromBirth(clBirth) !== null && (
+                <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary gap-1.5">
+                  <Cake className="h-3 w-3" aria-hidden="true" />
+                  <span className="font-bold">{t("client.ageComputed")}: {ageFromBirth(clBirth)} {t("client.yearsUnit")}</span>
+                  <span className="text-muted-foreground"> — {t("client.ageAuto")}</span>
+                </Badge>
+              )}
               <Button onClick={saveClientInfo} disabled={clBusy} variant="outline" className="h-11">{t("common.save")}</Button>
             </div>
           )}
@@ -282,45 +225,6 @@ export default function Profile({ navigate }: { navigate: Navigate }) {
               <Input type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder={t("prof.newPass")} className="h-11" />
             </div>
             <Button onClick={changePass} disabled={busy} variant="outline" className="h-11">{t("common.confirm")}</Button>
-          </div>
-
-          {/* ★ v3.24: مفاتيح المرور — دخول بلا كلمة مرور من هذا الجهاز */}
-          <div className="space-y-3 border-t pt-4">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <Label className="flex items-center gap-2"><Fingerprint className="h-4 w-4 text-primary" /> {t("pk.title")}</Label>
-              {pkList.length > 0 && (
-                <Badge variant="secondary" className="gap-1 text-[10px]">{pkList.length}</Badge>
-              )}
-            </div>
-            <p className="text-[13px] leading-relaxed text-muted-foreground">{t("pk.sub")}</p>
-            {pkList.length > 0 ? (
-              <div className="space-y-1.5">
-                {pkList.map((p) => (
-                  <div key={p.credId} className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-2.5 text-sm">
-                    <Fingerprint className="h-4 w-4 shrink-0 text-primary" />
-                    <span className="font-bold">{t("pk.device")}</span>
-                    <Badge variant="outline" className="rounded-full gap-1 text-[10px]">
-                      {p.backedUp ? <><CloudUpload className="h-3 w-3" /> {t("pk.backedUp")}</> : <><Smartphone className="h-3 w-3" /> {t("pk.notBackedUp")}</>}
-                    </Badge>
-                    <span className="text-[11px] text-muted-foreground tabular-nums" dir="ltr">
-                      {(() => { try { return new Date(p.createdAt).toLocaleDateString(); } catch { return ""; } })()}
-                    </span>
-                    <Button variant="ghost" size="icon" className="ms-auto h-7 w-7 rounded-lg text-destructive"
-                      aria-label={t("pk.delete")} onClick={() => void delPasskey(p.credId)} disabled={pkBusy}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[12.5px] leading-relaxed text-muted-foreground">{t("pk.none")}</p>
-            )}
-            <Button variant="outline" onClick={addPasskey} disabled={pkBusy || !pkAvail}
-              className="h-11 gap-1.5">
-              <Plus className="h-4 w-4" /> {pkBusy ? t("pk.adding") : t("pk.add")}
-            </Button>
-            {!pkAvail && <p className="text-[12px] text-muted-foreground">{t("pk.unavailable")}</p>}
-            <p className="text-[11px] leading-relaxed text-muted-foreground">{t("pk.note")}</p>
           </div>
 
           {/* الإخفاء السريع — كل مستخدم يدخل ويحفظ رمزه الخاص من هنا */}

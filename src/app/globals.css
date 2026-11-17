@@ -771,6 +771,19 @@ img, video, iframe {
     linear-gradient(120deg, oklch(0.72 0.12 175 / 0.1), oklch(0.205 0.018 175) 45%, oklch(0.84 0.12 75 / 0.08));
 }
 
+/* ═══ القوائم المنسدلة فوق كل النوافذ (★ v3.24.2) ═══
+   نافذة إكمال حساب Google إلزامية بz-[700] — وأي قائمة Radix (Select/Dropdown/Popover)
+   تُرسَم في نهاية body لكن قد تسقط خلف نوافذ ذات z أعلى حسب السياق؛ القاعدة الجذرية
+   ترفع كل محتوى Radix المنبثق فوق أي طبقة في التطبيق — لا قائمة خلف نافذة أبداً */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
+[data-radix-select-content],
+[data-radix-dropdown-menu-content],
+[data-radix-popover-content] {
+  z-index: 9999 !important;
+}
+
 /* ═══ الطباعة / PDF — طباعة محتوى الوثيقة فقط لا كامل الواجهة ═══
    زر الطباعة وزر PDF في إدارة الوثائق يطبعان منطقة .print-area
    (معاينة الوثيقة) فقط: الترويسة، العنوان، المتن، التوقيع */

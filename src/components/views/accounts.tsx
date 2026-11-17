@@ -34,6 +34,7 @@ import { TriInput, TriTextarea, flattenTri, triFrom, triName, TRI3, pickTri } fr
 import { FullAvatar } from "@/components/full-image";
 import Pagination from "@/components/pagination";
 import { cn } from "@/lib/utils";
+import { ageFromBirth } from "@/lib/age";
 import { BLOOD_TYPES } from "@/lib/blood";
 import type { Navigate } from "@/lib/nav";
 
@@ -50,7 +51,8 @@ type Account = {
   /** ★ v3.24: نظام أجر الأخصائي — عمولة لكل جلسة أو راتب شهري ثابت (الموارد البشرية) */
   payModel?: "commission" | "salary";
   salaryAmount?: number;
-  /** ★ v3.24: سن وجنس العميل — نظرة مسبقة للأخصائي */
+  /** ★ v3.24.2: تاريخ الميلاد الكامل — السن تُحسب لحظياً وتُحدَّث ذاتياً كل سنة */
+  birthDate?: string;
   age?: number | null;
   gender?: "male" | "female" | null;
   /** ★ v3.12: الخدمات التي يجيدها الأخصائي */
@@ -749,23 +751,28 @@ function AccountForm({
 
       {value?.role === "client" && (
         <>
-          {/* ★ v3.24: سن وجنس العميل — نظرة مسبقة للأخصائي (اختياريان) */}
+          {/* ★ v3.24.2: تاريخ ميلاد العميل بدل السن اليدوي — السن تُحسب لحظياً وتُحدَّث ذاتياً كل سنة */}
           <div className="grid grid-cols-1 gap-3 rounded-xl border border-primary/15 bg-primary/[0.04] p-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">
                 <Cake className="h-3.5 w-3.5 text-primary" />
-                {t("client.age")}
+                {t("client.birthDate")}
               </Label>
               <Input
-                type="number" min={0} max={120}
-                value={value?.age ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  upd({ age: v === "" ? null : Math.max(0, Math.min(120, Math.round(Number(v) || 0))) });
-                }}
+                type="date"
+                min={`${new Date().getFullYear() - 120}-01-01`}
+                max={new Date().toISOString().slice(0, 10)}
+                value={value?.birthDate || ""}
+                onChange={(e) => upd({ birthDate: e.target.value })}
                 className="h-11 tabular-nums"
-                aria-label={t("client.age")}
+                aria-label={t("client.birthDate")}
               />
+              {ageFromBirth(value?.birthDate) !== null && (
+                <p className="text-[11px] font-bold text-primary">
+                  {t("client.ageComputed")}: {ageFromBirth(value?.birthDate)} {t("client.yearsUnit")}
+                  <span className="text-muted-foreground"> — {t("client.ageAuto")}</span>
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">

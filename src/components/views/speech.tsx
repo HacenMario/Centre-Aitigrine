@@ -95,18 +95,36 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [recording]);
 
-  /* ★ v3.24.1: طلب إذن الميكروفون بمعالجة دقيقة لكل حالة خطأ — رسالة إرشادية حسب السبب
-     الفعلي (إذن مرفوض/لا ميكروفون/مستعمل ببرنامج آخر/سياق غير آمن) بدل رسالة عامة واحدة */
+  /* ★ v3.24.2: طلب إذن الميكروفون بتشخيص شامل لكل حالة فشل — يضمن عمل التسجيل فعلياً:
+     — كشف متصفحات التطبيقات (واتساب/فيسبوك/إنستغرام/تيليجرام داخل WebView) التي قد تمنح
+       إذناً لكن لا تمرره لـ getUserMedia → توجيه بفتح الموقع في Chrome/Safari
+     — فحص حالة الإذن عبر Permissions API قبل الطلب (denied/granted/prompt)
+     — رسالة حسب اسم الخطأ الفعلي + الاسم التقني في الوصف لتشخيص فوري من الجهاز */
   const startRec = async () => {
     setResult(null);
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+    const inAppWebView = /\bwv\b|\bFBAN\b|\bFBAV\b|\bInstagram\b|\bTikTok\b|\bTelegram\b|\bSnapchat\b|\bLinkedInApp\b/i.test(ua);
     if (typeof window !== "undefined" && !window.isSecureContext) {
-      toast.error(t("sa.micHttps"), { duration: 7000 });
+      toast.error(t("sa.micHttps"), { duration: 8000 });
+      return;
+    }
+    if (inAppWebView) {
+      toast.error(t("sa.micWebView"), { duration: 12000 });
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      toast.error(t("sa.micUnsupported"), { duration: 7000 });
+      toast.error(t("sa.micUnsupported"), { duration: 8000 });
       return;
     }
+    /* فحص حالة الإذن أولاً — الإذن المرفوض مسبقاً يجعل getUserMedia يفشل فوراً */
+    try {
+      const perm = await navigator.permissions?.query?.({ name: "microphone" as PermissionName });
+      if (perm?.state === "denied") {
+        toast.error(t("sa.micDenied"), { description: t("sa.micDeniedHint"), duration: 10000 });
+        return;
+      }
+    } catch { /* متصفح بلا استعلام إذن — ننتقل للطلب المباشر */ }
+
     setAskingMic(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -116,7 +134,12 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
         : MediaRecorder.isTypeSupported("audio/mp4")
           ? "audio/mp4"
           : "";
-      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      let rec: MediaRecorder;
+      try {
+        rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      } catch {
+        rec = new MediaRecorder(stream); /* بعض الأجهزة ترفض خيارات الملف — الافتراضي يكفي */
+      }
       chunksRef.current = [];
       rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       rec.onstop = async () => {
@@ -142,15 +165,17 @@ export default function SpeechAnalyzer({ navigate }: { navigate: Navigate }) {
       setRecording(true);
     } catch (e) {
       const name = String((e as { name?: string })?.name || "");
+      const detail = `${name || "Error"}: ${String((e as { message?: string })?.message || "").slice(0, 90)}`;
       if (name === "NotAllowedError" || name === "SecurityError") {
-        /* الإذن مرفوض من إعدادات المتصفح للموقع نفسه — التوجيه للإصلاح */
-        toast.error(t("sa.micDenied"), { description: t("sa.micDeniedHint"), duration: 9000 });
-      } else if (name === "NotFoundError" || name === "OverconstrainedError") {
-        toast.error(t("sa.micNotFound"), { duration: 7000 });
-      } else if (name === "NotReadableError" || name === "AbortError") {
-        toast.error(t("sa.micBusy"), { duration: 7000 });
+        toast.error(t("sa.micDenied"), { description: t("sa.micDeniedHint"), duration: 10000 });
+      } else if (name === "NotFoundError" || name === "OverconstrainedError" || name === "DevicesNotFoundError") {
+        toast.error(t("sa.micNotFound"), { duration: 8000 });
+      } else if (name === "NotReadableError" || name === "AbortError" || name === "TrackStartError") {
+        toast.error(t("sa.micBusy"), { duration: 8000 });
+      } else if (name === "TypeError") {
+        toast.error(t("sa.micUnsupported"), { description: detail, duration: 9000 });
       } else {
-        toast.error(t("sa.micDenied"), { description: t("sa.micDeniedHint"), duration: 9000 });
+        toast.error(t("sa.micDenied"), { description: detail, duration: 10000 });
       }
     }
     setAskingMic(false);

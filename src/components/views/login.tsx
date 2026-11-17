@@ -16,11 +16,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { LogIn, ShieldCheck, Phone, KeyRound, UserRound, Info, UserPlus, LifeBuoy, Send, Eye, EyeOff, Stethoscope, HeartHandshake, Droplet, Cake, Fingerprint } from "lucide-react";
+import { LogIn, ShieldCheck, Phone, KeyRound, UserRound, Info, UserPlus, LifeBuoy, Send, Eye, EyeOff, Stethoscope, HeartHandshake, Droplet, Cake } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { BLOOD_TYPES } from "@/lib/blood";
-import { browserSupportsWebAuthn, platformAuthenticatorIsAvailable, startAuthentication } from "@simplewebauthn/browser";
+import { ageFromBirth } from "@/lib/age";
 
 type Tab = "login" | "register" | "forgot";
 type Portal = "client" | "specialist" | "admin";
@@ -84,7 +84,7 @@ export default function Login({ onDone }: { onDone: () => void }) {
   const [confirm, setConfirm] = useState("");
   const [recoveryPhrase, setRecoveryPhrase] = useState("");
   const [bloodType, setBloodType] = useState(""); /* ★ v3.19: زمرة الدم إلزامية للتسجيل */
-  const [age, setAge] = useState(""); /* ★ v3.24: سن العميل (اختياري) */
+  const [birthDate, setBirthDate] = useState(""); /* ★ v3.24.2: تاريخ الميلاد الكامل — السن تُحسب تلقائياً وتُحدَّث ذاتياً كل سنة */
   const [gender, setGender] = useState(""); /* ★ v3.24: جنس العميل (اختياري) */
   const [newPass, setNewPass] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -94,45 +94,6 @@ export default function Login({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     setTab("login");
   }, [portal]);
-
-  /* ★ v3.24: مفاتيح المرور — هل يدعم الجهاز المصادقة بالمنصة (بصمة/وجه/رمز قفل)؟ */
-  const [pkAvail, setPkAvail] = useState(false);
-  useEffect(() => {
-    (async () => {
-      try {
-        if (browserSupportsWebAuthn?.() && (await platformAuthenticatorIsAvailable())) setPkAvail(true);
-      } catch {}
-    })();
-  }, []);
-
-  /* ★ v3.24: الدخول بمفتاح المرور — بلا كلمة مرور إطلاقاً */
-  const passkeyLogin = async () => {
-    setBusy(true);
-    try {
-      const r1 = await fetch("/api/auth/passkey", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "login-options" }),
-      });
-      const o = await r1.json().catch(() => ({}));
-      if (!r1.ok) { toast.error(o.error || t("common.error")); setBusy(false); return; }
-      const att = await startAuthentication({ optionsJSON: o.options });
-      const r2 = await fetch("/api/auth/passkey", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "login", response: att }),
-      });
-      const j = await r2.json();
-      if (r2.ok && j.user && j.token) {
-        setSession(j.user, j.token);
-        toast.success(`${t("common.success")} — ${j.user.name}`);
-        onDone();
-      } else {
-        toast.error(j.error || t("common.error"));
-      }
-    } catch {
-      toast.error(t("pk.cancelled"));
-    }
-    setBusy(false);
-  };
 
   const inputCls = "ps-10 h-12 rounded-xl";
   const EyeBtn = (
@@ -186,7 +147,7 @@ export default function Login({ onDone }: { onDone: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name, phone, password, recoveryPhrase, bloodType,
-          age: age === "" ? null : Number(age),
+          birthDate, /* ★ v3.24.2: تاريخ الميلاد الكامل — السن يحسبه النظام تلقائياً */
           gender: gender === "" ? null : gender,
         }),
       });
@@ -354,24 +315,6 @@ export default function Login({ onDone }: { onDone: () => void }) {
               <Button type="submit" disabled={busy} className="h-12 w-full rounded-xl text-base shadow-lg shadow-primary/20">
                 {busy ? t("common.loading") : portal === "admin" ? t("login.adminEnter") : t("common.login")}
               </Button>
-              {/* ★ v3.24: الدخول بمفتاح المرور — بصمة/وجه/رمز القفل (بوابتا العميل والأخصائي) */}
-              {pkAvail && portal !== "admin" && (
-                <>
-                  <div className="flex items-center gap-3 py-0.5" aria-hidden="true">
-                    <span className="h-px flex-1 bg-border" />
-                    <span className="text-[11px] font-bold text-muted-foreground">{t("login.orContinue")}</span>
-                    <span className="h-px flex-1 bg-border" />
-                  </div>
-                  <Button type="button" variant="outline" onClick={passkeyLogin} disabled={busy}
-                    className="h-12 w-full rounded-xl gap-2.5 bg-card">
-                    <Fingerprint className="h-5 w-5 text-primary" />
-                    <span className="flex flex-col items-start leading-tight">
-                      <span className="font-bold">{t("pk.login")}</span>
-                      <span className="text-[10.5px] text-muted-foreground">{t("pk.loginSub")}</span>
-                    </span>
-                  </Button>
-                </>
-              )}
               {/* ★ v3.8: دخول عبر Google — لبوابة العملاء بجانب الدخول بالهاتف */}
               {portal === "client" && <GoogleButton />}
               {portal === "admin" ? (
@@ -432,16 +375,18 @@ export default function Login({ onDone }: { onDone: () => void }) {
                   </div>
                 </div>
               </div>
-              {/* ★ v3.24: سن وجنس العميل — اختياريان، نظرة مسبقة للأخصائي */}
+              {/* ★ v3.24.2: تاريخ الميلاد الكامل بدل السن اليدوي — السن تُحسب لحظياً وتُحدَّث ذاتياً كل سنة */}
               <div className="grid grid-cols-1 gap-3 rounded-xl border border-primary/15 bg-primary/5 p-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="rage" className="flex items-center gap-2">
+                  <Label htmlFor="rbirth" className="flex items-center gap-2">
                     <Cake className="h-4 w-4 text-primary" />
-                    {t("client.age")}
+                    {t("client.birthDate")}
                   </Label>
-                  <Input id="rage" type="number" min={0} max={120} value={age}
-                    onChange={(e) => setAge(e.target.value)}
-                    className="h-12 rounded-xl tabular-nums" inputMode="numeric" autoComplete="off" />
+                  <Input id="rbirth" type="date" value={birthDate}
+                    min={`${new Date().getFullYear() - 120}-01-01`}
+                    max={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                    className="h-12 rounded-xl tabular-nums" autoComplete="bday" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="rgender" className="flex items-center gap-2">
@@ -459,6 +404,12 @@ export default function Login({ onDone }: { onDone: () => void }) {
                     </SelectContent>
                   </Select>
                 </div>
+                {ageFromBirth(birthDate) !== null && (
+                  <p className="text-[11.5px] font-bold text-primary sm:col-span-2">
+                    {t("client.ageComputed")}: {ageFromBirth(birthDate)} {t("client.yearsUnit")}
+                    <span className="text-muted-foreground"> — {t("client.ageAuto")}</span>
+                  </p>
+                )}
                 <p className="text-[11.5px] leading-relaxed text-muted-foreground sm:col-span-2">{t("client.ageGenderNote")}</p>
               </div>
               {/* ★ v3.19: زمرة الدم — إلزامية عند إنشاء حساب عميل (تُستعمل في الملف الطلبي والوثائق) */}

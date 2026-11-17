@@ -16,7 +16,7 @@ export async function PATCH(req: NextRequest) {
   return handle(async () => {
     const me = await requireUser();
     const body = await req.json().catch(() => ({}));
-    const { oldPass, newPass, name, bio, title, langs, photoBase64, phone, bloodType, age, gender } = body;
+    const { oldPass, newPass, name, bio, title, langs, photoBase64, phone, bloodType, birthDate, age, gender } = body;
 
     const $set: Record<string, unknown> = {};
     const $unset: Record<string, string> = {};
@@ -64,11 +64,21 @@ export async function PATCH(req: NextRequest) {
       if (!$set.bloodType) return fail(400, "زمرة الدم إلزامية عند إنشاء الحساب");
     }
 
-    /* ★ v3.24.1: سن وجنس العميل — يعدّلهما العميل بنفسه من ملفه الشخصي في أي وقت
-       (بيانات اختيارية غير حساسة بخلاف زمرة الدم)، ويضبطهما الطاقم على حسابات العملاء فقط */
-    if (age !== undefined || gender !== undefined) {
+    /* ★ v3.24.2: تاريخ الميلاد بدل السن اليدوي — يعدّله العميل من ملفه في أي وقت،
+       والسن تُحسب لحظياً عند كل قراءة فيتحدّث عرضها ذاتياً كل سنة (ولا حاجة لأي تحديث يدوي) */
+    if (birthDate !== undefined || age !== undefined || gender !== undefined) {
       if (me.role !== "client")
-        return fail(403, "سن وجنس العميل يُضبطان في حسابات العملاء فقط");
+        return fail(403, "بيانات العميل (تاريخ الميلاد والجنس) تُضبط في حسابات العملاء فقط");
+      if (birthDate !== undefined) {
+        const bd = String(birthDate || "").trim();
+        if (bd === "") {
+          $set.birthDate = "";
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(bd)) {
+          $set.birthDate = bd;
+        } else {
+          return fail(400, "تاريخ الميلاد غير صحيح — الصيغة يوم/شهر/سنة كاملة");
+        }
+      }
       if (age !== undefined) {
         const n = Number(age);
         $set.age = age === null || age === "" || !Number.isFinite(n) ? null : Math.max(0, Math.min(120, Math.round(n)));

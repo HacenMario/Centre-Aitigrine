@@ -52,6 +52,8 @@ export type Me = {
   assignedSpecialistId?: string | null;
   /** ★ v3.19: زمرة الدم — تظهر في ملف العميل وتضبطها الإدارة/المساعد */
   bloodType?: string | null;
+  /** ★ v3.24.2: تاريخ الميلاد الكامل — السن تُحسب لحظياً وتُحدَّث ذاتياً كل سنة */
+  birthDate?: string;
   /** ★ v3.24.1: سن وجنس العميل — يرى ويعدّلهما العميل من ملفه الشخصي */
   age?: number | null;
   gender?: "male" | "female" | null;
