@@ -6,7 +6,7 @@
  * DELETE: الأدمين يحذف أي مقال — الأخصائي والمكوّن يحذف مقاله هو فقط
  */
 import { NextRequest } from "next/server";
-import { ok, fail, handle } from "@/lib/api-helpers";
+import { ok, fail, handle, PUBLIC_EDGE_CACHE } from "@/lib/api-helpers";
 import { Article } from "@/lib/models";
 import { currentUser, isStaff, requireUser } from "@/lib/auth";
 
@@ -23,7 +23,11 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       const owner = me && String(a.authorId || "") === String(me._id);
       if (!me || (!isStaff(me.role) && !owner)) return fail(404, "المقال غير موجود");
     }
-    return ok({ article: a });
+    /* ★ v3.28: المقال المنشور نسخة واحدة للجميع — كاش حافة؛ المسودة بلا كاش (معاينة الطاقم) */
+    const __res = ok({ article: a });
+    if ((a as { active?: boolean }).active !== false)
+      __res.headers.set("Cache-Control", PUBLIC_EDGE_CACHE);
+    return __res;
   });
 }
 

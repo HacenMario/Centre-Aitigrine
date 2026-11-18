@@ -48,10 +48,11 @@ export default function Testimonials({ navigate }: { navigate: Navigate }) {
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch("/api/testimonials", { cache: "no-store" });
+      /* ★ v3.28: الطاقم بعنوان ?staff=1 — لا يقرأ كاش حافة العموم إطلاقاً */
+      const r = await fetch(`/api/testimonials${isStaff ? "?staff=1" : ""}`, { cache: "no-store" });
       if (r.ok) setItems((await r.json()).items || []);
     } catch {}
-  }, []);
+  }, [isStaff]);
 
   useEffect(() => { load(); }, [load]);
 

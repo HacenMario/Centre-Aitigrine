@@ -77,10 +77,14 @@ export default function FloatingAd() {
     if (!ready) return;
     /* مهلة خنق: لا إزعاج مباشر عند فتح الموقع — وبعد نافذة الاطمئنان (10 ثوانٍ) */
     const t1 = setTimeout(() => void fetchAd(), 12500);
-    const poll = setInterval(() => void fetchAd(), 5 * 60000);
+    /* ★ v3.28: لا جلب للإعلان والتبويب مخفي — وعند العودة تحديث فوري */
+    const poll = setInterval(() => { if (!document.hidden) void fetchAd(); }, 5 * 60000);
+    const onVis = () => { if (!document.hidden) void fetchAd(); };
+    document.addEventListener("visibilitychange", onVis);
     return () => {
       clearTimeout(t1);
       clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, [ready, fetchAd]);
 

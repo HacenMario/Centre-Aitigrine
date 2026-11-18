@@ -72,8 +72,14 @@ export default function EbookOrderPopup() {
   useEffect(() => {
     if (!isStaff) { setOrder(null); return; }
     poll();
-    const iv = setInterval(poll, 25_000);
-    return () => clearInterval(iv);
+    /* ★ v3.28: لا استقصاء والتبويب مخفي — وعند العودة فحص فوري للطلبات المعلقة */
+    const iv = setInterval(() => { if (!document.hidden) void poll(); }, 25_000);
+    const onVis = () => { if (!document.hidden) void poll(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [isStaff, poll]);
 
   if (!isStaff || !order) return null;

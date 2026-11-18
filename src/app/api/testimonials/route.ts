@@ -9,7 +9,7 @@
  *   يحول الاسم تلقائياً إلى "الأول + حرف البداية" (مثال: أمينة ب.) ما لم تحدد الإدارة صيغة علنية.
  */
 import { NextRequest } from "next/server";
-import { ok, fail, handle } from "@/lib/api-helpers";
+import { ok, fail, handle, withPublicCache, isAuthedReq } from "@/lib/api-helpers";
 import { Testimonial } from "@/lib/models";
 import { requireUser, isStaff, currentUser } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
@@ -37,8 +37,9 @@ function anonymize(real: string, pub: string): string {
   return `${first} ${initial}`.trim();
 }
 
-export async function GET() {
-  return handle(async () => {
+export async function GET(req: NextRequest) {
+  /* ★ v3.28: النداء الموثق (توكن) بلا كاش — استجابته متغيرة حسب المستخدم */
+  const __res = await handle(async () => {
     const me = await currentUser();
     const staff = !!(me && isStaff(me.role));
     const filter = staff ? {} : { approved: true };
@@ -59,6 +60,8 @@ export async function GET() {
       })),
     });
   });
+    /* ★ v3.28: كاش الحافة للنسخة العامة فقط */
+    return withPublicCache(__res, !isAuthedReq(req));
 }
 
 export async function POST(req: NextRequest) {

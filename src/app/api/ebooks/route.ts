@@ -6,7 +6,7 @@
  * POST: الإدارة والمساعد — مع السعر بالدينار ورابط Google Drive وملف PDF المدمج (★ v3.25)
  */
 import { NextRequest } from "next/server";
-import { ok, fail, handle } from "@/lib/api-helpers";
+import { ok, fail, handle, withPublicCache, isAuthedReq } from "@/lib/api-helpers";
 import { Ebook, EbookOrder } from "@/lib/models";
 import { currentUser, isStaff, requireUser } from "@/lib/auth";
 
@@ -30,7 +30,8 @@ function normDirection(v: unknown): "rtl" | "ltr" {
 }
 
 export async function GET(req: NextRequest) {
-  return handle(async () => {
+  /* ★ v3.28: النداء الموثق (توكن) بلا كاش — استجابته متغيرة حسب المستخدم */
+  const __res = await handle(async () => {
     const me = await currentUser();
     const { searchParams } = new URL(req.url);
     const all = searchParams.get("all") === "1" && me && isStaff(me.role);
@@ -54,6 +55,8 @@ export async function GET(req: NextRequest) {
       }),
     });
   });
+    /* ★ v3.28: كاش الحافة للنسخة العامة فقط */
+    return withPublicCache(__res, !isAuthedReq(req));
 }
 
 export async function POST(req: NextRequest) {

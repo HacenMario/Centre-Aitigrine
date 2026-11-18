@@ -58,8 +58,15 @@ export default function NotificationsBell() {
 
   useEffect(() => {
     load();
-    const iv = setInterval(load, 30000);
-    return () => clearInterval(iv);
+    /* ★ v3.28: لا استقصاء والتبويب مخفي — يوفر Fast Origin Transfer بلا أي أثر وظيفي،
+     * وعند العودة للتبويب يُجلب فوراً */
+    const iv = setInterval(() => { if (!document.hidden) void load(); }, 30000);
+    const onVis = () => { if (!document.hidden) void load(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [load]);
 
   const markAll = async () => {

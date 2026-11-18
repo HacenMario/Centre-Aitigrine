@@ -4,13 +4,14 @@
  * — نبضة واحدة لكل مستخدم (الأحدث) لضمان دوران كل المستخدمين دون تكرار
  * — بيانات محدودة عمداً: الاسم الأول فقط + نوع النشاط وتفاصيله وزمنه
  */
-import { ok, handle } from "@/lib/api-helpers";
+import { ok, handle, withPublicCache } from "@/lib/api-helpers";
 import { ActivityLog } from "@/lib/models";
 
 const MAX = 20;
 
 export async function GET() {
-  return handle(async () => {
+  /* ★ v3.28: النداء الموثق (توكن) بلا كاش — استجابته متغيرة حسب المستخدم */
+  const __res = await handle(async () => {
     const rows = await ActivityLog.find({})
       .sort({ createdAt: -1 })
       .limit(MAX * 4)
@@ -46,4 +47,6 @@ export async function GET() {
 
     return ok({ activities: items });
   });
+    /* ★ v3.28: كاش الحافة للنسخة العامة فقط */
+    return withPublicCache(__res, true);
 }

@@ -82,12 +82,13 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch(`/api/ebooks${isStaff ? "?all=1" : ""}`, { cache: "no-store" });
+      /* ★ v3.28: المسجلون بعنوان ?u=1 — لا يقرأون كاش حافة العموم إطلاقاً */
+      const r = await fetch(`/api/ebooks${isStaff ? "?all=1" : me ? "?u=1" : ""}`, { cache: "no-store" });
       const j = await r.json();
       setEbooks(j.ebooks || []);
     } catch {}
     setLoading(false);
-  }, [isStaff]);
+  }, [isStaff, me]);
 
   useEffect(() => { load(); }, [load]);
   /* ★ v3.26: البحث الذكي + تصفية اتجاه الكتاب (عربي RTL / لاتيني LTR) */

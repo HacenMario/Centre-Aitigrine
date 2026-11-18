@@ -8,12 +8,13 @@
  */
 import { NextRequest } from "next/server";
 import mongoose from "mongoose";
-import { ok, fail, handle } from "@/lib/api-helpers";
+import { ok, fail, handle, withPublicCache, isAuthedReq } from "@/lib/api-helpers";
 import { Appointment, Rating, User } from "@/lib/models";
 import { currentUser, requireUser } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
-  return handle(async () => {
+  /* ★ v3.28: النداء الموثق (توكن) بلا كاش — استجابته متغيرة حسب المستخدم */
+  const __res = await handle(async () => {
     const { searchParams } = new URL(req.url);
     const specialistId = String(searchParams.get("specialistId") || "");
     const viewerId = String(searchParams.get("viewerId") || "");
@@ -89,6 +90,8 @@ export async function GET(req: NextRequest) {
       canRate,
     });
   });
+    /* ★ v3.28: كاش الحافة للنسخة العامة فقط */
+    return withPublicCache(__res, !isAuthedReq(req));
 }
 
 export async function POST(req: NextRequest) {

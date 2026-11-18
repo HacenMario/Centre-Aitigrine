@@ -88,12 +88,13 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch(`/api/courses${isStaff ? "?all=1" : ""}`, { cache: "no-store" });
+      /* ★ v3.28: المسجلون بعنوان ?u=1 — لا يقرأون كاش حافة العموم إطلاقاً */
+      const r = await fetch(`/api/courses${isStaff ? "?all=1" : me ? "?u=1" : ""}`, { cache: "no-store" });
       const j = await r.json();
       setCourses(j.courses || []);
     } catch {}
     setLoading(false);
-  }, [isStaff]);
+  }, [isStaff, me]);
 
   useEffect(() => { load(); }, [load]);
 

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { HttpError } from "./auth";
 import { connectDB } from "./mongo";
 
@@ -13,6 +13,18 @@ import { connectDB } from "./mongo";
  */
 export const PUBLIC_EDGE_CACHE =
   "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
+
+/* ★ v3.28: خفض Fast Origin Transfer — تطبيق كاش الحافة على بقية المسارات العامة الثقيلة
+ * القاعدة: النسخة العامة (بلا توكن) واحدة للجميع فتُخزَّن في حافة Vercel وتُخدم للزوار
+ * والروبوتات من الـ CDN بلا استدعاء الدالة؛ ونداءات التوكن (مسجلون/طاقم) بلا كاش إطلاقًا */
+export function withPublicCache(res: NextResponse, eligible: boolean) {
+  if (eligible) res.headers.set("Cache-Control", PUBLIC_EDGE_CACHE);
+  return res;
+}
+
+export function isAuthedReq(req: NextRequest) {
+  return Boolean((req.headers.get("x-auth-token") || "").trim());
+}
 
 /** استجابة موحدة */
 export function ok(data: unknown = { ok: true }) {

@@ -13,7 +13,7 @@
  * الإعلان العائم: float + floatPerUser + floatDays → expiresAt يُحسب عند النشر
  */
 import { NextRequest } from "next/server";
-import { ok, fail, handle } from "@/lib/api-helpers";
+import { ok, fail, handle, withPublicCache, isAuthedReq } from "@/lib/api-helpers";
 import { Ad, User } from "@/lib/models";
 import { currentUser, requireUser } from "@/lib/auth";
 import { notifyStaff, notifyUser } from "@/lib/push";
@@ -39,7 +39,8 @@ function waDigits(v: string): string {
 }
 
 export async function GET(req: NextRequest) {
-  return handle(async () => {
+  /* ★ v3.28: النداء الموثق (توكن) بلا كاش — استجابته متغيرة حسب المستخدم */
+  const __res = await handle(async () => {
     const { searchParams } = new URL(req.url);
     const staff = searchParams.get("staff") === "1";
     const pageSize = Math.min(20, Math.max(1, Number(searchParams.get("pageSize")) || 12));
@@ -129,6 +130,8 @@ export async function GET(req: NextRequest) {
       pages: Math.max(1, Math.ceil(total / pageSize)),
     });
   });
+    /* ★ v3.28: كاش الحافة للنسخة العامة فقط */
+    return withPublicCache(__res, !isAuthedReq(req) && new URL(req.url).searchParams.get("staff") !== "1");
 }
 
 export async function POST(req: NextRequest) {
