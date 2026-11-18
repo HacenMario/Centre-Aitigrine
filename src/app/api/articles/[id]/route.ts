@@ -27,6 +27,8 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   });
 }
 
+const normPdfUrl = (v: unknown) => (/^\/api\/media\/[A-Za-z0-9._%-]+\.pdf$/.test(String(v || "")) ? String(v) : "");
+
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   return handle(async () => {
     const me = await requireUser(["admin", "assistant", "specialist", "trainer"]);
@@ -61,6 +63,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (b.category !== undefined && ["psychology", "orthophony", "general"].includes(String(b.category)))
       a.category = String(b.category);
     if (typeof b.coverBase64 === "string") a.coverBase64 = b.coverBase64;
+    /* ★ v3.26: ملف PDF للقارئ التفاعلي — "" يزيله، رابط /api/media صالح فقط */
+    if (typeof b.pdfUrl === "string") a.pdfUrl = b.pdfUrl ? normPdfUrl(b.pdfUrl) : "";
     if (typeof b.active === "boolean") a.active = b.active;
     await a.save();
     return ok({ article: a.toObject() });

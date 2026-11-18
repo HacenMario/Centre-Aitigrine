@@ -250,6 +250,14 @@ const CourseSchema = new Schema(
     coverBase64: { type: String, default: "" },
     /** صور التكوين base64 */
     images: { type: [String], default: [] },
+    /** ★ v3.26: مواد التكوين — ملفات PDF تُفتح بالقارئ التفاعلي للمسجّلين حصراً */
+    materials: [
+      {
+        name: { type: String, default: "", maxlength: 200 },
+        url: { type: String, default: "" },
+        _id: false,
+      },
+    ],
     /** حصص التكوين — منطق أوقات حقيقي */
     sessions: [
       {
@@ -285,6 +293,30 @@ const AdSchema = new Schema(
         message: "MAX_6_MEDIA",
       },
     },
+    /** ★ v3.26: نوع الإعلان — نص إلزامي يظهر في الشريط والبطاقات بدل «إعلان المركز»
+     *  (مثال: إعلان تجاري، إعلان تكوين، إعلان كتاب إلكتروني) */
+    adType: { type: String, default: "", trim: true, maxlength: 60 },
+    /** ★ v3.26: لوغو اختياري يظهر في الشريط الدوّار والإعلان العائم */
+    logo: { type: String, default: "" },
+    /** ★ v3.26: قنوات التواصل الاختيارية — أيقونات حقيقية قابلة للنقر في الإعلان المنشور */
+    contact: {
+      phone: { type: String, default: "", trim: true, maxlength: 30 },
+      whatsapp: { type: String, default: "", trim: true, maxlength: 30 },
+      website: { type: String, default: "", trim: true, maxlength: 300 },
+      instagram: { type: String, default: "", trim: true, maxlength: 300 },
+      facebook: { type: String, default: "", trim: true, maxlength: 300 },
+      tiktok: { type: String, default: "", trim: true, maxlength: 300 },
+      youtube: { type: String, default: "", trim: true, maxlength: 300 },
+      address: { type: String, default: "", trim: true, maxlength: 300 },
+    },
+    /** ★ v3.26: زر إجراء اختياري (نص + رابط) في الإعلان العائم والبطاقة */
+    ctaText: { type: String, default: "", trim: true, maxlength: 40 },
+    ctaUrl: { type: String, default: "", trim: true, maxlength: 300 },
+    /** ★ v3.26: الظهور في الشريط الدوّار بالرئيسية + ترتيب الأولوية */
+    ticker: { type: Boolean, default: true },
+    order: { type: Number, default: 0, min: 0, max: 999 },
+    /** ★ v3.26: عدّاد نقرات قنوات التواصل وأزرار الإجراء */
+    clicks: { type: Number, default: 0, min: 0 },
     /** الإعلان العائم: يظهر تلقائياً للعملاء والأخصائيين في صفحات الموقع */
     float: { type: Boolean, default: false },
     /** كم مرة يظهر لكل مستخدم (حد يمنع الإزعاج) */
@@ -558,6 +590,8 @@ const ArticleSchema = new Schema(
       index: true,
     },
     coverBase64: { type: String, default: "" },
+    /** ★ v3.26: ملف PDF اختياري يُفتح بالقارئ التفاعلي داخل الموقع — بجانب النص المكتوب */
+    pdfUrl: { type: String, default: "" },
     /** بطاقة الكاتب — لقطة محفوظة لحظة النشر (لا تتأثر بتغيّر الحساب لاحقاً) */
     authorId: { type: Schema.Types.ObjectId, ref: "User", index: true },
     authorName: { type: String, default: "", maxlength: 120 },
@@ -878,6 +912,9 @@ const HrEmployeeSchema = new Schema(
     baseSalary: { type: Number, default: 0, min: 0 },
     phone: { type: String, default: "" },
     notes: { type: String, default: "", maxlength: 500 },
+    /** ★ v3.26: صورة الموظف — تُرفع اختيارياً من نموذج تعديل الموارد البشرية؛
+     *  للحساب المرتبط تُحفظ مكان صورة الحساب الأصلية (photoBase64 في User) */
+    photoBase64: { type: String, default: "" },
     active: { type: Boolean, default: true, index: true },
   },
   { timestamps: true }

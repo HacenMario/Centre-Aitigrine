@@ -6,7 +6,7 @@
  *   (سعر التكوين × عدد المسجلين) + الخدمات المحجوزة عبر المواعيد
  */
 import { ok, handle } from "@/lib/api-helpers";
-import { Appointment, Course, Feedback, MedicalRecord, ResetRequest, Service, User } from "@/lib/models";
+import { Appointment, Course, EbookOrder, Feedback, MedicalRecord, ResetRequest, Service, User } from "@/lib/models";
 import { currentUser } from "@/lib/auth";
 
 export async function GET() {
@@ -164,6 +164,14 @@ export async function GET() {
       const svcPaid = servicesAgg.find((r) => r._id === "paid")?.sum || 0;
       const svcUnpaid = servicesAgg.find((r) => r._id === "unpaid")?.sum || 0;
 
+      /* ★ v3.26: الكتب الإلكترونية المباعة — مجموع الأسعار بعد تأكيد الدفع فقط (status=paid) */
+      const ebooksAgg = await EbookOrder.aggregate([
+        { $match: { status: "paid" } },
+        { $group: { _id: null, sum: { $sum: "$price" }, count: { $sum: 1 } } },
+      ]);
+      const ebooksPaid = ebooksAgg[0]?.sum || 0;
+      const ebooksCount = ebooksAgg[0]?.count || 0;
+
       const [pending, confirmed, completed, cancelled, unpaidSum, paidSum, unpaidCount, files, newFeedback, resets] =
         await Promise.all([
           Appointment.countDocuments({ status: "pending" }),
@@ -186,8 +194,9 @@ export async function GET() {
 
       const apptPaid = paidSum[0]?.sum || 0;
       const apptUnpaid = unpaidSum[0]?.sum || 0;
-      /* الإجمالي العام: كل مبالغ الحجوزات (مدفوعة وغير مدفوعة) + العائد المتوقع من التكوينات */
-      const grandTotal = apptPaid + apptUnpaid + coursesExpected;
+      /* الإجمالي العام: كل مبالغ الحجوزات (مدفوعة وغير مدفوعة) + العائد المتوقع من التكوينات
+         + ★ v3.26: مبلغ الكتب الإلكترونية المباعة (بعد تأكيد الدفع) */
+      const grandTotal = apptPaid + apptUnpaid + coursesExpected + ebooksPaid;
 
       return ok({
         stats,
@@ -208,6 +217,8 @@ export async function GET() {
           servicesPaid: svcPaid,
           servicesUnpaid: svcUnpaid,
           servicesCount,
+          ebooksPaid,
+          ebooksCount,
           grandTotal,
           /* v3.8 — الرسوم البيانية */
           monthly,

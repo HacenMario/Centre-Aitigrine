@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import {
   Stethoscope, Languages, UserRound, CalendarClock, Info, Star, Award,
 } from "lucide-react";
+import { SmartSearch, Chip } from "@/components/smart-search";
 
 type SpecSpecialty = { _id: string; ar: string; fr: string; en: string; builtin?: boolean };
 type Spec = {
@@ -48,6 +49,8 @@ export default function Specialists({ navigate }: { navigate?: (v: "appointments
   const { t, lang, me } = useApp();
   const [specs, setSpecs] = useState<Spec[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState(""); /* ★ v3.26: البحث الذكي */
+  const [specF, setSpecF] = useState("all"); /* ★ v3.26: تصفية التخصص */
   const [ratingFor, setRatingFor] = useState<Spec | null>(null);
   /* ترقيم الصفحات الاحترافي */
   const [page, setPage] = useState(1);
@@ -89,6 +92,15 @@ export default function Specialists({ navigate }: { navigate?: (v: "appointments
     return t("specialty.psychological");
   };
 
+  /* ★ v3.26: البحث الذكي + تصفية التخصص — الاسم واللقب والنبذة واللغات */
+  const shownSpecs = specs.filter((sp) => {
+    if (specF !== "all" && String(sp.specialty || "") !== specF) return false;
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return [sp.name, sp.title, sp.titleFr, sp.titleEn, sp.bio, sp.bioFr, sp.bioEn, (sp.langs || []).join(" ")]
+      .map((x) => String(x || "")).join(" ").toLowerCase().includes(q);
+  });
+
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-2 min-w-0">
@@ -114,8 +126,18 @@ export default function Specialists({ navigate }: { navigate?: (v: "appointments
         </Card>
       ) : (
         <>
+        {/* ★ v3.26: البحث الذكي + تصفية التخصص */}
+        <div className="flex flex-wrap items-center gap-2">
+          <SmartSearch value={query} onChange={setQuery} placeholder={t("common.searchPh")} />
+          <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label={t("art.category")}>
+            <Chip active={specF === "all"} onClick={() => setSpecF("all")}>{t("common.all")}</Chip>
+            <Chip active={specF === "psychological"} onClick={() => setSpecF("psychological")}>{t("specialty.psychological")}</Chip>
+            <Chip active={specF === "art_therapy"} onClick={() => setSpecF("art_therapy")}>{t("specialty.art_therapy")}</Chip>
+            <Chip active={specF === "both"} onClick={() => setSpecF("both")}>{t("specialty.both")}</Chip>
+          </div>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          {specs.slice((page - 1) * SPEC_PAGE_SIZE, page * SPEC_PAGE_SIZE).map((sp, i) => (
+          {shownSpecs.slice((page - 1) * SPEC_PAGE_SIZE, page * SPEC_PAGE_SIZE).map((sp, i) => (
             <Card
               key={sp._id}
               className="ait-card group overflow-hidden rounded-3xl border shadow-sm"

@@ -22,6 +22,22 @@ import { adInteractionText } from "@/lib/notify-text";
 const MAX_MEDIA_ITEM = 6_000_000; // ~4.5MB لكل وسيط
 const MAX_MEDIA_TOTAL = 12_000_000;
 
+/** ★ v3.26: تطبيع روابط قنوات التواصل — يقبل رابطاً كاملاً أو نطاقاً مجرداً،
+ *  يعيد "" عند الفراغ وnull عند غير صالح */
+function normLink(v: unknown): string {
+  const raw = String(v ?? "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw.slice(0, 300);
+  if (/^[\w-]+(\.[\w-]+)+([/?#].*)?$/i.test(raw)) return `https://${raw}`.slice(0, 300);
+  return "";
+}
+
+/** تطبيع رقم واتساب دولي: أرقام فقط مع بادئة + عند الغياب */
+function waDigits(v: string): string {
+  const d = String(v || "").replace(/\D/g, "");
+  return d ? (d.startsWith("213") ? d : `213${d.replace(/^0+/, "")}`) : "";
+}
+
 export async function GET(req: NextRequest) {
   return handle(async () => {
     const { searchParams } = new URL(req.url);
@@ -48,6 +64,7 @@ export async function GET(req: NextRequest) {
             _id: String(rec._id),
             mediaCount: ((rec.media as string[]) || []).length,
             views: Number(rec.views) || 0,
+            clicks: Number(rec.clicks) || 0,
             likesCount: ((rec.likes as string[]) || []).length,
             commentsCount: visible.length,
             comments: comments.map((c, i) => ({
@@ -66,10 +83,15 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    /* الجمهور: المنشور فقط */
-    const filter = { status: "PUBLISHED" as const };
+    /* الجمهور: المنشور فقط — ★ ?ticker=1 لشريط الرئيسية (المفعّلة في الشريط فقط، بترتيب الأولوية) */
+    const tickerOnly = searchParams.get("ticker") === "1";
+    const filter = tickerOnly
+      ? { status: "PUBLISHED" as const, ticker: true }
+      : ({ status: "PUBLISHED" as const } as Record<string, unknown>);
     const [rows, total] = await Promise.all([
-      Ad.find(filter).sort({ reviewedAt: -1, createdAt: -1 }).skip((page - 1) * pageSize).limit(pageSize).lean(),
+      Ad.find(filter)
+        .sort(tickerOnly ? { order: -1, reviewedAt: -1, createdAt: -1 } : { reviewedAt: -1, createdAt: -1 })
+        .skip((page - 1) * pageSize).limit(pageSize).lean(),
       Ad.countDocuments(filter),
     ]);
     const viewerOid = viewerId && /^[a-f0-9]{24}$/i.test(viewerId) ? viewerId : null;
@@ -83,6 +105,11 @@ export async function GET(req: NextRequest) {
           title: (rec.title as string) || "",
           body: (rec.body as string) || "",
           media: ((rec.media as string[]) || []),
+          adType: (rec.adType as string) || "",
+          logo: (rec.logo as string) || "",
+          contact: (rec.contact as Record<string, string>) || {},
+          ctaText: (rec.ctaText as string) || "",
+          ctaUrl: (rec.ctaUrl as string) || "",
           publishedAt: (rec.reviewedAt as string) || (rec.createdAt as string),
           likesCount: likes.length,
           likedByMe: viewerOid ? likes.includes(viewerOid) : false,
@@ -109,11 +136,18 @@ export async function POST(req: NextRequest) {
     const me = await currentUser();
     const b = await req.json().catch(() => ({}));
     const action = String(b.action || "");
-    const id = String(b.id || "");
+    /* ★ v3.26 إصلاح جذري: العميل كان يرسل _id والخادم يقرأ id فقط —
+       فيصل id فارغاً فيرمي mongoose «Cast to ObjectId failed» ويمنع حفظ التعديل.
+       الآن نقبل id أو _id معاً، وكل إجراء يحتاج معرّفاً يُدقَّق صيغة ObjectId أولاً */
+    const id = String(b.id || b._id || "").trim();
+    const OID_RE = /^[0-9a-fA-F]{24}$/;
+    const oid = OID_RE.test(id) ? id : "";
 
     /* ── إدارة الإعلانات: الإدارة حصراً ── */
     if (["create", "update", "publish", "archive", "delete", "comment-hide", "comment-reply"].includes(action)) {
       const staff = await requireUser(["admin", "assistant"]);
+      /* درع موحّد: أي إجراء يحتاج معرّفاً يجب أن يحمل ObjectId صحيحاً — رسالة واضحة بدل خطأ 500 */
+      if (action !== "create" && !oid) return fail(400, "معرّف الإعلان غير صالح");
 
       if (action === "create" || action === "update") {
         const title = String(b.title || "").trim();
@@ -126,6 +160,30 @@ export async function POST(req: NextRequest) {
         if (dataItems.some((m) => m.length > MAX_MEDIA_ITEM)) return fail(400, "أحد الوسائط كبير جداً");
         if (dataItems.reduce((s, m) => s + m.length, 0) > MAX_MEDIA_TOTAL) return fail(400, "مجموع الوسائط كبير جداً");
 
+        /* ★ v3.26: نوع الإعلان إلزامي (يستبدل عبارة «إعلان المركز» في الشريط) */
+        const adType = String(b.adType || "").trim().slice(0, 60);
+        if (adType.length < 2) return fail(400, "نوع الإعلان مطلوب (مثال: إعلان تجاري)");
+        const logo = typeof b.logo === "string" && b.logo.length <= MAX_MEDIA_ITEM ? String(b.logo) : "";
+        const ctaText = String(b.ctaText || "").trim().slice(0, 40);
+        const ctaUrl = normLink(b.ctaUrl);
+        if (b.ctaUrl && !ctaUrl) return fail(400, "رابط زر الإجراء غير صالح");
+        const rawContact = (b.contact && typeof b.contact === "object" ? b.contact : {}) as Record<string, unknown>;
+        const strField = (v: unknown, n: number) => String(v ?? "").trim().slice(0, n);
+        const contact = {
+          phone: strField(rawContact.phone, 30),
+          whatsapp: strField(rawContact.whatsapp, 30),
+          website: normLink(rawContact.website),
+          instagram: normLink(rawContact.instagram),
+          facebook: normLink(rawContact.facebook),
+          tiktok: normLink(rawContact.tiktok),
+          youtube: normLink(rawContact.youtube),
+          address: strField(rawContact.address, 300),
+        };
+        for (const k of ["website", "instagram", "facebook", "tiktok", "youtube"] as const) {
+          if ((rawContact as Record<string, unknown>)[k] && !contact[k]) return fail(400, `رابط ${k} غير صالح`);
+        }
+        const ticker = b.ticker !== false;
+        const order = Math.min(999, Math.max(0, Number(b.order) || 0));
         const float = b.float === true;
         const floatPerUser = Math.min(20, Math.max(1, Number(b.floatPerUser) || 3));
         const floatDays = Math.min(365, Math.max(1, Number(b.floatDays) || 7));
@@ -138,6 +196,13 @@ export async function POST(req: NextRequest) {
             title,
             body: bodyText,
             media,
+            adType,
+            logo,
+            contact,
+            ctaText,
+            ctaUrl,
+            ticker,
+            order,
             float,
             floatPerUser,
             floatDays,
@@ -165,11 +230,18 @@ export async function POST(req: NextRequest) {
         }
 
         /* تحديث */
-        const ad = await Ad.findById(id);
+        const ad = await Ad.findById(oid);
         if (!ad) return fail(404, "الإعلان غير موجود");
         ad.title = title;
         ad.body = bodyText;
         ad.media = media;
+        ad.adType = adType;
+        ad.logo = logo;
+        ad.contact = contact;
+        ad.ctaText = ctaText;
+        ad.ctaUrl = ctaUrl;
+        ad.ticker = ticker;
+        ad.order = order;
         ad.float = float;
         ad.floatPerUser = floatPerUser;
         ad.floatDays = floatDays;
@@ -191,7 +263,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (action === "publish" || action === "archive") {
-        const ad = await Ad.findById(id);
+        const ad = await Ad.findById(oid);
         if (!ad) return fail(404, "الإعلان غير موجود");
         if (action === "publish") {
           const now = new Date();
@@ -208,13 +280,13 @@ export async function POST(req: NextRequest) {
       }
 
       if (action === "delete") {
-        await Ad.deleteOne({ _id: id });
+        await Ad.deleteOne({ _id: oid });
         return ok();
       }
 
       if (action === "comment-hide") {
         const ci = Number(b.commentIndex);
-        const ad = await Ad.findById(id);
+        const ad = await Ad.findById(oid);
         if (!ad || !ad.comments?.[ci]) return fail(404, "التعليق غير موجود");
         ad.comments[ci].hidden = b.hidden === true;
         await ad.save();
@@ -224,7 +296,7 @@ export async function POST(req: NextRequest) {
       if (action === "comment-reply") {
         const ci = Number(b.commentIndex);
         const text = String(b.text || "").trim();
-        const ad = await Ad.findById(id);
+        const ad = await Ad.findById(oid);
         if (!ad || !ad.comments?.[ci]) return fail(404, "التعليق غير موجود");
         if (!text) return fail(400, "اكتب الرد أولاً");
         ad.comments[ci].reply = { text, at: new Date() };
@@ -252,10 +324,11 @@ export async function POST(req: NextRequest) {
 
     /* ── تفاعل الجمهور: عملاء وأخصائيون مسجلون ── */
     if (action === "view") {
-      const ad = await Ad.findById(id).select("views viewers title").lean();
+      if (!oid) return ok();
+      const ad = await Ad.findById(oid).select("views viewers title").lean();
       if (!ad) return ok();
       await Ad.updateOne(
-        { _id: id },
+        { _id: oid },
         me
           ? { $addToSet: { viewers: me._id }, $inc: { views: 1 } }
           : { $inc: { views: 1 } }
@@ -263,14 +336,22 @@ export async function POST(req: NextRequest) {
       return ok();
     }
 
+    if (action === "click") {
+      /* ★ v3.26: عدّاد نقرات قنوات التواصل وأزرار الإجراء — عمومي بلا مصادقة */
+      if (!oid) return ok();
+      await Ad.updateOne({ _id: oid }, { $inc: { clicks: 1 } });
+      return ok();
+    }
+
     if (action === "like") {
+      if (!oid) return fail(400, "معرّف الإعلان غير صالح");
       if (!me || !["client", "specialist", "trainer"].includes(me.role))
         return fail(401, "سجّل الدخول كي تتفاعل مع الإعلانات");
-      const ad = await Ad.findById(id).select("likes title").lean();
+      const ad = await Ad.findById(oid).select("likes title").lean();
       if (!ad) return fail(404, "الإعلان غير موجود");
       const liked = (ad.likes || []).some((l) => String(l) === String(me._id));
       const updated = await Ad.findByIdAndUpdate(
-        id,
+        oid,
         liked ? { $pull: { likes: me._id } } : { $addToSet: { likes: me._id } },
         { new: true }
       ).select("likes").lean();
@@ -281,12 +362,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "comment") {
+      if (!oid) return fail(400, "معرّف الإعلان غير صالح");
       if (!me || !["client", "specialist", "trainer"].includes(me.role))
         return fail(401, "سجّل الدخول كي تتفاعل مع الإعلانات");
       const text = String(b.text || "").trim();
       if (!text) return fail(400, "اكتب تعليقك أولاً");
       if (text.length > 400) return fail(400, "التعليق طويل جداً (400 حرف كحد أقصى)");
-      const ad = await Ad.findById(id).select("title comments").lean();
+      const ad = await Ad.findById(oid).select("title comments").lean();
       if (!ad) return fail(404, "الإعلان غير موجود");
       await Ad.updateOne(
         { _id: id },

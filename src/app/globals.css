@@ -920,3 +920,26 @@ img, video, iframe {
   from { width: 100%; }
   to { width: 0%; }
 }
+
+/* ★ v3.26: تأثير Bounce لطيف على شعار الشريط الإعلاني — يجذب الانتباه دون إزعاج
+   (يحترم prefers-reduced-motion ويعمل على Safari القديم ببادئة -webkit) */
+@keyframes ait-ad-bounce {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-3px); }
+  55% { transform: translateY(0); }
+  75% { transform: translateY(-2px); }
+}
+@-webkit-keyframes ait-ad-bounce {
+  0%, 100% { -webkit-transform: translateY(0); }
+  30% { -webkit-transform: translateY(-3px); }
+  55% { -webkit-transform: translateY(0); }
+  75% { -webkit-transform: translateY(-2px); }
+}
+.ait-ad-bounce {
+  animation: ait-ad-bounce 2.6s ease-in-out infinite;
+  -webkit-animation: ait-ad-bounce 2.6s ease-in-out infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ait-ad-bounce { animation: none; -webkit-animation: none; }
+}

@@ -19,6 +19,7 @@ import {
   CircleCheckBig, XCircle, Wallet, PiggyBank, FolderHeart, MessageSquareHeart, KeyRound,
   ArrowLeft, ArrowRight, Wifi, MapPinned, RefreshCw, Coins, GraduationCap, Sparkles, Banknote,
   BarChart3, TrendingUp, ShieldCheck, ChartPie, Download, FileSpreadsheet, DatabaseBackup,
+  BookOpenText,
 } from "lucide-react";
 import type { Navigate } from "@/lib/nav";
 import { localeOf } from "@/components/tri-input";
@@ -34,6 +35,7 @@ type Dash = {
   /* v3.6 — بطاقة المبالغ الشاملة */
   coursesExpected?: number; coursesEnrolled?: number;
   servicesPaid?: number; servicesUnpaid?: number; servicesCount?: number; grandTotal?: number;
+  ebooksPaid?: number; ebooksCount?: number;
   /* v3.8 — الرسوم البيانية */
   monthly?: { month: string; pending: number; confirmed: number; completed: number }[];
   topServices?: { name: string; count: number; sum: number }[];
@@ -117,6 +119,7 @@ export default function Dashboard({ navigate }: { navigate: Navigate }) {
     { icon: GraduationCap, label: t("dash.amtCourses"), value: `${money(dash?.coursesExpected || 0)} (${dash?.coursesEnrolled ?? 0})`, cls: "text-sky-600 dark:text-sky-400" },
     { icon: Sparkles, label: t("dash.amtServicesPaid"), value: money(dash?.servicesPaid || 0), cls: "text-emerald-600 dark:text-emerald-400" },
     { icon: Sparkles, label: t("dash.amtServicesUnpaid"), value: money(dash?.servicesUnpaid || 0), cls: "text-amber-600 dark:text-amber-400" },
+    { icon: BookOpenText, label: t("dash.amtEbooks"), value: `${money(dash?.ebooksPaid || 0)} (${dash?.ebooksCount ?? 0})`, cls: "text-violet-600 dark:text-violet-400" },
   ];
 
   const cards: { icon: typeof UsersRound; label: string; value: string; cls?: string }[] = [
@@ -181,7 +184,7 @@ export default function Dashboard({ navigate }: { navigate: Navigate }) {
 
           {!stats ? (
             <div className="grid gap-3 grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}
+              {[1, 2, 3, 4, 5, 6, 7].map((i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}
             </div>
           ) : (
             <>

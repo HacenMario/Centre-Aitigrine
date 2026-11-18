@@ -33,7 +33,10 @@ import {
 } from "@/components/ui/select";
 import {
   Newspaper, Plus, Pencil, Trash2, Power, X, ArrowRight, ArrowLeft, ShieldCheck, PenLine, Clock,
+  FileText, BookOpenText, Search,
 } from "lucide-react";
+import PdfInput from "@/components/pdf-input";
+import PdfFlipbook from "@/components/pdf-flipbook";
 import { toast } from "sonner";
 import { TriInput, TriTextarea, flattenTri, localeOf, pickTri, triFrom, TRI3 } from "@/components/tri-input";
 import FullImage from "@/components/full-image";
@@ -50,6 +53,7 @@ type Article = {
   content?: string; contentFr?: string; contentEn?: string;
   category: "psychology" | "orthophony" | "general";
   coverBase64: string;
+  pdfUrl?: string; /* ★ v3.26 */
   authorId?: string; authorName: string; authorRole: string;
   authorTitle?: string; authorTitleFr?: string; authorTitleEn?: string;
   active: boolean;
@@ -94,7 +98,9 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<CatFilter>("all");
+  const [query, setQuery] = useState(""); /* ★ v3.26: البحث الذكي */
   const [reading, setReading] = useState<Article | null>(null);
+  const [flipping, setFlipping] = useState<Article | null>(null); /* ★ v3.26: القارئ بمستوى الصفحة */
   const [editing, setEditing] = useState<Partial<Article> | null>(null);
   const [delId, setDelId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -126,7 +132,7 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
   }, [isStaff, isAuthor]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { setPage(1); }, [filter, articles.length]);
+  useEffect(() => { setPage(1); }, [filter, query, articles.length]);
 
   /* ★ v3.21: الرابط المنشور (انستغرام/فايسبوك) يفتح المقال نفسه مباشرة — ?view=articles&id=…
      المقال في القائمة ⇒ فتح فوري؛ غير موجود (معطل/محذوف للزائر) ⇒ محاولة جلب فردي صامتة */
@@ -162,11 +168,19 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
     return t("art.readTime", { n: Math.max(1, Math.round(words / 180)) });
   };
 
-  /* تصفية بالمجال */
-  const filtered = useMemo(
-    () => (filter === "all" ? articles : articles.filter((a) => a.category === filter)),
-    [articles, filter]
-  );
+  /* تصفية بالمجال + ★ v3.26: البحث الذكي (العنوان والنبذة والكاتب بكل اللغات) */
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return articles.filter((a) => {
+      if (filter !== "all" && a.category !== filter) return false;
+      if (!q) return true;
+      const hay = [
+        a.title, a.titleFr, a.titleEn, a.summary, a.summaryFr, a.summaryEn,
+        a.authorName, a.authorTitle, a.authorTitleFr, a.authorTitleEn,
+      ].join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [articles, filter, query]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -208,9 +222,20 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
         <span className="min-w-0">{t("art.desc")}</span>
       </p>
 
-      {/* تصفية بالمجال — علم النفس / الأرطفونية */}
+      {/* تصفية بالمجال + ★ v3.26: البحث الذكي */}
       {!loading && articles.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label={t("art.category")}>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-0 flex-1 sm:max-w-xs">
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("common.searchPh")}
+              aria-label={t("common.search")}
+              className="h-10 w-full rounded-full border bg-card ps-9 pe-3 text-sm outline-none transition-colors focus:border-primary/50"
+            />
+          </div>
+          <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label={t("art.category")}>
           {([
             { v: "all" as CatFilter, label: t("common.all") },
             { v: "psychology" as CatFilter, label: t("art.catPsychology") },
@@ -232,6 +257,7 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
               {f.label}
             </button>
           ))}
+          </div>
         </div>
       )}
 
@@ -271,6 +297,13 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
                     <Badge className="absolute top-3 start-3 bg-background/90 text-primary border-0 shadow">
                       {t(catKeyOf(a))}
                     </Badge>
+                    {/* ★ v3.26: شارة ملف PDF قابل للقراءة بالقارئ التفاعلي */}
+                    {a.pdfUrl && (
+                      <Badge className="absolute bottom-3 start-3 gap-1 border-0 bg-primary/90 text-primary-foreground shadow">
+                        <FileText className="h-3 w-3" />
+                        PDF
+                      </Badge>
+                    )}
                     {!a.active && isStaff && (
                       <Badge className="absolute top-3 end-3 bg-muted text-muted-foreground border-0">
                         {t("common.inactive")}
@@ -350,6 +383,18 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
           article={reading}
           onClose={() => setReading(null)}
           onEdit={canManage(reading) ? () => { setEditing(reading); setReading(null); } : undefined}
+          onOpenFlip={(bk) => { setReading(null); setFlipping(bk); }}
+        />
+      )}
+
+      {/* ★ v3.26: القارئ التفاعلي بمستوى الصفحة — يُفتح بعد إغلاق نافذة المقال ويوصل للنص عبر إغلاقه */}
+      {flipping && flipping.pdfUrl && (
+        <PdfFlipbook
+          ebookId={flipping._id}
+          url={flipping.pdfUrl}
+          title={titleOf(flipping)}
+          direction={dirOf((flipping.content || "") + flipping.title)}
+          onClose={() => { const bk = flipping; setFlipping(null); if (bk) setReading(bk); }}
         />
       )}
 
@@ -391,11 +436,12 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
 
 /* ───────────────── القارئ — مفتوح للجميع ───────────────── */
 function ArticleReader({
-  article, onClose, onEdit,
+  article, onClose, onEdit, onOpenFlip,
 }: {
   article: Article;
   onClose: () => void;
   onEdit?: () => void;
+  onOpenFlip: (a: Article) => void; /* ★ v3.26 */
 }) {
   const { t, lang } = useApp();
   const [full, setFull] = useState<Article>(article);
@@ -480,6 +526,13 @@ function ArticleReader({
           <div className="flex flex-wrap items-center gap-2">
             <Badge className="bg-primary/10 text-primary border-0">{t(full.category === "psychology" ? "art.catPsychology" : full.category === "orthophony" ? "art.catOrthophony" : "art.catGeneral")}</Badge>
           </div>
+          {/* ★ v3.26: زر فتح القارئ التفاعلي عند توفر ملف PDF — يغلق النافذة ويفتح القارئ */}
+          {full.pdfUrl && (
+            <Button onClick={() => onOpenFlip(full)} className="h-11 w-full gap-2 rounded-xl text-sm">
+              <BookOpenText className="h-4.5 w-4.5" />
+              {t("eb.readerOpen")}
+            </Button>
+          )}
           {summary && (
             <p
               dir={dirOf(summary)}
@@ -589,6 +642,16 @@ function ArticleEditor({
             label={t("common.uploadImage")}
           />
         </div>
+      </div>
+
+      {/* ★ v3.26: ملف PDF اختياري يفتح بالقارئ التفاعلي داخل الموقع — إلى جانب النص المكتوب */}
+      <div className="space-y-1.5">
+        <PdfInput
+          value={article?.pdfUrl || ""}
+          onChange={(v) => upd({ pdfUrl: v })}
+          label={t("art.pdfLabel")}
+          hint={t("art.pdfHint")}
+        />
       </div>
 
       <div className="space-y-1.5">

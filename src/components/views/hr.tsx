@@ -33,7 +33,9 @@ import {
 import {
   UsersRound, UserRound, Plus, Pencil, Trash2, Printer, CalendarCheck2,
   Plane, HandCoins, Wallet, Import, RefreshCw, CircleAlert, X, Ban, Save,
-} from "lucide-react";
+  Camera } from "lucide-react";
+import { SmartSearch, Chip } from "@/components/smart-search";
+import { MediaPicker } from "@/components/media-input";
 import { toast } from "sonner";
 import { localeOf } from "@/components/tri-input";
 import { cn } from "@/lib/utils";
@@ -48,6 +50,7 @@ type Stats = {
 type Emp = {
   _id: string; name: string; role: string; baseSalary: number; phone: string;
   notes: string; active: boolean; userId: string | null; stats: Stats;
+  photoBase64?: string; accountPhoto?: string; /* ★ v3.26 */
 };
 type Importable = { _id: string; name: string; role: string; salaryAmount: number };
 type HrData = { month: string; employees: Emp[]; importable: Importable[] };
@@ -110,6 +113,9 @@ export default function Hr({ navigate }: { navigate: Navigate }) {
   const selIdRef = useRef("");
   const [busy, setBusy] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  /* ★ v3.26: الفلترة الذكية — البحث الحر + تصفية الوظيفة */
+  const [query, setQuery] = useState("");
+  const [roleF, setRoleF] = useState("all");
   const [editEmp, setEditEmp] = useState<Emp | null>(null);
   const [delEmp, setDelEmp] = useState<Emp | null>(null);
   const [payslip, setPayslip] = useState<Payslip | null>(null);
@@ -120,6 +126,7 @@ export default function Hr({ navigate }: { navigate: Navigate }) {
   const [fSalary, setFSalary] = useState("");
   const [fPhone, setFPhone] = useState("");
   const [fNotes, setFNotes] = useState("");
+  const [fPhoto, setFPhoto] = useState(""); /* ★ v3.26: صورة الموظف */
   const [fActive, setFActive] = useState(true);
   /* إجازة (إضافة أو تعديل) — النوع/السبب حقل نصي اختياري */
   const [lvFrom, setLvFrom] = useState("");
@@ -225,19 +232,20 @@ export default function Hr({ navigate }: { navigate: Navigate }) {
   };
 
   const openAdd = () => {
-    setEditEmp(null); setFName(""); setFRole("other"); setFSalary(""); setFPhone(""); setFNotes(""); setFActive(true);
+    setEditEmp(null); setFName(""); setFRole("other"); setFSalary(""); setFPhone(""); setFNotes(""); setFActive(true); setFPhoto("");
     setShowForm(true);
   };
   const openEdit = (e: Emp) => {
     setEditEmp(e); setFName(e.name); setFRole(e.role); setFSalary(String(e.baseSalary || ""));
     setFPhone(e.phone || ""); setFNotes(e.notes || ""); setFActive(e.active !== false);
+    setFPhoto(e.photoBase64 || e.accountPhoto || ""); /* ★ v3.26 */
     setShowForm(true);
   };
   const saveEmp = async () => {
     if (fName.trim().length < 2) { toast.error(t("err.required")); return; }
     const payload = editEmp
-      ? { action: "employee.update", _id: editEmp._id, name: fName.trim(), role: fRole, baseSalary: Number(fSalary) || 0, phone: fPhone.trim(), notes: fNotes.trim(), active: fActive }
-      : { action: "employee.add", name: fName.trim(), role: fRole, baseSalary: Number(fSalary) || 0, phone: fPhone.trim(), notes: fNotes.trim() };
+      ? { action: "employee.update", _id: editEmp._id, name: fName.trim(), role: fRole, baseSalary: Number(fSalary) || 0, phone: fPhone.trim(), notes: fNotes.trim(), active: fActive, photoBase64: fPhoto }
+      : { action: "employee.add", name: fName.trim(), role: fRole, baseSalary: Number(fSalary) || 0, phone: fPhone.trim(), notes: fNotes.trim(), photoBase64: fPhoto };
     const okR = await post(payload, t("hr.empSaved"));
     if (okR) { setShowForm(false); setBusy(false); }
   };
@@ -467,13 +475,30 @@ export default function Hr({ navigate }: { navigate: Navigate }) {
           )}
 
           {/* قائمة الموظفين */}
+          {/* ★ v3.26: البحث الذكي + تصفية الوظيفة */}
+          {data.employees.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <SmartSearch value={query} onChange={setQuery} placeholder={t("common.searchPh")} />
+              <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label={t("hr.role")}>
+                <Chip active={roleF === "all"} onClick={() => setRoleF("all")}>{t("common.all")}</Chip>
+                {(["specialist", "assistant", "cleaner", "guard", "other"] as const).map((r) => (
+                  <Chip key={r} active={roleF === r} onClick={() => setRoleF(r)}>{t(ROLE_KEY[r])}</Chip>
+                ))}
+              </div>
+            </div>
+          )}
           {data.employees.length === 0 ? (
             <Card className="rounded-3xl border-dashed">
               <CardContent className="py-12 text-center text-sm text-muted-foreground">{t("hr.empty")}</CardContent>
             </Card>
           ) : (
             <div className="space-y-2">
-              {data.employees.map((e) => (
+              {data.employees.filter((e) => {
+                if (roleF !== "all" && e.role !== roleF) return false;
+                const q = query.trim().toLowerCase();
+                if (!q) return true;
+                return [e.name, e.phone, e.notes].map((x) => String(x || "")).join(" ").toLowerCase().includes(q);
+              }).map((e) => (
                 <Card key={e._id} className={cn("ait-card rounded-2xl shadow-sm", selId === e._id && "ring-2 ring-primary/40")}>
                   {/* ★ v3.24.1: البطاقة كلها قابلة للنقر لفتح تفاصيل الموظف — لا النص وحده */}
                   <CardContent className="cursor-pointer space-y-2.5 p-4"
@@ -481,9 +506,19 @@ export default function Hr({ navigate }: { navigate: Navigate }) {
                     role="button" tabIndex={0}
                     onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); selectEmp(selId === e._id ? "" : e._id); } }}>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <UserRound className="h-5 w-5" />
-                      </span>
+                      {/* ★ v3.26: صورة الموظف — الصورة المرفوعة أو صورة صاحب الحساب المرتبط */}
+                      {(e.photoBase64 || e.accountPhoto) ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={e.photoBase64 || e.accountPhoto}
+                          alt={e.name}
+                          className="h-10 w-10 shrink-0 rounded-xl object-cover ring-1 ring-border"
+                        />
+                      ) : (
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <UserRound className="h-5 w-5" />
+                        </span>
+                      )}
                       <div className="min-w-0 flex-auto">
                         <p className="flex flex-wrap items-center gap-1.5 text-sm font-black break-words">
                           {e.name}
@@ -797,6 +832,15 @@ export default function Hr({ navigate }: { navigate: Navigate }) {
                 <Label>{t("hr.notes")}</Label>
                 <Textarea value={fNotes} onChange={(e) => setFNotes(e.target.value)} rows={2} className="resize-none" />
               </div>
+              {/* ★ v3.26: صورة الموظف (اختياري) — للحساب المرتبط تُحفظ مكان الصورة الأصلية */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <Camera className="h-4 w-4 text-primary" />
+                  {t("hr.photo")}
+                </Label>
+                <MediaPicker value={fPhoto ? [fPhoto] : []} onChange={(v: string[]) => setFPhoto(v[0] || "")} max={1} accept="image/*" />
+                <p className="text-[11px] text-muted-foreground">{t("hr.photoHint")}</p>
+              </div>
               {editEmp && (
                 <label className="flex items-center justify-between rounded-xl border p-3">
                   <span className="text-sm font-semibold">{t("hr.active")}</span>
@@ -1011,15 +1055,19 @@ export default function Hr({ navigate }: { navigate: Navigate }) {
                   {t("ps.legal", { d: money(payslip.stats.deductionPerDay) })}
                 </p>
 
-                {/* التوقيعات */}
+                {/* ★ v3.26: مساحة الإمضاء — فراغ مريح للامضاء بخط منقّط فوق الاسم */}
                 <div className="mt-6 grid grid-cols-2 gap-6 border-t border-gray-300 pt-5 text-center text-xs text-gray-700">
                   <div>
                     <p className="font-bold">{t("ps.signEmp")}</p>
-                    <div className="mx-auto mt-8 w-40 border-t border-gray-400 pt-1">{payslip.employee.name}</div>
+                    <div className="mx-auto mt-14 flex h-16 w-44 items-end justify-center border-b border-dashed border-gray-500 pb-0.5">
+                      <span className="text-[11px] font-bold">{payslip.employee.name}</span>
+                    </div>
                   </div>
                   <div>
                     <p className="font-bold">{t("ps.signAdmin")}</p>
-                    <div className="mx-auto mt-8 w-40 border-t border-gray-400 pt-1">{centerTitle}</div>
+                    <div className="mx-auto mt-14 flex h-16 w-44 items-end justify-center border-b border-dashed border-gray-500 pb-0.5">
+                      <span className="text-[11px] font-bold">{centerTitle}</span>
+                    </div>
                   </div>
                 </div>
                 <p className="mt-4 text-center text-[9.5px] text-gray-400">

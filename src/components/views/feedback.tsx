@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Send, MessageSquareHeart, Lightbulb, TriangleAlert, Trash2, Check } from "lucide-react";
+import { SmartSearch } from "@/components/smart-search";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Pagination from "@/components/pagination";
@@ -28,6 +29,7 @@ export default function Feedback({ navigate }: { navigate: Navigate }) {
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState<Fb[]>([]);
   const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState(""); /* ★ v3.26 */
   /* v3.6: حالة تحميل لقائمة رسائل الإدارة — Skeleton بشعار المركز */
   const [loading, setLoading] = useState(true);
   /* ترقيم الصفحات الاحترافي */
@@ -68,11 +70,17 @@ export default function Feedback({ navigate }: { navigate: Navigate }) {
     if (r.ok) load();
   };
 
-  const filtered = items.filter((i) => filter === "all" || i.status === filter);
+  /* ★ v3.26: البحث الذكي — الاسم والنص والنوع وجهة الاتصال */
+  const filtered = items.filter((i) => {
+    if (filter !== "all" && i.status !== filter) return false;
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return [i.name, i.message, i.contact, i.type, i.reply].map((x) => String(x || "")).join(" ").toLowerCase().includes(q);
+  });
   const FB_PAGE_SIZE = 8;
   const fbPageCount = Math.max(1, Math.ceil(filtered.length / FB_PAGE_SIZE));
   const pageFiltered = filtered.slice((page - 1) * FB_PAGE_SIZE, page * FB_PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [filter, items.length]);
+  useEffect(() => { setPage(1); }, [filter, query, items.length]);
 
   return (
     <div className="space-y-5">
@@ -130,6 +138,10 @@ export default function Feedback({ navigate }: { navigate: Navigate }) {
                 <MessageSquareHeart className="h-5 w-5 text-primary" />
                 {t("fb.manage")} ({items.length})
               </h2>
+              {/* ★ v3.26: البحث الذكي في طلبات المساعدة */}
+              <div className="mb-3 flex items-center">
+                <SmartSearch value={query} onChange={setQuery} placeholder={t("common.searchPh")} />
+              </div>
               <Tabs value={filter} onValueChange={setFilter}>
                 <TabsList className="w-full">
                   <TabsTrigger value="all">{t("common.all")}</TabsTrigger>

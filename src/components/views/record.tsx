@@ -208,6 +208,12 @@ function RecordEditorInner({ patientId, onBack, navigate }: { patientId: string;
         <BackButton onBack={onBack} />
         <h1 className="text-xl sm:text-2xl font-black min-w-0 break-words">{patient.name}</h1>
         {age !== null && <Badge variant="secondary" className="shrink-0">{age} {t("pat.years")}</Badge>}
+        {/* ★ v3.26: شارة الجنس في بطاقة ملف المريض */}
+        {data.gender && (
+          <Badge variant="secondary" className="shrink-0">
+            {data.gender === "male" ? t("cld.male") : t("cld.female")}
+          </Badge>
+        )}
       </div>
 
       {/* ── الهوية ── */}

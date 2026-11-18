@@ -29,7 +29,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarClock, Plus, Trash2, CheckCircle2, XCircle, CircleCheckBig, Info, UserRound, UserRoundCog, Star, Banknote, Coins, CalendarPlus, FileDown, Tag, Phone, ListFilter, CalendarDays } from "lucide-react";
+import { CalendarClock, Plus, Trash2, CheckCircle2, XCircle, CircleCheckBig, Info, UserRound, UserRoundCog, Star, Banknote, Coins, CalendarPlus, FileDown, Tag, Phone, ListFilter, CalendarDays, Cake } from "lucide-react";
+import { SmartSearch, Chip } from "@/components/smart-search";
 import { toast } from "sonner";
 import RatingsDialog from "@/components/ratings-dialog";
 import Pagination from "@/components/pagination";
@@ -157,6 +158,9 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
   const { t, me, lang, viewId, navSeq } = useApp();
   const DAYS = DAYS_BY_LANG[lang] || DAYS_BY_LANG.ar;
   const [appts, setAppts] = useState<Appt[]>([]);
+  /* ★ v3.26: الفلترة الذكية في القائمة — الحالة + البحث الحر */
+  const [statusF, setStatusF] = useState<"all" | "pending" | "confirmed" | "completed" | "cancelled">("all");
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [delId, setDelId] = useState<string | null>(null);
@@ -195,16 +199,31 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
     else setLoading(false);
   }, [me, load]);
 
+  /* ★ v3.26: الفلترة الذكية — الحالة والبحث (الاسم/الهاتف/الخدمة/الأخصائي بكل اللغات) */
+  const filteredAppts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return appts.filter((a) => {
+      if (statusF !== "all" && a.status !== statusF) return false;
+      if (!q) return true;
+      const hay = [
+        a.clientName, a.specialistName, a.clientPhone, a.serviceTitle,
+        (a as unknown as Record<string, unknown>).serviceTitleFr,
+        (a as unknown as Record<string, unknown>).serviceTitleEn,
+      ].map((x) => String(x || "")).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [appts, statusF, query]);
+
   /* ترقيم الصفحات الاحترافي — قوائم المواعيد طويلة */
-  useEffect(() => { setPage(1); }, [appts.length]);
-  const pageCount = Math.max(1, Math.ceil(appts.length / PAGE_SIZE));
-  const pageAppts = appts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useEffect(() => { setPage(1); }, [appts.length, statusF, query]);
+  const pageCount = Math.max(1, Math.ceil(filteredAppts.length / PAGE_SIZE));
+  const pageAppts = filteredAppts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   /* ★ v3.6: قادم من إشعار — تمييز الموعد المقصود والتمرير إليه:
      الرابط يحمل معرّف الموعد (appointments:ID) فننتقل لصفحته ونبرزه */
   useEffect(() => {
     if (!viewId || appts.length === 0) return;
-    const idx = appts.findIndex((a) => String(a._id) === viewId);
+    const idx = (filteredAppts.length ? filteredAppts : appts).findIndex((a) => String(a._id) === viewId);
     if (idx === -1) return;
     setPage(Math.floor(idx / PAGE_SIZE) + 1);
     /* مهلة قصيرة ليُركَّب DOM الصفحة الصحيحة قبل التمرير */
@@ -276,9 +295,27 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
         </Tabs>
       )}
 
+      {/* ★ v3.26: الفلترة الذكية — الحالة + البحث الحر (القائمة الكلاسيكية) */}
+      {(me.role !== "specialist" || specMode === "list") && (
+        <div className="flex flex-wrap items-center gap-2">
+          <SmartSearch value={query} onChange={setQuery} placeholder={t("common.searchPh")} />
+          <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label={t("appt.status")}>
+            {([
+              { v: "all" as const, label: t("common.all") },
+              { v: "pending" as const, label: t("dash.pending") },
+              { v: "confirmed" as const, label: t("dash.confirmed") },
+              { v: "completed" as const, label: t("dash.completed") },
+              { v: "cancelled" as const, label: t("dash.cancelled") },
+            ]).map((f) => (
+              <Chip key={f.v} active={statusF === f.v} onClick={() => setStatusF(f.v)}>{f.label}</Chip>
+            ))}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <PageSkeleton kind="rows" count={4} label={t("common.loading")} />
-      ) : appts.length === 0 ? (
+      ) : filteredAppts.length === 0 ? (
         <Card className="rounded-3xl border-dashed">
           <CardContent className="py-14 text-center text-muted-foreground">
             {t("appt.noAppointments")}
@@ -335,13 +372,45 @@ export default function Appointments({ navigate }: { navigate: Navigate }) {
                             <span className="truncate tabular-nums">{a.clientPhone}</span>
                           </a>
                         )}
+                        {/* ★ v3.26: شارة عمر وجنس العميل في بطاقة الموعد */}
+                        {(a.clientAge ?? null) !== null && (
+                          <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[11px] font-bold text-sky-700 dark:text-sky-400">
+                            <Cake className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            <span className="truncate tabular-nums">{t("cld.years", { n: a.clientAge as number })}</span>
+                          </span>
+                        )}
+                        {a.clientGender && (
+                          <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[11px] font-bold text-sky-700 dark:text-sky-400">
+                            <UserRound className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            {a.clientGender === "male" ? t("cld.male") : t("cld.female")}
+                          </span>
+                        )}
                       </div>
                     </>
                   ) : (
+                    <>
                     <p className="font-bold text-sm sm:text-base break-words">
                       {me.role === "client" ? a.specialistName : a.clientName}
                       <span className="text-muted-foreground font-normal text-sm"> — {pickTri(a as unknown as Record<string, unknown>, "serviceTitle", lang) || t(`roles.${me.role === "client" ? "specialist" : "client"}`)}</span>
                     </p>
+                    {/* ★ v3.26: شارة عمر وجنس العميل في مواعيد الأخصائي */}
+                    {me.role === "specialist" && ((a.clientAge ?? null) !== null || a.clientGender) && (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {(a.clientAge ?? null) !== null && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[11px] font-bold text-sky-700 dark:text-sky-400">
+                            <Cake className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            <span className="tabular-nums">{t("cld.years", { n: a.clientAge as number })}</span>
+                          </span>
+                        )}
+                        {a.clientGender && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[11px] font-bold text-sky-700 dark:text-sky-400">
+                            <UserRound className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            {a.clientGender === "male" ? t("cld.male") : t("cld.female")}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    </>
                   )}
                   <p className="text-xs text-muted-foreground" dir="ltr">
                     {a.date} · {a.time}

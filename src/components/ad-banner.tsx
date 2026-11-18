@@ -1,8 +1,11 @@
 "use client";
 /**
- * الشريط الإعلاني الدوّار (نمط طمأنينة v1.16 مكيَّف)
- * شريط رفيع أنيق أعلى الرئيسية يدور تلقائياً بين الإعلانات المنشورة
- * (وسيط مصغّر + العنوان) — الضغط يفتح صفحة الإعلانات + إغلاق لكل جلسة
+ * الشريط الإعلاني الدوّار (نمط طمأنينة v1.17 مكيَّف) — ★ v3.26
+ * • شريط رفيع أنيق أعلى الرئيسية يدور تلقائياً بين الإعلانات المفعّلة للشريط
+ * • ★ نوع الإعلان (إلزامي) يستبدل عبارة «إعلان المركز» الثابتة
+ * • ★ اللوغو يظهر بجانب نوع الإعلان بشكل مناسب
+ * • ★ تأثير Bounce لطيف على شعار الشريط يجذب الانتباه (يحترم prefers-reduced-motion)
+ * • ترتيب الأولوية (order) ثم الأحدث — الضغط يفتح صفحة الإعلانات + إغلاق لكل جلسة
  */
 import { useEffect, useState } from "react";
 import { Megaphone, X, ChevronLeft, ChevronRight } from "lucide-react";
@@ -13,6 +16,8 @@ import type { Navigate } from "@/lib/nav";
 interface BannerAd {
   id: string;
   title: string;
+  adType: string;
+  logo: string;
   media: string[];
 }
 
@@ -38,12 +43,19 @@ export default function AdBanner({ navigate }: { navigate: Navigate }) {
     let alive = true;
     (async () => {
       try {
-        const r = await fetch("/api/ads?pageSize=8", { cache: "no-store" });
+        /* ★ v3.26: الإعلانات المفعّلة للشريط فقط (?ticker=1) بترتيب الأولوية */
+        const r = await fetch("/api/ads?pageSize=10&ticker=1", { cache: "no-store" });
         const j = await r.json();
         if (!alive || !Array.isArray(j?.ads)) return;
         const list: BannerAd[] = j.ads
           .filter((a: { id?: string; title?: string }) => a.id && a.title)
-          .map((a: { id: string; title: string; media: string[] }) => ({ id: a.id, title: a.title, media: a.media || [] }));
+          .map((a: { id: string; title: string; adType?: string; logo?: string; media: string[] }) => ({
+            id: a.id,
+            title: a.title,
+            adType: a.adType || "",
+            logo: a.logo || "",
+            media: a.media || [],
+          }));
         setAds(list);
       } catch {}
     })();
@@ -64,10 +76,16 @@ export default function AdBanner({ navigate }: { navigate: Navigate }) {
 
   return (
     <div className="ait-ad-banner relative flex items-center gap-3 overflow-hidden rounded-2xl border px-3.5 py-2.5 shadow-sm">
-      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary/12 px-2.5 py-1 text-[10px] font-black text-primary">
+      {/* ★ شارة نوع الإعلان + تأثير Bounce يجذب الانتباه (بديل «إعلان المركز» الثابتة) */}
+      <span className="ait-ad-bounce inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary/12 px-2.5 py-1 text-[10px] font-black text-primary">
         <Megaphone className="h-3 w-3" />
-        {t("ads.badge")}
+        {ad.adType || t("ads.badge")}
       </span>
+      {/* ★ اللوغو بجانب الشارة بشكل مناسب — ثم وسيط مصغّر إن وُجد */}
+      {ad.logo && (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img src={ad.logo} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-border" />
+      )}
       {thumb && (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img src={thumb} alt="" className="hidden h-9 w-12 shrink-0 rounded-lg object-cover ring-1 ring-border sm:block" />

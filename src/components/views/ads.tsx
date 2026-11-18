@@ -25,7 +25,10 @@ import {
 import {
   Megaphone, SearchX, Heart, MessageCircle, RefreshCw, ChevronLeft, ChevronRight, Plus,
   Pencil, Trash2, Power, Eye, EyeOff, Reply, Loader2, Send, Images, Megaphone as MegaphoneIcon,
+  Phone, Globe, MapPin, ExternalLink, MousePointerClick,
 } from "lucide-react";
+import { BrandIcon, type BrandName } from "@/components/brand-icons";
+import { telLink, waLink, mapsLink, hasContact, type AdContact } from "@/lib/ad-links";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getToken } from "@/lib/client-api";
@@ -48,6 +51,11 @@ type AdItem = {
   title: string;
   body: string;
   media: string[];
+  adType: string;
+  logo: string;
+  contact: AdContact;
+  ctaText: string;
+  ctaUrl: string;
   publishedAt: string;
   likesCount: number;
   likedByMe: boolean;
@@ -59,6 +67,14 @@ type StaffAd = {
   title: string;
   body: string;
   media: string[];
+  adType?: string;
+  logo?: string;
+  contact?: AdContact;
+  ctaText?: string;
+  ctaUrl?: string;
+  ticker?: boolean;
+  order?: number;
+  clicks?: number;
   float: boolean;
   floatPerUser: number;
   floatDays: number;
@@ -72,6 +88,46 @@ type StaffAd = {
 
 function isVideo(url: string) {
   return url.startsWith("data:video/") || /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
+}
+
+/* ── ★ v3.26: أيقونات قنوات التواصل — حقيقية قابلة للنقر مع عدّاد نقرات ── */
+export function AdContactRow({ contact, adId, onCount }: { contact: AdContact; adId: string; onCount: (id: string) => void }) {
+  const { t } = useApp();
+  const items: { key: string; href: string; label: string; icon: React.ReactNode; cls: string }[] = [];
+  const push = (key: string, href: string, label: string, icon: React.ReactNode, cls: string) => {
+    if (href) items.push({ key, href, label, icon, cls });
+  };
+  push("phone", telLink(contact.phone), t("ads.cPhone"), <Phone className="h-4 w-4" />, "hover:border-emerald-500/50 hover:text-emerald-500");
+  push("whatsapp", waLink(contact.whatsapp), t("ads.cWhatsapp"), <BrandIcon name="whatsapp" className="h-4 w-4" />, "hover:border-emerald-500/50 hover:text-emerald-500");
+  push("website", contact.website || "", t("ads.cWebsite"), <Globe className="h-4 w-4" />, "hover:border-sky-500/50 hover:text-sky-500");
+  push("instagram", contact.instagram || "", t("ads.cInstagram"), <BrandIcon name="instagram" className="h-4 w-4" />, "hover:border-pink-500/50 hover:text-pink-500");
+  push("facebook", contact.facebook || "", t("ads.cFacebook"), <BrandIcon name="facebook" className="h-4 w-4" />, "hover:border-blue-500/50 hover:text-blue-500");
+  push("tiktok", contact.tiktok || "", t("ads.cTiktok"), <BrandIcon name="tiktok" className="h-4 w-4" />, "hover:border-foreground/60 hover:text-foreground");
+  push("youtube", contact.youtube || "", t("ads.cYoutube"), <BrandIcon name="youtube" className="h-4 w-4" />, "hover:border-red-500/50 hover:text-red-500");
+  push("address", mapsLink(contact.address), t("ads.cAddress"), <MapPin className="h-4 w-4" />, "hover:border-amber-500/50 hover:text-amber-500");
+  if (!items.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {items.map((it) => (
+        <a
+          key={it.key}
+          href={it.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => onCount(adId)}
+          title={it.label}
+          aria-label={it.label}
+          className={cn(
+            "inline-flex h-9 items-center gap-1.5 rounded-full border bg-card px-3 text-xs font-bold text-muted-foreground transition-colors",
+            it.cls
+          )}
+        >
+          {it.icon}
+          <span className="hidden sm:inline">{it.label}</span>
+        </a>
+      ))}
+    </div>
+  );
 }
 
 /* ─────────── سلايدر وسائط الإعلان ─────────── */
@@ -274,6 +330,15 @@ export default function Ads({ navigate }: { navigate: Navigate }) {
     return false;
   };
 
+  /* ★ v3.26: عدّاد نقرات قنوات التواصل وزر الإجراء — إطلاق صامت */
+  const countClick = useCallback((adId: string) => {
+    void fetch("/api/ads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "click", id: adId }),
+    }).catch(() => {});
+  }, []);
+
   const fmtDate = (iso: string | null) => {
     if (!iso) return "";
     try {
@@ -335,6 +400,7 @@ export default function Ads({ navigate }: { navigate: Navigate }) {
                       <span className="inline-flex items-center gap-1"><Eye className="h-3 w-3" />{a.views}</span>
                       <span className="inline-flex items-center gap-1"><Heart className="h-3 w-3" />{a.likesCount}</span>
                       <span className="inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{a.commentsCount}</span>
+                      <span className="inline-flex items-center gap-1" title={t("ads.clicks")}><MousePointerClick className="h-3 w-3" />{a.clicks || 0}</span>
                       <span>{fmtDate(a.createdAt)}</span>
                     </div>
                     {/* التعليقات */}
@@ -424,14 +490,35 @@ export default function Ads({ navigate }: { navigate: Navigate }) {
             >
               <CardContent className="space-y-3.5 p-5">
                 <div className="flex items-start justify-between gap-2">
-                  <h2 className="min-w-0 text-lg font-black leading-snug">{a.title}</h2>
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    {a.logo && (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={a.logo} alt="" className="h-11 w-11 shrink-0 rounded-2xl object-cover ring-1 ring-border" />
+                    )}
+                    <h2 className="min-w-0 text-lg font-black leading-snug">{a.title}</h2>
+                  </div>
+                  {/* ★ v3.26: نوع الإعلان بدل «إعلان المركز» الثابتة */}
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-black text-primary">
                     <Megaphone className="h-3 w-3" />
-                    {t("ads.badge")}
+                    {a.adType || t("ads.badge")}
                   </span>
                 </div>
                 {a.media.length > 0 && <AdMediaCarousel media={a.media} title={a.title} />}
                 <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{a.body}</p>
+                {/* ★ v3.26: قنوات التواصل + زر الإجراء */}
+                {hasContact(a.contact) && <AdContactRow contact={a.contact} adId={a.id} onCount={countClick} />}
+                {a.ctaText && a.ctaUrl && (
+                  <a
+                    href={a.ctaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => countClick(a.id)}
+                    className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-black text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                  >
+                    {a.ctaText}
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
                 <div className="flex items-center justify-between gap-2 pt-0.5">
                   <div className="flex items-center gap-2">
                     <button
@@ -523,7 +610,11 @@ export default function Ads({ navigate }: { navigate: Navigate }) {
         editing={editing}
         onClose={() => setEditing(null)}
         onSave={async (payload) => {
-          const done = await staffAction({ ...payload, action: payload._id ? "update" : "create" }, t("common.saved"));
+          /* ★ v3.26 إصلاح: الخادم يقرأ id — كان يصل فارغاً فيرمي «Cast to ObjectId» ويمنع الحفظ */
+          const done = await staffAction(
+            { ...payload, id: String(payload._id || ""), action: payload._id ? "update" : "create" },
+            t("common.saved")
+          );
           if (done) setEditing(null);
         }}
       />
@@ -581,19 +672,36 @@ function AdEditor({
 }) {
   const { t } = useApp();
   const [title, setTitle] = useState("");
+  const [adType, setAdType] = useState("");
   const [body, setBody] = useState("");
   const [media, setMedia] = useState<string[]>([]);
+  const [logo, setLogo] = useState("");
+  const [contact, setContact] = useState<AdContact>({});
+  const [ctaText, setCtaText] = useState("");
+  const [ctaUrl, setCtaUrl] = useState("");
+  const [ticker, setTicker] = useState(true);
+  const [order, setOrder] = useState(0);
   const [float, setFloat] = useState(false);
   const [floatPerUser, setFloatPerUser] = useState(3);
   const [floatDays, setFloatDays] = useState(7);
   const [publish, setPublish] = useState(true);
   const [busy, setBusy] = useState(false);
 
+  const setCs = (k: keyof AdContact) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setContact((c) => ({ ...c, [k]: e.target.value }));
+
   useEffect(() => {
     if (editing) {
       setTitle(String(editing.title || ""));
+      setAdType(String((editing as { adType?: string }).adType || ""));
       setBody(String(editing.body || ""));
       setMedia((editing.media as string[]) || []);
+      setLogo(String((editing as { logo?: string }).logo || ""));
+      setContact(((editing as { contact?: AdContact }).contact || {}) as AdContact);
+      setCtaText(String((editing as { ctaText?: string }).ctaText || ""));
+      setCtaUrl(String((editing as { ctaUrl?: string }).ctaUrl || ""));
+      setTicker((editing as { ticker?: boolean }).ticker !== false);
+      setOrder(Number((editing as { order?: number }).order) || 0);
       setFloat(editing.float === true);
       setFloatPerUser(Number(editing.floatPerUser) || 3);
       setFloatDays(Number(editing.floatDays) || 7);
@@ -615,14 +723,64 @@ function AdEditor({
             <Label>{t("ads.adTitle")}</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140} className="h-11" />
           </div>
+          {/* ★ v3.26: نوع الإعلان — إلزامي، يستبدل «إعلان المركز» في الشريط */}
+          <div className="space-y-2">
+            <Label className="gap-1">
+              {t("ads.adType")}
+              <span className="text-destructive">*</span>
+            </Label>
+            <Input value={adType} onChange={(e) => setAdType(e.target.value)} maxLength={60} className="h-11" placeholder={t("ads.adTypePh")} />
+            <p className="text-[11px] text-muted-foreground">{t("ads.adTypeHint")}</p>
+          </div>
           <div className="space-y-2">
             <Label>{t("ads.adBody")}</Label>
             <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} maxLength={1500} />
+          </div>
+          {/* ★ v3.26: اللوغو — يظهر في الشريط الدوّار والإعلان العائم */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2"><Globe className="h-4 w-4 text-primary" /> {t("ads.adLogo")}</Label>
+            <MediaPicker value={logo ? [logo] : []} onChange={(v: string[]) => setLogo(v[0] || "")} max={1} accept="image/*" />
+            <p className="text-[11px] text-muted-foreground">{t("ads.adLogoHint")}</p>
           </div>
           <div className="space-y-2">
             <Label className="flex items-center gap-2"><Images className="h-4 w-4 text-primary" /> {t("ads.adMedia")}</Label>
             <MediaPicker value={media} onChange={setMedia} max={6} />
             <p className="text-[11px] text-muted-foreground">{t("ads.mediaHint")}</p>
+          </div>
+          {/* ★ v3.26: قنوات التواصل الاختيارية — أيقونات قابلة للنقر في الإعلان المنشور */}
+          <div className="space-y-3 rounded-2xl border p-3.5">
+            <p className="text-sm font-bold">{t("ads.contactTitle")}</p>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <Input value={contact.phone || ""} onChange={setCs("phone")} maxLength={30} className="h-10" placeholder={t("ads.cPhonePh")} />
+              <Input value={contact.whatsapp || ""} onChange={setCs("whatsapp")} maxLength={30} className="h-10" placeholder={t("ads.cWhatsappPh")} />
+              <Input value={contact.website || ""} onChange={setCs("website")} maxLength={300} className="h-10" placeholder={t("ads.cWebsitePh")} />
+              <Input value={contact.instagram || ""} onChange={setCs("instagram")} maxLength={300} className="h-10" placeholder={t("ads.cInstagramPh")} />
+              <Input value={contact.facebook || ""} onChange={setCs("facebook")} maxLength={300} className="h-10" placeholder={t("ads.cFacebookPh")} />
+              <Input value={contact.tiktok || ""} onChange={setCs("tiktok")} maxLength={300} className="h-10" placeholder={t("ads.cTiktokPh")} />
+              <Input value={contact.youtube || ""} onChange={setCs("youtube")} maxLength={300} className="h-10" placeholder={t("ads.cYoutubePh")} />
+              <Input value={contact.address || ""} onChange={setCs("address")} maxLength={300} className="h-10" placeholder={t("ads.cAddressPh")} />
+            </div>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("ads.ctaText")}</Label>
+                <Input value={ctaText} onChange={(e) => setCtaText(e.target.value)} maxLength={40} className="h-10" placeholder={t("ads.ctaTextPh")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("ads.ctaUrl")}</Label>
+                <Input value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} maxLength={300} className="h-10" placeholder={t("ads.ctaUrlPh")} />
+              </div>
+            </div>
+            <label className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2">
+              <span className="text-sm font-semibold">{t("ads.tickerToggle")}</span>
+              <Switch checked={ticker} onCheckedChange={setTicker} />
+            </label>
+            {ticker && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("ads.orderLabel")}</Label>
+                <Input type="number" min={0} max={999} value={order} onChange={(e) => setOrder(Number(e.target.value))} className="h-10" />
+                <p className="text-[11px] text-muted-foreground">{t("ads.orderHint")}</p>
+              </div>
+            )}
           </div>
           <div className="space-y-3 rounded-2xl border p-3.5">
             <label className="flex items-center justify-between gap-3">
@@ -647,11 +805,15 @@ function AdEditor({
             <Switch checked={publish} onCheckedChange={setPublish} />
           </label>
           <Button
-            disabled={busy || title.trim().length < 3 || body.trim().length < 3}
+            disabled={busy || title.trim().length < 3 || body.trim().length < 3 || adType.trim().length < 2}
             className="h-12 w-full rounded-xl text-base"
             onClick={async () => {
               setBusy(true);
-              await onSave({ ...editing, title, body, media, float, floatPerUser, floatDays, publish });
+              await onSave({
+                ...editing, title, adType: adType.trim(), body, media, logo, contact,
+                ctaText: ctaText.trim(), ctaUrl: ctaUrl.trim(), ticker, order,
+                float, floatPerUser, floatDays, publish,
+              });
               setBusy(false);
             }}
           >

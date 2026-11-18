@@ -16,6 +16,9 @@ import { articlePublishedText } from "@/lib/notify-text";
 /* إسقاط المتن من القائمة — يُقرأ من مسار المقال المفرد */
 const LIST_PROJECTION = "-content -contentFr -contentEn";
 
+/* ★ v3.26: رابط PDF داخل الموقع فقط (من /api/media) — كالنمط المعتمد في الكتب الإلكترونية */
+const normPdfUrl = (v: unknown) => (/^\/api\/media\/[A-Za-z0-9._%-]+\.pdf$/.test(String(v || "")) ? String(v) : "");
+
 export async function GET(req: NextRequest) {
   return handle(async () => {
     const me = await currentUser();
@@ -62,6 +65,7 @@ export async function POST(req: NextRequest) {
       contentFr: String(b.contentFr || ""),
       contentEn: String(b.contentEn || ""),
       category,
+      pdfUrl: normPdfUrl(b.pdfUrl),
       coverBase64: typeof b.coverBase64 === "string" ? b.coverBase64 : "",
       authorId: me._id,
       authorName: me.name || "",

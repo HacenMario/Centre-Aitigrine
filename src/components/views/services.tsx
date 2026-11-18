@@ -26,6 +26,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Power, Eye, ChevronDown, ChevronUp, Sparkles, Smile } from "lucide-react";
+import { SmartSearch, Chip } from "@/components/smart-search";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { Navigate } from "@/lib/nav";
@@ -99,7 +100,17 @@ export default function Services({ navigate }: { navigate: Navigate }) {
   };
 
   const cats = (settings?.options?.serviceCategories || []) as TriCat[];
-  const shown = isStaff && !showAll ? services.filter((s) => s.active) : services;
+  /* ★ v3.26: البحث الذكي + تصفية التصنيفات */
+  const [query, setQuery] = useState("");
+  const [catF, setCatF] = useState("all");
+  const shown = (isStaff && !showAll ? services.filter((s) => s.active) : services).filter((s) => {
+    if (catF !== "all" && (s.category || "") !== catF) return false;
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return [s.title, s.titleFr, s.titleEn, s.description, s.descriptionFr, s.descriptionEn, s.category]
+      .map((x) => String(x || "")).join(" ").toLowerCase().includes(q);
+  });
+  const serviceCats = [...new Set(services.map((s) => (s.category || "").trim()).filter(Boolean))];
 
   /* v3.5: التصنيفات ثلاثية اللغة — التخزين بالنص العربي (مفتاح مرجعي) والعرض بلغة المستخدم */
   const catLabel = (value: string): string => {
@@ -111,7 +122,7 @@ export default function Services({ navigate }: { navigate: Navigate }) {
 
   /* ترقيم الصفحات الاحترافي */
   const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [shown.length, showAll]);
+  useEffect(() => { setPage(1); }, [shown.length, showAll, query, catF]);
   const pageCount = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
   const pageItems = shown.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -144,6 +155,18 @@ export default function Services({ navigate }: { navigate: Navigate }) {
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* ★ v3.26: البحث الذكي + شارات التصنيفات */}
+          <div className="flex flex-wrap items-center gap-2">
+            <SmartSearch value={query} onChange={setQuery} placeholder={t("common.searchPh")} />
+            {(serviceCats.length > 1 || (serviceCats.length === 1 && services.length > 1)) && (
+              <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label={t("common.category")}>
+                <Chip active={catF === "all"} onClick={() => setCatF("all")}>{t("common.all")}</Chip>
+                {serviceCats.map((c) => (
+                  <Chip key={c} active={catF === c} onClick={() => setCatF(c)}>{c}</Chip>
+                ))}
+              </div>
+            )}
+          </div>
           {pageItems.map((s) => (
             <Card key={s._id} className={cn(
               "group rounded-3xl shadow-sm hover:shadow-lg transition-all duration-300",

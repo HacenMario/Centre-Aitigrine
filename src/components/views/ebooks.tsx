@@ -36,6 +36,7 @@ import {
   BookOpenText, Plus, Pencil, Trash2, Power, PenLine, Lock, ArrowRight, ArrowLeft, ShieldCheck,
   MessagesSquare, X, ExternalLink, ShoppingCart, Wallet, CircleAlert, Check, Clock3, FileText,
 } from "lucide-react";
+import { SmartSearch, Chip } from "@/components/smart-search";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { TriInput, TriTextarea, triFrom, flattenTri, pickTri, TRI3 } from "@/components/tri-input";
@@ -89,7 +90,17 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
   }, [isStaff]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { setPage(1); }, [ebooks.length]);
+  /* ★ v3.26: البحث الذكي + تصفية اتجاه الكتاب (عربي RTL / لاتيني LTR) */
+  const [query, setQuery] = useState("");
+  const [dirF, setDirF] = useState<"all" | "rtl" | "ltr">("all");
+  const shownEbooks = ebooks.filter((e) => {
+    if (dirF !== "all" && (e.direction || "rtl") !== dirF) return false;
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    const fields = [e.title, e.titleFr, e.titleEn, e.summary, e.summaryFr, e.summaryEn, e.author, e.authorFr, e.authorEn];
+    return fields.map((x) => String(x || "")).join(" ").toLowerCase().includes(q);
+  });
+  useEffect(() => { setPage(1); }, [query, dirF, ebooks.length]);
 
   /* ★ v3.21: الرابط المنشور يفتح الكتاب نفسه مباشرة — ?view=ebooks&id=…
      (القارئ يجلب المحتوى الكامل بالمعرف بنفسه، فالفتح من القائمة أو الجلب الفردي كافٍ) */
@@ -118,8 +129,8 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
   const summaryOf = (e: Ebook) => pickTri(e as unknown as Record<string, unknown>, "summary", lang);
 
   /* ترقيم الصفحات الاحترافي */
-  const pageCount = Math.max(1, Math.ceil(ebooks.length / PAGE_SIZE));
-  const pageItems = ebooks.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageCount = Math.max(1, Math.ceil(shownEbooks.length / PAGE_SIZE));
+  const pageItems = shownEbooks.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const toggleActive = async (e: Ebook) => {
     const r = await fetch(`/api/ebooks/${e._id}`, {
@@ -219,9 +230,21 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
         </p>
       )}
 
+      {/* ★ v3.26: البحث الذكي + تصفية الاتجاه */}
+      {!loading && ebooks.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <SmartSearch value={query} onChange={setQuery} placeholder={t("common.searchPh")} />
+          <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label={t("eb.direction")}>
+            <Chip active={dirF === "all"} onClick={() => setDirF("all")}>{t("common.all")}</Chip>
+            <Chip active={dirF === "rtl"} onClick={() => setDirF("rtl")}>{t("eb.dirRtl")}</Chip>
+            <Chip active={dirF === "ltr"} onClick={() => setDirF("ltr")}>{t("eb.dirLtr")}</Chip>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <CardsSkeleton count={3} />
-      ) : ebooks.length === 0 ? (
+      ) : shownEbooks.length === 0 ? (
         <Card className="rounded-3xl border-dashed">
           <CardContent className="py-14 text-center text-muted-foreground">
             {t("eb.noEbooks")}
@@ -333,7 +356,7 @@ export default function Ebooks({ navigate }: { navigate: Navigate }) {
               </Card>
             ))}
           </div>
-          <Pagination page={page} pageCount={pageCount} onPage={setPage} total={ebooks.length} pageSize={PAGE_SIZE} />
+          <Pagination page={page} pageCount={pageCount} onPage={setPage} total={shownEbooks.length} pageSize={PAGE_SIZE} />
         </>
       )}
 

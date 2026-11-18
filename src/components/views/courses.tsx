@@ -27,7 +27,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Power, CalendarDays, Clock, UserRound, Images, X, MoveHorizontal, UsersRound, CircleCheckBig } from "lucide-react";
+import { Plus, Pencil, Trash2, Power, CalendarDays, Clock, UserRound, Images, X, MoveHorizontal, UsersRound, CircleCheckBig, FileText, BookOpenText, Search } from "lucide-react";
+import PdfInput from "@/components/pdf-input";
+import PdfFlipbook from "@/components/pdf-flipbook";
+import ImageLightbox from "@/components/image-lightbox";
 import { toast } from "sonner";
 import { TriInput, TriTextarea, flattenTri, pickTri, triFrom, triName, TRI3 } from "@/components/tri-input";
 import FullImage from "@/components/full-image";
@@ -48,8 +51,10 @@ type Course = {
   category: string; trainerName: string; trainerId?: string | null; trainerRole?: string;
   price: number; capacity: number; enrolledCount?: number; enrolledByMe?: boolean;
   coverBase64: string; images: string[]; sessions: Session[]; active: boolean;
+  materials?: CourseMaterial[]; /* ★ v3.26 */
 };
-const EMPTY: Partial<Course> = { title: "", description: "", category: "", trainerName: "", price: 0, capacity: 0, coverBase64: "", images: [], sessions: [], active: true };
+type CourseMaterial = { name: string; url: string };
+const EMPTY: Partial<Course> = { title: "", description: "", category: "", trainerName: "", price: 0, capacity: 0, coverBase64: "", images: [], materials: [], sessions: [], active: true };
 /** ★ v3.11: المكوِّنون والأخصائيون — يُعبّئون قائمة «المكوِّن» في نافذة إنشاء/تعديل التكوين */
 type SpecOption = { _id: string; name: string; title?: string; kind: "specialist" | "trainer" };
 
@@ -67,6 +72,10 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
   const [enrolling, setEnrolling] = useState<string | null>(null);
   /* v3.6: قائمة أخصائيي المركز لاختيار المكوّن بدل الكتابة الحرة */
   const [specList, setSpecList] = useState<SpecOption[]>([]);
+  /* ★ v3.26: البحث الذكي + القارئ التفاعلي + عرض الصورة بحجمها الكامل */
+  const [query, setQuery] = useState("");
+  const [flip, setFlip] = useState<{ url: string; title: string; id: string } | null>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
   const titleOf = (c: Course) =>
     (pickTri(c as unknown as Record<string, unknown>, "title", lang) || c.title);
@@ -176,10 +185,20 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
   };
   const fmtPrice = (n: number) => `${n.toLocaleString(lang === "ar" ? "ar-DZ" : "fr-DZ")} ${lang === "ar" ? "دج" : "DA"}`;
 
+  /* ★ v3.26: البحث الذكي (العنوان والوصف والمكوِّن بكل اللغات) */
+  const filtered = (() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return courses;
+    return courses.filter((c) => [
+      c.title, c.titleFr, c.titleEn, c.description, c.descriptionFr, c.descriptionEn,
+      c.trainerName, c.category,
+    ].join(" ").toLowerCase().includes(q));
+  })();
+
   /* ترقيم الصفحات الاحترافي */
-  const pageCount = Math.max(1, Math.ceil(courses.length / PAGE_SIZE));
-  const pageItems = courses.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [courses.length]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useEffect(() => { setPage(1); }, [query, courses.length]);
 
   /* شريط تقدم المقاعد — نمط طمأنينة */
   const SeatsBar = ({ c }: { c: Course }) => {
@@ -225,9 +244,23 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
         )}
       </div>
 
+      {/* ★ v3.26: البحث الذكي في التكوينات */}
+      {!loading && courses.length > 0 && (
+        <div className="relative min-w-0 sm:max-w-sm">
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("common.searchPh")}
+            aria-label={t("common.search")}
+            className="h-10 w-full rounded-full border bg-card ps-9 pe-3 text-sm outline-none transition-colors focus:border-primary/50"
+          />
+        </div>
+      )}
+
       {loading ? (
         <PageSkeleton kind="cards" count={6} label={t("common.loading")} />
-      ) : courses.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <Card className="rounded-3xl border-dashed">
           <CardContent className="py-14 text-center text-muted-foreground">{t("landing.noCourses")}</CardContent>
         </Card>
@@ -334,10 +367,45 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
                 </p>
                 <ScrollRow trackClassName="[scrollbar-width:thin]">
                   {details!.images.map((img, i) => (
-                    <FullImage key={i} src={img} alt={`${titleOf(details!)} ${i + 1}`}
-                      className="h-44 w-[70%] sm:w-64 shrink-0 snap-center" rounded="rounded-2xl" />
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setLightbox({ src: img, alt: `${titleOf(details!)} ${i + 1}` })}
+                      aria-label={t("img.actualSize")}
+                      className="shrink-0 snap-center cursor-zoom-in"
+                    >
+                      <FullImage src={img} alt={`${titleOf(details!)} ${i + 1}`}
+                        className="h-44 w-[70%] sm:w-64" rounded="rounded-2xl" />
+                    </button>
                   ))}
                 </ScrollRow>
+                {/* ★ v3.26: مواد التكوين — ملفات PDF للمسجّلين تُفتح بالقارئ التفاعلي */}
+                {(details?.materials?.length || 0) > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" /> {t("crs.materials")}
+                    </p>
+                    <div className="space-y-2">
+                      {details!.materials!.map((m, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setFlip({ url: m.url, title: m.name || titleOf(details!), id: details!._id })}
+                          className="flex w-full items-center gap-3 rounded-xl border bg-muted/30 px-4 py-3 text-start transition-colors hover:border-primary/40 hover:bg-primary/5"
+                        >
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <FileText className="h-4.5 w-4.5" />
+                          </span>
+                          <span className="min-w-0 flex-1 break-words text-sm font-bold">{m.name || `${t("crs.material")} ${i + 1}`}</span>
+                          <span className="flex shrink-0 items-center gap-1 text-xs font-black text-primary">
+                            <BookOpenText className="h-4 w-4" />
+                            {t("eb.readerOpen")}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {/* برنامج الحصص */}
@@ -476,6 +544,9 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
               <CourseImages images={editing?.images || []} onChange={(v) => setEditing({ ...editing, images: v })} />
             </div>
 
+            {/* ★ v3.26: مواد التكوين — ملفات PDF تظهر للمسجّلين في القارئ التفاعلي */}
+            <CourseMaterials materials={editing?.materials || []} onChange={(v) => setEditing({ ...editing, materials: v })} />
+
             <Separator />
 
             {/* الحصص — منطق أوقات جديد */}
@@ -505,6 +576,65 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ★ v3.26: القارئ التفاعلي لمواد التكوين */}
+      {flip && (
+        <PdfFlipbook
+          ebookId={flip.id}
+          url={flip.url}
+          title={flip.title}
+          direction="rtl"
+          onClose={() => setFlip(null)}
+        />
+      )}
+      {/* ★ v3.26: عرض الصورة بحجمها الكامل */}
+      {lightbox && (
+        <ImageLightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />
+      )}
+    </div>
+  );
+}
+
+/* ★ v3.26: محرر مواد التكوين — ارفع ملفات PDF وسمِّها؛ تظهر للمسجّلين فقط */
+function CourseMaterials({ materials, onChange }: { materials: CourseMaterial[]; onChange: (v: CourseMaterial[]) => void }) {
+  const { t } = useApp();
+  return (
+    <div className="space-y-2">
+      <Label className="flex items-center gap-2"><FileText className="h-4 w-4 text-primary" /> {t("crs.materials")}</Label>
+      {materials.map((m, i) => (
+        <div key={i} className="space-y-1.5 rounded-2xl border bg-muted/20 p-3">
+          <div className="flex items-center gap-2">
+            <Input
+              value={m.name}
+              onChange={(e) => onChange(materials.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)))}
+              placeholder={t("crs.materialName")}
+              className="h-9 flex-1"
+            />
+            <button
+              type="button"
+              onClick={() => onChange(materials.filter((_, k) => k !== i))}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-destructive hover:bg-destructive/10"
+              aria-label={t("common.delete")}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+          <PdfInput
+            value={m.url}
+            onChange={(v) => onChange(materials.map((x, k) => (k === i ? { ...x, url: v } : x)))}
+          />
+        </div>
+      ))}
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={() => onChange([...materials, { name: "", url: "" }])}
+        className="gap-1.5"
+      >
+        <Plus className="h-4 w-4" /> {t("crs.materialAdd")}
+      </Button>
+      <p className="text-[11px] text-muted-foreground">{t("crs.materialsHint")}</p>
     </div>
   );
 }

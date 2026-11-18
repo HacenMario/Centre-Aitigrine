@@ -6,6 +6,15 @@ import { ok, fail, handle } from "@/lib/api-helpers";
 import { Course, User } from "@/lib/models";
 import { currentUser, isStaff, requireUser } from "@/lib/auth";
 
+/* ★ v3.26: مواد التكوين — تحقق روابط PDF الداخلية */
+const normMat = (m: unknown): { name: string; url: string }[] =>
+  Array.isArray(m)
+    ? (m as { name?: unknown; url?: unknown })
+        .map((x) => ({ name: String(x?.name || "").trim().slice(0, 200), url: String(x?.url || "") }))
+        .filter((x) => /^\/api\/media\/[A-Za-z0-9._%-]+\.pdf$/.test(x.url))
+        .slice(0, 20)
+    : [];
+
 export async function GET(req: NextRequest) {
   return handle(async () => {
     const me = await currentUser();
@@ -35,13 +44,17 @@ export async function GET(req: NextRequest) {
       courses: courses.map((c) => {
         const tid = String((c as { trainerId?: unknown }).trainerId || "");
         const tu = tid ? trainerMap.get(tid) : undefined;
+        const enrolledByMe = mine ? ((c.enrolledIds as unknown[]) || []).some((x) => String(x) === mine) : false;
+        /* ★ v3.26: مواد التكوين للمسجّلين والمدرب والإدارة حصراً — لا تُكشف روابطها لغيرهم */
+        const canSeeMaterials = Boolean(all || (mine && (tid === mine || enrolledByMe)));
         return {
           ...c,
           trainerId: tid || null,
           trainerName: tu?.name || c.trainerName || "",
           trainerRole: tu?.role || "",
           enrolledCount: ((c.enrolledIds as unknown[]) || []).length,
-          enrolledByMe: mine ? ((c.enrolledIds as unknown[]) || []).some((x) => String(x) === mine) : false,
+          enrolledByMe,
+          materials: canSeeMaterials ? normMat(c.materials) : [],
         };
       }),
     });
@@ -82,6 +95,7 @@ export async function POST(req: NextRequest) {
       capacity: Number(b.capacity) || 0,
       coverBase64: String(b.coverBase64 || ""),
       images: Array.isArray(b.images) ? b.images.map(String).slice(0, 12) : [],
+      materials: normMat(b.materials),
       sessions: Array.isArray(b.sessions)
         ? b.sessions
             .filter((s: { date?: string; start?: string; end?: string }) => s?.date && s?.start && s?.end)

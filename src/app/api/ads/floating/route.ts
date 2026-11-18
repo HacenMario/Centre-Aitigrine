@@ -36,6 +36,11 @@ export async function GET() {
             title: (rec.title as string) || "",
             body: (rec.body as string) || "",
             media: ((rec.media as string[]) || []),
+            adType: (rec.adType as string) || "",
+            logo: (rec.logo as string) || "",
+            contact: (rec.contact as Record<string, string>) || {},
+            ctaText: (rec.ctaText as string) || "",
+            ctaUrl: (rec.ctaUrl as string) || "",
           },
         });
       }

@@ -11,6 +11,15 @@ import { enrollRequestText } from "@/lib/notify-text";
 type Ctx = { params: Promise<{ id: string }> };
 
 /** تسجيل في التكوين — عميل مسجل: مرة واحدة لكل عميل + إشعار للإدارة */
+/* ★ v3.26: مواد التكوين — تحقق روابط PDF الداخلية */
+const normMat = (m: unknown): { name: string; url: string }[] =>
+  Array.isArray(m)
+    ? (m as { name?: unknown; url?: unknown })
+        .map((x) => ({ name: String(x?.name || "").trim().slice(0, 200), url: String(x?.url || "") }))
+        .filter((x) => /^\/api\/media\/[A-Za-z0-9._%-]+\.pdf$/.test(x.url))
+        .slice(0, 20)
+    : [];
+
 export async function POST(_req: NextRequest, ctx: Ctx) {
   return handle(async () => {
     const me = await requireUser(["client"]);
@@ -79,6 +88,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (b.capacity !== undefined) c.capacity = Number(b.capacity) || 0;
     if (typeof b.coverBase64 === "string") c.coverBase64 = b.coverBase64;
     if (Array.isArray(b.images)) c.images = b.images.map(String).slice(0, 12);
+    /* ★ v3.26: مواد التكوين */
+    if (Array.isArray(b.materials)) {
+      const norm = normMat(b.materials);
+      if (norm.length || b.materials.length === 0) c.materials = norm;
+    }
     if (Array.isArray(b.sessions))
       c.sessions = b.sessions
         .filter((s: { date?: string; start?: string; end?: string }) => s?.date && s?.start && s?.end)

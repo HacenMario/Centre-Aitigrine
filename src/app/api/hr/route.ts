@@ -29,6 +29,14 @@ export async function GET(req: NextRequest) {
       { _id: unknown; name?: string; role?: string; baseSalary?: number; phone?: string; notes?: string; active?: boolean; userId?: unknown }[]
     >();
 
+    /* ★ v3.26: صور صاحبي الحسابات المرتبطة — لعرضها في بطاقة الموظف */
+    const linkedUserIds = emps.map((e) => (e.userId ? String(e.userId) : "")).filter(Boolean);
+    const photoMap = new Map<string, string>();
+    if (linkedUserIds.length) {
+      const users = await User.find({ _id: { $in: linkedUserIds } }).select("photoBase64").lean<{ _id: unknown; photoBase64?: string }[]>();
+      for (const u of users) photoMap.set(String(u._id), u.photoBase64 || "");
+    }
+
     const employees = [];
     for (const e of emps) {
       const stats = await employeeStats(e, month);
@@ -41,6 +49,8 @@ export async function GET(req: NextRequest) {
         notes: e.notes || "",
         active: e.active !== false,
         userId: e.userId ? String(e.userId) : null,
+        photoBase64: (e as { photoBase64?: string }).photoBase64 || "",
+        accountPhoto: e.userId ? photoMap.get(String(e.userId)) || "" : "",
         stats,
       });
     }
@@ -88,6 +98,7 @@ export async function POST(req: NextRequest) {
         baseSalary: Math.max(0, Math.round(Number(b.baseSalary) || 0)),
         phone: String(b.phone || "").trim(),
         notes: String(b.notes || "").trim(),
+        photoBase64: typeof b.photoBase64 === "string" && b.photoBase64.length <= 6_000_000 ? b.photoBase64 : "",
         userId: b.userId || null,
         active: true,
       });
@@ -107,6 +118,19 @@ export async function POST(req: NextRequest) {
       if (b.phone !== undefined) $set.phone = String(b.phone).trim();
       if (b.notes !== undefined) $set.notes = String(b.notes).trim();
       if (typeof b.active === "boolean") $set.active = b.active;
+      /* ★ v3.26: رفع صورة الموظف (اختياري) — للحساب المرتبط تُحفظ مكان صورة الحساب الأصلية */
+      if (b.photoBase64 !== undefined) {
+        const ph = String(b.photoBase64 || "");
+        if (ph.length > 6_000_000) return fail(400, "الصورة كبيرة جداً (الحد ~4.5MB)");
+        $set.photoBase64 = ph;
+        if (ph) {
+          const cur = await HrEmployee.findById(b._id).select("userId").lean<{ userId?: unknown } | null>();
+          const uid = cur?.userId ? String(cur.userId) : "";
+          if (uid && /^[0-9a-fA-F]{24}$/.test(uid)) {
+            await User.findByIdAndUpdate(uid, { $set: { photoBase64: ph } });
+          }
+        }
+      }
       const e = await HrEmployee.findByIdAndUpdate(b._id, { $set }, { new: true }).lean();
       if (!e) return fail(404, "الموظف غير موجود");
       return ok();
