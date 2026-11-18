@@ -1436,4 +1436,24 @@ export const ar: Record<string, string> = {
   "img.actualSize": "الحجم الأصلي",
   "img.fitScreen": "ملاءمة الشاشة",
 
+
+  /* ═══ ★ v3.27 — المفاتيح الناقصة + نظام تأكيد تسجيل التكوينات ═══ */
+  "dash.amtEbooks": "الكتب الإلكترونية المباعة",
+  "hr.photo": "صورة الموظف",
+  "hr.photoHint": "اختيارية — للحساب المرتبط تُحفظ مكان صورة الحساب الأصلية",
+  "crs.pendingBadge": "بانتظار تأكيد الإدارة",
+  "crs.pendingBadgeShort": "بانتظار التأكيد",
+  "crs.enrollPendingDone": "أُرسل طلب تسجيلك — تُفتح مواد التكوين بعد تأكيد الإدارة",
+  "crs.manageEnroll": "إدارة التسجيلات",
+  "crs.pendingList": "طلبات بانتظار التأكيد",
+  "crs.noPendingList": "لا طلبات معلقة",
+  "crs.enrolledList": "المسجّلون المؤكدون",
+  "crs.noEnrolledList": "لا مسجّلين بعد",
+  "crs.confirmEnroll": "تأكيد",
+  "crs.rejectEnroll": "رفض",
+  "crs.removeEnroll": "إزالة",
+  "crs.confirmDone": "تم تأكيد التسجيل",
+  "crs.rejectDone": "رُفض الطلب",
+  "crs.removeDone": "أُزيل المسجّل من التكوين",
+
 };

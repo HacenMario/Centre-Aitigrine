@@ -33,9 +33,10 @@ import {
 } from "@/components/ui/select";
 import {
   Newspaper, Plus, Pencil, Trash2, Power, X, ArrowRight, ArrowLeft, ShieldCheck, PenLine, Clock,
-  FileText, BookOpenText, Search,
+  FileText, BookOpenText,
 } from "lucide-react";
 import PdfInput from "@/components/pdf-input";
+import { SmartSearch } from "@/components/smart-search";
 import PdfFlipbook from "@/components/pdf-flipbook";
 import { toast } from "sonner";
 import { TriInput, TriTextarea, flattenTri, localeOf, pickTri, triFrom, TRI3 } from "@/components/tri-input";
@@ -225,16 +226,7 @@ export default function Articles({ navigate }: { navigate: Navigate }) {
       {/* تصفية بالمجال + ★ v3.26: البحث الذكي */}
       {!loading && articles.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-0 flex-1 sm:max-w-xs">
-            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("common.searchPh")}
-              aria-label={t("common.search")}
-              className="h-10 w-full rounded-full border bg-card ps-9 pe-3 text-sm outline-none transition-colors focus:border-primary/50"
-            />
-          </div>
+          <SmartSearch value={query} onChange={setQuery} placeholder={t("common.searchPh")} />
           <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label={t("art.category")}>
           {([
             { v: "all" as CatFilter, label: t("common.all") },

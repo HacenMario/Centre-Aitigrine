@@ -1437,4 +1437,24 @@ export const fr: Record<string, string> = {
   "img.actualSize": "Taille réelle",
   "img.fitScreen": "Ajuster à l'écran",
 
+
+  /* ═══ ★ v3.27 — clés manquantes + confirmation d'inscription aux formations ═══ */
+  "dash.amtEbooks": "Livres électroniques vendus",
+  "hr.photo": "Photo de l'employé",
+  "hr.photoHint": "Optionnelle — pour un compte lié, elle remplace la photo d'origine du compte",
+  "crs.pendingBadge": "En attente de confirmation",
+  "crs.pendingBadgeShort": "En attente",
+  "crs.enrollPendingDone": "Demande d'inscription envoyée — les supports s'ouvriront après confirmation",
+  "crs.manageEnroll": "Gérer les inscriptions",
+  "crs.pendingList": "Demandes en attente",
+  "crs.noPendingList": "Aucune demande en attente",
+  "crs.enrolledList": "Inscrits confirmés",
+  "crs.noEnrolledList": "Aucun inscrit pour le moment",
+  "crs.confirmEnroll": "Confirmer",
+  "crs.rejectEnroll": "Refuser",
+  "crs.removeEnroll": "Retirer",
+  "crs.confirmDone": "Inscription confirmée",
+  "crs.rejectDone": "Demande refusée",
+  "crs.removeDone": "Inscrit retiré de la formation",
+
 };

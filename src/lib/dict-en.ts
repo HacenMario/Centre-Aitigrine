@@ -1437,4 +1437,24 @@ export const en: Record<string, string> = {
   "img.actualSize": "Actual size",
   "img.fitScreen": "Fit to screen",
 
+
+  /* ═══ ★ v3.27 — missing keys + course enrollment confirmation ═══ */
+  "dash.amtEbooks": "Ebooks sold",
+  "hr.photo": "Employee photo",
+  "hr.photoHint": "Optional — for a linked account it replaces the account's original photo",
+  "crs.pendingBadge": "Awaiting confirmation",
+  "crs.pendingBadgeShort": "Pending",
+  "crs.enrollPendingDone": "Enrollment request sent — materials open after admin confirmation",
+  "crs.manageEnroll": "Manage enrollments",
+  "crs.pendingList": "Pending requests",
+  "crs.noPendingList": "No pending requests",
+  "crs.enrolledList": "Confirmed enrollees",
+  "crs.noEnrolledList": "No enrollees yet",
+  "crs.confirmEnroll": "Confirm",
+  "crs.rejectEnroll": "Reject",
+  "crs.removeEnroll": "Remove",
+  "crs.confirmDone": "Enrollment confirmed",
+  "crs.rejectDone": "Request rejected",
+  "crs.removeDone": "Enrollee removed from the course",
+
 };

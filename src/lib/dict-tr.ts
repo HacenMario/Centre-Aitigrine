@@ -1437,4 +1437,24 @@ export const tr: Record<string, string> = {
   "img.actualSize": "Gerçek boyut",
   "img.fitScreen": "Ekrana sığdır",
 
+
+  /* ═══ ★ v3.27 — eksik anahtarlar + eğitim kayıt onayı ═══ */
+  "dash.amtEbooks": "Satılan e-kitaplar",
+  "hr.photo": "Çalışan fotoğrafı",
+  "hr.photoHint": "İsteğe bağlı — bağlı hesap için hesabın orijinal fotoğrafının yerine kaydedilir",
+  "crs.pendingBadge": "Onay bekleniyor",
+  "crs.pendingBadgeShort": "Beklemede",
+  "crs.enrollPendingDone": "Kayıt talebiniz gönderildi — materyaller yönetim onayından sonra açılır",
+  "crs.manageEnroll": "Kayıtları yönet",
+  "crs.pendingList": "Bekleyen talepler",
+  "crs.noPendingList": "Bekleyen talep yok",
+  "crs.enrolledList": "Onaylanan kayıtlar",
+  "crs.noEnrolledList": "Henüz kayıt yok",
+  "crs.confirmEnroll": "Onayla",
+  "crs.rejectEnroll": "Reddet",
+  "crs.removeEnroll": "Çıkar",
+  "crs.confirmDone": "Kayıt onaylandı",
+  "crs.rejectDone": "Talep reddedildi",
+  "crs.removeDone": "Kayıt eğitimden çıkarıldı",
+
 };

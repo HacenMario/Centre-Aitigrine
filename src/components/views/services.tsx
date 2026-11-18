@@ -154,19 +154,20 @@ export default function Services({ navigate }: { navigate: Navigate }) {
           <CardContent className="py-14 text-center text-muted-foreground">{t("srv.noServices")}</CardContent>
         </Card>
       ) : (
+        <>
+        {/* ★ v3.27: شريط الفلترة خارج الشبكة — لا تداخل مع البطاقات إطلاقاً */}
+        <div className="flex flex-wrap items-center gap-2">
+          <SmartSearch value={query} onChange={setQuery} placeholder={t("common.searchPh")} />
+          {(serviceCats.length > 1 || (serviceCats.length === 1 && services.length > 1)) && (
+            <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label={t("common.category")}>
+              <Chip active={catF === "all"} onClick={() => setCatF("all")}>{t("common.all")}</Chip>
+              {serviceCats.map((c) => (
+                <Chip key={c} active={catF === c} onClick={() => setCatF(c)}>{c}</Chip>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {/* ★ v3.26: البحث الذكي + شارات التصنيفات */}
-          <div className="flex flex-wrap items-center gap-2">
-            <SmartSearch value={query} onChange={setQuery} placeholder={t("common.searchPh")} />
-            {(serviceCats.length > 1 || (serviceCats.length === 1 && services.length > 1)) && (
-              <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label={t("common.category")}>
-                <Chip active={catF === "all"} onClick={() => setCatF("all")}>{t("common.all")}</Chip>
-                {serviceCats.map((c) => (
-                  <Chip key={c} active={catF === c} onClick={() => setCatF(c)}>{c}</Chip>
-                ))}
-              </div>
-            )}
-          </div>
           {pageItems.map((s) => (
             <Card key={s._id} className={cn(
               "group rounded-3xl shadow-sm hover:shadow-lg transition-all duration-300",
@@ -211,6 +212,7 @@ export default function Services({ navigate }: { navigate: Navigate }) {
             </Card>
           ))}
         </div>
+        </>
       )}
 
       <Pagination page={page} pageCount={pageCount} onPage={setPage} total={shown.length} pageSize={PAGE_SIZE} />

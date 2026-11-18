@@ -19,7 +19,9 @@ export function SmartSearch({
   className?: string;
 }) {
   return (
-    <div className={cn("relative min-w-0 flex-1 sm:max-w-xs", className)}>
+    /* ★ v3.27: عرض حتمي — صف كامل على الجوال وعمود ثابت على الحاسوب؛ بلا flex-1
+       حتى لا ينضغط أو يتداخل مع شارات التصفية في أي عرض شاشة */
+    <div className={cn("relative w-full shrink-0 sm:w-64", className)}>
       <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <input
         type="search"

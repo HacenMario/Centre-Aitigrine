@@ -27,10 +27,11 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Power, CalendarDays, Clock, UserRound, Images, X, MoveHorizontal, UsersRound, CircleCheckBig, FileText, BookOpenText, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Power, CalendarDays, Clock, UserRound, Images, X, MoveHorizontal, UsersRound, CircleCheckBig, FileText, BookOpenText, Search, CheckCircle2, XCircle } from "lucide-react";
 import PdfInput from "@/components/pdf-input";
 import PdfFlipbook from "@/components/pdf-flipbook";
 import ImageLightbox from "@/components/image-lightbox";
+import { SmartSearch } from "@/components/smart-search";
 import { toast } from "sonner";
 import { TriInput, TriTextarea, flattenTri, pickTri, triFrom, triName, TRI3 } from "@/components/tri-input";
 import FullImage from "@/components/full-image";
@@ -52,8 +53,11 @@ type Course = {
   price: number; capacity: number; enrolledCount?: number; enrolledByMe?: boolean;
   coverBase64: string; images: string[]; sessions: Session[]; active: boolean;
   materials?: CourseMaterial[]; /* ★ v3.26 */
+  pendingByMe?: boolean; pendingCount?: number; /* ★ v3.27 */
+  pendingUsers?: CrsUser[]; enrolledUsers?: CrsUser[]; /* ★ v3.27 */
 };
 type CourseMaterial = { name: string; url: string };
+type CrsUser = { _id: string; name: string; phone: string; photo?: string };
 const EMPTY: Partial<Course> = { title: "", description: "", category: "", trainerName: "", price: 0, capacity: 0, coverBase64: "", images: [], materials: [], sessions: [], active: true };
 /** ★ v3.11: المكوِّنون والأخصائيون — يُعبّئون قائمة «المكوِّن» في نافذة إنشاء/تعديل التكوين */
 type SpecOption = { _id: string; name: string; title?: string; kind: "specialist" | "trainer" };
@@ -148,7 +152,7 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
   const enroll = async (c: Course) => {
     if (!me) { toast.info(t("common.login")); navigate("login"); return; }
     if (me.role !== "client") { toast.info(t("crs.enrollClientsOnly")); return; }
-    if (c.enrolledByMe) return;
+    if (c.enrolledByMe || c.pendingByMe) return;
     if (c.capacity > 0 && (c.enrolledCount || 0) >= c.capacity) {
       toast.error(t("crs.full"));
       return;
@@ -159,13 +163,25 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
         method: "POST", headers: { "Content-Type": "application/json", "x-auth-token": getToken() || "" },
       });
       const j = await r.json();
-      if (r.ok) {
+      if (r.ok && j.pending) {
+        /* ★ v3.27: تكوين مؤسَّر — الطلب بانتظار تأكيد الإدارة */
+        toast.success(t("crs.enrollPendingDone"), { duration: 6000 });
+        setCourses((prev) =>
+          prev.map((x) =>
+            x._id === c._id
+              ? { ...x, pendingByMe: true, pendingCount: (x.pendingCount || 0) + 1 }
+              : x
+          )
+        );
+        setDetails((d) => (d && d._id === c._id ? { ...d, pendingByMe: true } : d));
+      } else if (r.ok) {
         toast.success(t("crs.enrollDone"));
         setCourses((prev) =>
           prev.map((x) =>
             x._id === c._id ? { ...x, enrolledByMe: true, enrolledCount: (x.enrolledCount || 0) + 1 } : x
           )
         );
+        setDetails((d) => (d && d._id === c._id ? { ...d, enrolledByMe: true } : d));
       } else {
         toast.error(j.error || t("common.error"));
       }
@@ -201,6 +217,49 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
   useEffect(() => { setPage(1); }, [query, courses.length]);
 
   /* شريط تقدم المقاعد — نمط طمأنينة */
+  /* ★ v3.27: تأكيد/رفض/إزالة تسجيل — للإدارة ومالك التكوين */
+  const enrollAction = async (c: Course, action: "confirm" | "reject" | "remove", user: CrsUser) => {
+    try {
+      const r = await fetch(`/api/courses/${c._id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-auth-token": getToken() || "" },
+        body: JSON.stringify({ action, userId: user._id }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) {
+        toast.success(t(action === "confirm" ? "crs.confirmDone" : action === "reject" ? "crs.rejectDone" : "crs.removeDone"));
+        const patch = (x: Course): Course => {
+          const pendingUsers = (x.pendingUsers || []).filter((u) => u._id !== user._id);
+          const enrolledUsers = x.enrolledUsers || [];
+          if (action === "confirm")
+            return {
+              ...x,
+              pendingUsers,
+              enrolledUsers: [...enrolledUsers, user],
+              enrolledCount: typeof j.enrolledCount === "number" ? j.enrolledCount : (x.enrolledCount || 0) + 1,
+              pendingCount: pendingUsers.length,
+            };
+          if (action === "reject") return { ...x, pendingUsers, pendingCount: pendingUsers.length };
+          return {
+            ...x,
+            enrolledUsers: enrolledUsers.filter((u) => u._id !== user._id),
+            enrolledCount: typeof j.enrolledCount === "number" ? j.enrolledCount : Math.max(0, (x.enrolledCount || 1) - 1),
+          };
+        };
+        setCourses((prev) => prev.map((x) => (x._id === c._id ? patch(x) : x)));
+        setDetails((d) => (d && d._id === c._id ? patch(d) : d));
+      } else {
+        toast.error(j.error || t("common.error"));
+      }
+    } catch {
+      toast.error(t("err.conn"));
+    }
+  };
+
+  /* من يدير التسجيلات؟ الإدارة أو مالك التكوين (مدرب/أخصائي) */
+  const canManageEnroll = (c: Course | null) =>
+    Boolean(c && (isStaff || ((me?.role === "trainer" || me?.role === "specialist") && String(c.trainerId || "") === String(me?._id || ""))));
+
   const SeatsBar = ({ c }: { c: Course }) => {
     if (c.capacity <= 0) return null;
     const enrolled = c.enrolledCount || 0;
@@ -246,16 +305,7 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
 
       {/* ★ v3.26: البحث الذكي في التكوينات */}
       {!loading && courses.length > 0 && (
-        <div className="relative min-w-0 sm:max-w-sm">
-          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("common.searchPh")}
-            aria-label={t("common.search")}
-            className="h-10 w-full rounded-full border bg-card ps-9 pe-3 text-sm outline-none transition-colors focus:border-primary/50"
-          />
-        </div>
+        <SmartSearch value={query} onChange={setQuery} placeholder={t("common.searchPh")} />
       )}
 
       {loading ? (
@@ -301,6 +351,13 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
                     {c.price > 0 && <span className="font-bold text-primary">{fmtPrice(c.price)}</span>}
                   </div>
                   <SeatsBar c={c} />
+                  {/* ★ v3.27: شارة الطلبات المعلقة للإدارة ومالك التكوين */}
+                  {canManageEnroll(c) && (c.pendingCount || 0) > 0 && (
+                    <span className="mt-2 inline-flex w-fit items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black text-amber-700 dark:text-amber-400">
+                      <Clock className="h-3 w-3" />
+                      {c.pendingCount} {t("crs.pendingBadgeShort")}
+                    </span>
+                  )}
                 </CardContent>
               </button>
               {/* ★ v3.21/3.21.1: نشر التكوين على انستغرام/فايسبوك — ★ v3.21.2: يشمل الأخصائي والمكوِّن */}
@@ -432,15 +489,97 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
                 </div>
               )}
             </div>
+            {/* ★ v3.27: إدارة التسجيلات — الطلبات المعلقة والمسجّلون المؤكدون */}
+            {details && canManageEnroll(details) && (
+              <div className="space-y-3 rounded-2xl border p-4">
+                <p className="flex items-center gap-2 font-black text-sm">
+                  <UsersRound className="h-4 w-4 text-primary" />
+                  {t("crs.manageEnroll")}
+                </p>
+                {/* طلبات بانتظار التأكيد */}
+                <div className="space-y-2">
+                  <p className="text-xs font-black text-amber-600 dark:text-amber-400">
+                    {t("crs.pendingList")} {(details.pendingCount || 0) > 0 ? `(${details.pendingCount})` : ""}
+                  </p>
+                  {(details.pendingUsers?.length || 0) === 0 ? (
+                    <p className="text-xs text-muted-foreground">{t("crs.noPendingList")}</p>
+                  ) : (
+                    details.pendingUsers!.map((u) => (
+                      <div key={u._id} className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+                        {u.photo ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={u.photo} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-border" />
+                        ) : (
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <UserRound className="h-4 w-4" />
+                          </span>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-bold">{u.name}</p>
+                          {u.phone && <p className="truncate text-[11px] text-muted-foreground tabular-nums" dir="ltr">{u.phone}</p>}
+                        </div>
+                        <Button size="sm" onClick={() => void enrollAction(details, "confirm", u._id)}
+                          className="h-8 gap-1 rounded-lg bg-emerald-600 px-2.5 text-xs hover:bg-emerald-700">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> {t("crs.confirmEnroll")}
+                        </Button>
+                        <Button size="sm" variant="outline"
+                          onClick={() => void enrollAction(details, "reject", u._id)}
+                          className="h-8 gap-1 rounded-lg border-rose-500/30 px-2.5 text-xs text-rose-600 hover:bg-rose-500/10">
+                          <XCircle className="h-3.5 w-3.5" /> {t("crs.rejectEnroll")}
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {/* المسجّلون المؤكدون */}
+                <div className="space-y-2">
+                  <p className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                    {t("crs.enrolledList")} {(details.enrolledCount || 0) > 0 ? `(${details.enrolledCount})` : ""}
+                  </p>
+                  {(details.enrolledUsers?.length || 0) === 0 ? (
+                    <p className="text-xs text-muted-foreground">{t("crs.noEnrolledList")}</p>
+                  ) : (
+                    details.enrolledUsers!.map((u) => (
+                      <div key={u._id} className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+                        {u.photo ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={u.photo} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-border" />
+                        ) : (
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <UserRound className="h-4 w-4" />
+                          </span>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-bold">{u.name}</p>
+                          {u.phone && <p className="truncate text-[11px] text-muted-foreground tabular-nums" dir="ltr">{u.phone}</p>}
+                        </div>
+                        <Button size="sm" variant="outline"
+                          onClick={() => void enrollAction(details, "remove", u._id)}
+                          className="h-8 gap-1 rounded-lg px-2.5 text-xs text-muted-foreground hover:border-rose-500/30 hover:text-rose-600">
+                          <Trash2 className="h-3.5 w-3.5" /> {t("crs.removeEnroll")}
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* زر التسجيل — يختفي للإدارة، ومُعطّل إن اكتملت المقاعد أو سجّل مسبقاً */}
             {!isStaff && details && (
               <Button
                 onClick={() => enroll(details)}
-                disabled={enrolling === details._id || details.enrolledByMe || (details.capacity > 0 && (details.enrolledCount || 0) >= details.capacity)}
-                className={cn("w-full h-12 rounded-xl text-base", details.enrolledByMe && "bg-emerald-600 hover:bg-emerald-600")}
+                disabled={enrolling === details._id || details.enrolledByMe || details.pendingByMe || (details.capacity > 0 && (details.enrolledCount || 0) >= details.capacity)}
+                className={cn(
+                  "w-full h-12 rounded-xl text-base",
+                  details.enrolledByMe && "bg-emerald-600 hover:bg-emerald-600",
+                  details.pendingByMe && "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                )}
               >
                 {details.enrolledByMe ? (
                   <><CircleCheckBig className="h-5 w-5" /> {t("crs.enrolledBadge")}</>
+                ) : details.pendingByMe ? (
+                  <><Clock className="h-5 w-5" /> {t("crs.pendingBadge")}</>
                 ) : enrolling === details._id ? (
                   t("common.loading")
                 ) : details.capacity > 0 && (details.enrolledCount || 0) >= details.capacity ? (

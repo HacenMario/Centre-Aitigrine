@@ -40,21 +40,48 @@ export async function GET(req: NextRequest) {
     }
     /* عدد المسجلين لكل تكوين — لحساب المقاعد المتبقية (نمط طمأنينة) */
     const mine = me?._id ? String(me._id) : null;
+    /* ★ v3.27: قوائم المسجّلين وطلبات التسجيل — للإدارة ومالك التكوين (دفعة واحدة) */
+    const listIds = new Set<string>();
+    for (const c of courses) {
+      const tid2 = String((c as { trainerId?: unknown }).trainerId || "");
+      if (all || (mine && tid2 === mine)) {
+        for (const x of ((c.enrolledIds as unknown[]) || [])) listIds.add(String(x));
+        for (const x of (((c as { pendingIds?: unknown[] }).pendingIds as unknown[]) || [])) listIds.add(String(x));
+      }
+    }
+    const usersMap = new Map<string, { name: string; phone: string; photo?: string }>();
+    if (listIds.size) {
+      const us = await User.find({ _id: { $in: [...listIds] } })
+        .select("name phone photoBase64")
+        .lean<{ _id: unknown; name?: string; phone?: string; photoBase64?: string }[]>();
+      for (const u of us)
+        usersMap.set(String(u._id), { name: u.name || "—", phone: u.phone || "", photo: u.photoBase64 || "" });
+    }
     return ok({
       courses: courses.map((c) => {
         const tid = String((c as { trainerId?: unknown }).trainerId || "");
         const tu = tid ? trainerMap.get(tid) : undefined;
-        const enrolledByMe = mine ? ((c.enrolledIds as unknown[]) || []).some((x) => String(x) === mine) : false;
-        /* ★ v3.26: مواد التكوين للمسجّلين والمدرب والإدارة حصراً — لا تُكشف روابطها لغيرهم */
+        const enrolledArr = ((c.enrolledIds as unknown[]) || []).map(String);
+        const pendingArr = (((c as { pendingIds?: unknown[] }).pendingIds as unknown[]) || []).map(String);
+        const enrolledByMe = mine ? enrolledArr.includes(mine) : false;
+        /* ★ v3.26: مواد التكوين للمسجّلين المؤكدين والمدرب والإدارة حصراً — لا تُكشف روابطها لغيرهم */
         const canSeeMaterials = Boolean(all || (mine && (tid === mine || enrolledByMe)));
+        /* ★ v3.27: قوائم التسجيلات للإدارة ومالك التكوين فقط */
+        const canManageList = Boolean(all || (mine && tid === mine));
+        const toU = (x: string) => ({ _id: x, ...(usersMap.get(x) || { name: "—", phone: "" }) });
         return {
           ...c,
           trainerId: tid || null,
           trainerName: tu?.name || c.trainerName || "",
           trainerRole: tu?.role || "",
-          enrolledCount: ((c.enrolledIds as unknown[]) || []).length,
+          enrolledCount: enrolledArr.length,
           enrolledByMe,
+          pendingByMe: Boolean(mine && pendingArr.includes(mine)),
+          pendingCount: pendingArr.length,
           materials: canSeeMaterials ? normMat(c.materials) : [],
+          ...(canManageList
+            ? { pendingUsers: pendingArr.map(toU), enrolledUsers: enrolledArr.map(toU) }
+            : {}),
         };
       }),
     });

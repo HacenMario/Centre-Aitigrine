@@ -1437,4 +1437,24 @@ export const es: Record<string, string> = {
   "img.actualSize": "Tamaño real",
   "img.fitScreen": "Ajustar a la pantalla",
 
+
+  /* ═══ ★ v3.27 — claves faltantes + confirmación de inscripción en cursos ═══ */
+  "dash.amtEbooks": "Libros electrónicos vendidos",
+  "hr.photo": "Foto del empleado",
+  "hr.photoHint": "Opcional — para una cuenta vinculada reemplaza la foto original de la cuenta",
+  "crs.pendingBadge": "Pendiente de confirmación",
+  "crs.pendingBadgeShort": "Pendiente",
+  "crs.enrollPendingDone": "Solicitud enviada — los materiales se abren tras la confirmación",
+  "crs.manageEnroll": "Gestionar inscripciones",
+  "crs.pendingList": "Solicitudes pendientes",
+  "crs.noPendingList": "No hay solicitudes pendientes",
+  "crs.enrolledList": "Inscritos confirmados",
+  "crs.noEnrolledList": "Aún no hay inscritos",
+  "crs.confirmEnroll": "Confirmar",
+  "crs.rejectEnroll": "Rechazar",
+  "crs.removeEnroll": "Quitar",
+  "crs.confirmDone": "Inscripción confirmada",
+  "crs.rejectDone": "Solicitud rechazada",
+  "crs.removeDone": "Inscrito retirado del curso",
+
 };

@@ -247,6 +247,9 @@ const CourseSchema = new Schema(
     capacity: { type: Number, default: 0 }, // 0 = بلا حد
     /** المسجّلون في التكوين — لحساب المقاعد المتبقية وشريط التقدم (نمط طمأنينة) */
     enrolledIds: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    /** ★ v3.27: طلبات تسجيل بانتظار تأكيد الإدارة — للتكوينات المؤسعرة؛ المجانية تُسجَّل مباشرة،
+     *  ومواد PDF تُفتح للمسجّلين المؤكدين حصراً */
+    pendingIds: [{ type: Schema.Types.ObjectId, ref: "User" }],
     coverBase64: { type: String, default: "" },
     /** صور التكوين base64 */
     images: { type: [String], default: [] },
