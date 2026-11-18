@@ -518,12 +518,12 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
                           <p className="truncate text-sm font-bold">{u.name}</p>
                           {u.phone && <p className="truncate text-[11px] text-muted-foreground tabular-nums" dir="ltr">{u.phone}</p>}
                         </div>
-                        <Button size="sm" onClick={() => void enrollAction(details, "confirm", u._id)}
+                        <Button size="sm" onClick={() => void enrollAction(details, "confirm", u)}
                           className="h-8 gap-1 rounded-lg bg-emerald-600 px-2.5 text-xs hover:bg-emerald-700">
                           <CheckCircle2 className="h-3.5 w-3.5" /> {t("crs.confirmEnroll")}
                         </Button>
                         <Button size="sm" variant="outline"
-                          onClick={() => void enrollAction(details, "reject", u._id)}
+                          onClick={() => void enrollAction(details, "reject", u)}
                           className="h-8 gap-1 rounded-lg border-rose-500/30 px-2.5 text-xs text-rose-600 hover:bg-rose-500/10">
                           <XCircle className="h-3.5 w-3.5" /> {t("crs.rejectEnroll")}
                         </Button>
@@ -554,7 +554,7 @@ export default function Courses({ navigate }: { navigate: Navigate }) {
                           {u.phone && <p className="truncate text-[11px] text-muted-foreground tabular-nums" dir="ltr">{u.phone}</p>}
                         </div>
                         <Button size="sm" variant="outline"
-                          onClick={() => void enrollAction(details, "remove", u._id)}
+                          onClick={() => void enrollAction(details, "remove", u)}
                           className="h-8 gap-1 rounded-lg px-2.5 text-xs text-muted-foreground hover:border-rose-500/30 hover:text-rose-600">
                           <Trash2 className="h-3.5 w-3.5" /> {t("crs.removeEnroll")}
                         </Button>
