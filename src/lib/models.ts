@@ -78,6 +78,9 @@ const UserSchema = new Schema(
     googleId: { type: String, default: "", index: true },
     googleEmail: { type: String, default: "" },
     active: { type: Boolean, default: true },
+    /* ★ v3.29.0: مؤشر قراءة الإشعارات الجماعية لكل مستخدم — الجماعي مشترك (بلا userId)
+       فلا يصح تخزين قراءته في المستند المشترك؛ قراءتي له = تقدم مؤشري بعد إنشائه */
+    broadcastReadAt: { type: Date, default: undefined },
   },
   { timestamps: true }
 );
@@ -667,7 +670,11 @@ export const Feedback: Model<FeedbackDoc> =
  */
 const NotificationSchema = new Schema(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    /* ★ v3.29.0: userId اختياري — undefined حصراً للإشعار الجماعي المشترك (broadcast: true)
+       الذي يصل لكل من يسجل عند إنشائه أو بعده؛ إشعارات الأفراد سلوكها كما هو تماماً */
+    userId: { type: Schema.Types.ObjectId, ref: "User", index: true },
+    /* ★ v3.29.0: إشعار جماعي مشترك يُنشئه مركز الإدارة من إعدادات المركز */
+    broadcast: { type: Boolean, default: false, index: true },
     title: { type: String, required: true },
     body: { type: String, default: "" },
     titles: {

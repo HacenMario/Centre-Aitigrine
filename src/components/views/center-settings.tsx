@@ -19,10 +19,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import AdminTools from "@/components/views/admin-tools";
 import MediaManager from "@/components/views/media-manager";
-import { Plus, Trash2, X, Building2, Save, Images, MapPin, Share2, Languages, SlidersHorizontal, FileStack, Stethoscope, Sparkles, Pencil, Quote as QuoteIcon, Clock, Copy, DatabaseBackup, HardDrive, Lock } from "lucide-react";
+import { Plus, Trash2, X, Building2, Save, Images, MapPin, Share2, Languages, SlidersHorizontal, FileStack, Stethoscope, Sparkles, Pencil, Quote as QuoteIcon, Clock, Copy, DatabaseBackup, HardDrive, Lock, Megaphone, Send } from "lucide-react";
 import { toast } from "sonner";
 import type { Navigate } from "@/lib/nav";
 
@@ -31,6 +32,8 @@ type SpecialtyRow = { _id: string; ar: string; fr: string; en: string; tr?: stri
 
 type PageItem = { q?: string; a?: string; title?: string; text?: string };
 type QuoteRow = { id: string; textAr: string; textFr: string; textEn: string; textTr?: string; textEs?: string; author: string; active: boolean };
+/* ★ v3.29: مستهدفو الإشعارات — قائمة الحسابات كما يعيدها /api/accounts للإدارة */
+type BcUser = { _id: string; name: string; phone?: string; role: string };
 
 export default function CenterSettings({ navigate }: { navigate: Navigate }) {
   const { t, settings, refreshSettings, me } = useApp();
@@ -38,6 +41,14 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
   const [busy, setBusy] = useState(false);
   const [pages, setPages] = useState<Record<string, PageItem[]>>({});
   const [pageLang, setPageLang] = useState<"ar" | "fr" | "en" | "tr" | "es">("ar");
+  /* ★ v3.29: إرسال الإشعارات — جماعي يصل لمن يسجل مستقبلاً، أو لمستخدم محدد */
+  const [bcUsers, setBcUsers] = useState<BcUser[]>([]);
+  const [bcTarget, setBcTarget] = useState<string>("all");
+  const [bcAlso, setBcAlso] = useState(true);
+  const [bcTitle, setBcTitle] = useState("");
+  const [bcBody, setBcBody] = useState("");
+  const [bcBusy, setBcBusy] = useState(false);
+  const [bcConfirm, setBcConfirm] = useState(false);
 
   useEffect(() => {
     if (settings) setForm({ ...settings });
@@ -56,6 +67,15 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
       .then((rows) => setPages(Object.fromEntries(rows)))
       .catch(() => {});
   }, [pageLang]);
+
+  /* ★ v3.29: قائمة الحسابات للقائمة المنسدلة — الإدارة حصراً (الصفحة محجوبة عن غيرها أصلاً) */
+  useEffect(() => {
+    if (!me || me.role !== "admin") return;
+    fetch("/api/accounts", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { users: [] }))
+      .then((j) => setBcUsers(Array.isArray(j.users) ? j.users : []))
+      .catch(() => {});
+  }, [me]);
 
   /* ★ v3.23: إعدادات المركز للإدارة فقط — حُجبت عن حساب المساعد (طلب المستخدم) */
   if (!me || me.role !== "admin") {
@@ -95,6 +115,47 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
     if (r.ok) toast.success(t("toast.settingsSaved"));
   };
 
+  /* ★ v3.29: إرسال الإشعار — نقرتان للتأكيد (نمط حذف الكل) لأن الجماعي يصل فوراً وبإشعارات الأجهزة */
+  const sendBc = async () => {
+    if (!bcTitle.trim() || bcBusy) return;
+    if (!bcConfirm) {
+      setBcConfirm(true);
+      toast.message(t("set.notifConfirmHint"));
+      return;
+    }
+    setBcConfirm(false);
+    setBcBusy(true);
+    try {
+      const r = await fetch("/api/notifications/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target: bcTarget,
+          title: bcTitle.trim(),
+          body: bcBody.trim(),
+          alsoCurrent: bcTarget === "all" ? bcAlso : false,
+        }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) {
+        if (bcTarget === "all") {
+          toast.success(bcAlso ? t("set.notifSentAll", { n: j.delivered ?? 0 }) : t("set.notifSentFuture"));
+        } else {
+          const targetName = bcUsers.find((u) => u._id === bcTarget)?.name || "";
+          toast.success(t("set.notifSentOne", { name: targetName }));
+        }
+        setBcTitle("");
+        setBcBody("");
+      } else {
+        toast.error(j.error || t("common.error"));
+      }
+    } catch {
+      toast.error(t("common.error"));
+    } finally {
+      setBcBusy(false);
+    }
+  };
+
   /* تحرير قائمة وسائط السلايدر — النظام v3: رفع فوري للقرص + روابط خفيفة في الإعدادات */
   const slider = form.sliderMedia || [];
   const updSlider = (arr: typeof slider) => upd({ sliderMedia: arr });
@@ -127,6 +188,8 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
           <TabsTrigger value="social" className="gap-1.5"><Share2 className="h-4 w-4" />{t("set.social")}</TabsTrigger>
           <TabsTrigger value="specialties" className="gap-1.5"><Stethoscope className="h-4 w-4" />{t("set.specialties")}</TabsTrigger>
           <TabsTrigger value="quotes" className="gap-1.5"><Sparkles className="h-4 w-4" />{t("set.quotes")}</TabsTrigger>
+          {/* ★ v3.29: إرسال الإشعارات — جماعي أو لمستخدم محدد */}
+          <TabsTrigger value="broadcast" className="gap-1.5"><Megaphone className="h-4 w-4" />{t("set.broadcast")}</TabsTrigger>
           <TabsTrigger value="langs" className="gap-1.5"><Languages className="h-4 w-4" />{t("set.languages")}</TabsTrigger>
           <TabsTrigger value="options" className="gap-1.5"><SlidersHorizontal className="h-4 w-4" />{t("set.options")}</TabsTrigger>
           <TabsTrigger value="pages" className="gap-1.5"><FileStack className="h-4 w-4" />{t("set.legal")}</TabsTrigger>
@@ -364,6 +427,81 @@ export default function CenterSettings({ navigate }: { navigate: Navigate }) {
           <Button onClick={save} disabled={busy} className="w-full sm:w-auto h-12 rounded-xl gap-2 px-8 text-base">
             <Save className="h-4.5 w-4.5" /> {busy ? t("common.saving") : t("common.save")}
           </Button>
+        </TabsContent>
+
+        {/* ── ★ v3.29: إرسال الإشعارات — جماعي (يصل لمن يسجل مستقبلاً) أو لمستخدم محدد ── */}
+        <TabsContent value="broadcast" className="mt-4">
+          <Card className="max-w-2xl mx-auto">
+            <CardContent className="p-4 sm:p-5 space-y-4">
+              <p className="text-sm text-muted-foreground leading-relaxed break-words">{t("set.notifHint")}</p>
+              <div className="space-y-1.5">
+                <Label>{t("set.notifTarget")}</Label>
+                <Select
+                  value={bcTarget}
+                  onValueChange={(v) => {
+                    setBcTarget(v);
+                    setBcConfirm(false);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={t("set.notifTargetPh")} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    <SelectItem value="all">{t("set.notifTargetAll")}</SelectItem>
+                    {bcUsers.map((u) => (
+                      <SelectItem key={u._id} value={u._id}>
+                        <span className="block truncate max-w-[52vw] sm:max-w-64">
+                          {u.name}
+                          <span className="text-muted-foreground"> — {t(`roles.${u.role}`)}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {bcTarget === "all" && (
+                <div className="flex items-start justify-between gap-3 rounded-2xl border p-3">
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-sm font-semibold break-words">{t("set.notifAlso")}</p>
+                    <p className="text-xs leading-relaxed text-muted-foreground break-words">{t("set.notifAlsoHint")}</p>
+                  </div>
+                  <Switch checked={bcAlso} onCheckedChange={setBcAlso} className="shrink-0 mt-0.5" />
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="bc-title">{t("set.notifTitle")}</Label>
+                <Input
+                  id="bc-title"
+                  value={bcTitle}
+                  onChange={(e) => setBcTitle(e.target.value)}
+                  maxLength={120}
+                  placeholder={t("set.notifTitlePh")}
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="bc-body">{t("set.notifBody")}</Label>
+                <Textarea
+                  id="bc-body"
+                  value={bcBody}
+                  onChange={(e) => setBcBody(e.target.value)}
+                  maxLength={2000}
+                  placeholder={t("set.notifBodyPh")}
+                  className="w-full min-h-28 resize-none"
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  onClick={sendBc}
+                  disabled={bcBusy || !bcTitle.trim()}
+                  className="gap-2 w-full rounded-xl sm:w-auto"
+                >
+                  <Send className="h-4 w-4" />
+                  {bcBusy ? t("set.notifSending") : bcConfirm ? t("set.notifConfirmSend") : t("set.notifSend")}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ── صفحات المحتوى (ثلاثي اللغة) ── */}
