@@ -848,7 +848,7 @@ export const en: Record<string, string> = {
   "tools.backup": "Full backup",
   "tools.backupBuild": "Building the backup…",
   "tools.backupFetch": "Downloading",
-  "tools.backupSub": "A ZIP file containing the entire database (JSON) and all center media — save it somewhere safe regularly.",
+  "tools.backupSub": "A ZIP file with the entire database (all BSON types preserved) and all center media, lossless — lands directly on your device; save it somewhere safe regularly.",
   "tools.backupBtn": "Download (ZIP)",
   "tools.exportDone": "Exported successfully",
   "tools.exportAppointments": "Appointments",

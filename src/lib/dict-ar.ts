@@ -848,7 +848,7 @@ export const ar: Record<string, string> = {
   "tools.backup": "نسخة احتياطية كاملة",
   "tools.backupBuild": "جارٍ إنشاء النسخة الاحتياطية…",
   "tools.backupFetch": "جارٍ التنزيل",
-  "tools.backupSub": "ملف ZIP يحوي كل قاعدة البيانات (JSON) وكل وسائط المركز — احفظه في مكان آمن بانتظام.",
+  "tools.backupSub": "ملف ZIP بكل قاعدة البيانات بجميع أنواعها ووسائطها كاملة (بلا نقصان) — ينتهي مباشرة في جهازك؛ احفظه في مكان آمن بانتظام.",
   "tools.backupBtn": "تنزيل النسخة (ZIP)",
   "tools.exportDone": "تم التصدير بنجاح",
   "tools.exportAppointments": "الحجوزات",

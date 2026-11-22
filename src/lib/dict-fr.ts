@@ -848,7 +848,7 @@ export const fr: Record<string, string> = {
   "tools.backup": "Sauvegarde complète",
   "tools.backupBuild": "Création de la sauvegarde…",
   "tools.backupFetch": "Téléchargement",
-  "tools.backupSub": "Fichier ZIP contenant toute la base de données (JSON) et tous les médias du centre — conservez-le en lieu sûr régulièrement.",
+  "tools.backupSub": "Fichier ZIP avec toute la base de données (types BSON préservés, sans perte) et tous les médias du centre — arrive directement sur votre appareil ; conservez-le en lieu sûr régulièrement.",
   "tools.backupBtn": "Télécharger (ZIP)",
   "tools.exportDone": "Export réussi",
   "tools.exportAppointments": "Rendez-vous",

@@ -1,5 +1,5 @@
 /**
- * نسخ احتياطي بضغطة واحدة (v3.20.1 — إعادة بناء جذرياية) — للإدارة فقط
+ * نسخ احتياطي بضغطة واحدة (v3.30.0 — محتوى بلا نقصان مطابق لمنهجية mongodump) — للإدارة فقط
  *
  * ★ سبب إعادة البناء: النسخة القديمة (v3.8) كانت تبث ZIP مباشرة في استجابة HTTP.
  *   على الاستضافة السحابية (Vercel Serverless) يُقطع البث عند حد حجم الاستجابة
@@ -16,9 +16,19 @@
  *                                      العميل يلحم الأجزاء في ملف ZIP واحد ويحفظه محلياً
  *                                      — سلوك الزر أمام المستخدم كما هو تماماً.
  *
- * محتويات النسخة: backup/database/<collection>.json (مصفوفات JSON كاملة)
- *               + backup/media/* (ملفات GridFS الأصلية) + backup/media/index.json
- *               + backup/README.txt (تقرير النسخة)
+ * ★ v3.30.0 — إصلاح النقصان الجذري: النسخ القديمة صدّرت المجموعات بـ JSON.stringify
+ *   العادي ففقدت أنواع BSON (ObjectId والتواريخ صارت نصوصاً — نفس علة استيراد JSON
+ *   التي قطعت ربط أسماء المواعيد فظهرت «—»)، واستبعدت كل مجموعات GridFS الخام،
+ *   وأخطاء قراءة الوسائط كانت تُبتلع بصمت. الآن:
+ *   - backup/database/<المجموعة>.ejson — كل مجموعة بمصفوفة EJSON صارمة (relaxed:false)
+ *     تحفظ ObjectId والتواريخ وBinData بأنواعها الممتدة كما هي حرفياً — بلا أي فقد
+ *   - تشمل كل المجموعات بما فيها media.files وmedia.chunks (وسائط GridFS كاملة) —
+ *     تُستبعد فقط backups.* (نسخ سابقة ذاتية التضخم تحوي بعضها البعض) وsystem.*
+ *   - backup/media/* الملفات الأصلية للاستخراج المباشر + backup/media/index.json
+ *   - backup/manifest.json — أعداد مستندات كل مجموعة للتحقق من الاكتمال مقابل Atlas
+ *   - فشل قراءة أي ملف وسيط = فشل صريح للنسخة كلها (لا صمت ولا نقصان)
+ *   - الاستعادة: scripts/restore-full-backup.mjs داخل المشروع (بلا تبعيات إضافية)
+ *
  * نظافة تلقائية: تُحفظ آخر نسختين فقط في القاعدة وتُحذف الأقدم.
  */
 import { NextResponse } from "next/server";
@@ -27,6 +37,8 @@ import { requireUser } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { mediaBucket } from "@/lib/media-store";
 import { ZipArchive } from "archiver";
+/* EJSON من bson مباشرة — mongodb v7 لم يعد يعيد تصديره */
+import { EJSON } from "bson";
 import { GridFSBucket, ObjectId, type Db } from "mongodb";
 import { PassThrough } from "stream";
 
@@ -40,8 +52,7 @@ const PART_BYTES = 2.5 * 1024 * 1024;
 const KEEP_BACKUPS = 2;
 
 function dbOf(conn: unknown): Db | null {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return ((conn as any)?.connection?.db as Db) || null;
+  return ((conn as { connection?: { db?: Db } })?.connection?.db as Db) || null;
 }
 
 async function backupBucket(db: Db): Promise<GridFSBucket> {
@@ -59,23 +70,26 @@ function readRange(bucket: GridFSBucket, id: ObjectId, start: number, end: numbe
   });
 }
 
-/** كتابة مجموعة كاملة كمصفوفة JSON داخل مدخل ZIP — بذاكرة ثابتة عبر دفعات مؤشر */
+/** كتابة مجموعة كاملة كمصفوفة EJSON صارمة داخل مدخل ZIP — بذاكرة ثابتة عبر دفعات مؤشر، وتعيد عدد المستندات للتحقق */
 type MinimalCursor = { batchSize: (n: number) => AsyncIterable<unknown> };
 type MinimalCollection = { find: (q: object) => MinimalCursor };
-function writeCollection(col: MinimalCollection, out: PassThrough): Promise<void> {
+function writeCollection(col: MinimalCollection, out: PassThrough): Promise<number> {
   return new Promise((resolve, reject) => {
     (async () => {
       try {
         out.write("[");
         let first = true;
+        let count = 0;
         const cursor = col.find({}).batchSize(500);
         for await (const doc of cursor) {
-          out.write((first ? "" : ",") + JSON.stringify(doc));
+          /* EJSON صارم (relaxed:false) — ObjectId والتواريخ وBinData تبقى بأنواعها الممتدة، لا نصوصاً */
+          out.write((first ? "" : ",") + EJSON.stringify(doc, { relaxed: false }));
           first = false;
+          count++;
         }
         out.write("]");
         out.end();
-        resolve();
+        resolve(count);
       } catch (e) {
         out.destroy();
         reject(e);
@@ -91,7 +105,7 @@ export async function POST() {
     const conn = await import("@/lib/mongo").then((m) => m.connectDB());
     const db = dbOf(conn);
     if (!db) return fail(503, "قاعدة البيانات غير متاحة");
-    await logAudit({ _id: me._id, name: me.name, role: me.role }, "backup.create", "نسخة احتياطية", "إنشاء نسخة احتياطية كاملة داخل القاعدة");
+    await logAudit({ _id: me._id, name: me.name, role: me.role }, "backup.create", "نسخة احتياطية", "إنشاء نسخة احتياطية كاملة بجميع الأنواع والوسائط");
 
     const now = new Date();
     const stamp = now.toISOString().slice(0, 16).replace("T", "-");
@@ -105,7 +119,7 @@ export async function POST() {
 
     const up = bucket.openUploadStream(filename, {
       contentType: "application/zip",
-      metadata: { createdBy: String(me._id), createdAt: now.toISOString(), app: "aitigrine", version: "3.20.1" },
+      metadata: { createdBy: String(me._id), createdAt: now.toISOString(), app: "aitigrine", version: "3.30.0", format: "full-lossless" },
     });
     const finished = new Promise<void>((resolve, reject) => {
       up.on("finish", () => resolve());
@@ -113,19 +127,23 @@ export async function POST() {
     });
     archive.pipe(up);
 
-    /* 1) كل مجموعات قاعدة البيانات → مصفوفة JSON لكل مجموعة (بمؤشرات دفعات — ذاكرة ثابتة) */
+    /* 1) كل مجموعات قاعدة البيانات → مصفوفة EJSON لكل مجموعة (بمؤشرات دفعات — ذاكرة ثابتة)
+       تشمل media.files وmedia.chunks — نسخة بلا نقصان مطابقة لمنهجية mongodump.
+       تُستبعد فقط backups.* (نسخ سابقة ذاتية التضخم تحوي بعضها البعض) وsystem.* الداخلية */
     const collections = await db.collections();
+    const manifestCollections: { name: string; docs: number }[] = [];
     const writes: Promise<void>[] = [];
     for (const col of collections) {
       const name = col.collectionName;
-      /* تخطَّ مجموعات GridFS الخام — الوسائط تُصدَّر بالقسم 2، ونسخ backups السابقة لا تدخل في النسخة */
-      if (name.endsWith(".chunks") || name.endsWith(".files")) continue;
+      if (name.startsWith("backups.") || name.startsWith("system.")) continue;
       const out = new PassThrough();
-      archive.append(out, { name: `backup/database/${name}.json` });
+      archive.append(out, { name: `backup/database/${name}.ejson` });
       writes.push(
-        writeCollection(col as unknown as MinimalCollection, out).catch((e) => {
-          buildError = buildError || (e as Error);
-        })
+        writeCollection(col as unknown as MinimalCollection, out)
+          .then((docs) => { manifestCollections.push({ name, docs }); })
+          .catch((e) => {
+            buildError = buildError || (e as Error);
+          })
       );
     }
     await Promise.all(writes);
@@ -135,13 +153,17 @@ export async function POST() {
       return fail(500, "فشل تصدير مجموعات قاعدة البيانات — " + String((buildError as Error)?.message || buildError));
     }
 
-    /* 2) وسائط GridFS → الملفات الأصلية كما هي + فهرس */
+    /* 2) وسائط GridFS → الملفات الأصلية كما هي + فهرس — فشل أي ملف = فشل النسخة كلها (لا صمت بلا نقصان) */
+    let mediaCount = 0;
+    let mediaBytes = 0;
     try {
       const mBucket = await mediaBucket();
       const files = await mBucket.find({}).toArray();
+      mediaCount = files.length;
+      mediaBytes = files.reduce((s, f) => s + (f.length || 0), 0);
       for (const f of files) {
         const node = mBucket.openDownloadStreamByName(f.filename);
-        node.on("error", () => node.destroy());
+        node.on("error", (e: Error) => { buildError = buildError || e; });
         archive.append(node, { name: `backup/media/${f.filename}` });
       }
       archive.append(
@@ -149,21 +171,45 @@ export async function POST() {
         { name: "backup/media/index.json" }
       );
     } catch (e) {
-      archive.append(String((e as Error)?.message || e), { name: "backup/media/ERROR.txt" });
+      buildError = buildError || (e as Error);
     }
 
-    /* 3) تقرير النسخة */
+    /* 3) بيان النسخة (للتحقق الآلي من الاكتمال) + تقرير مقروء */
     archive.append(
       JSON.stringify(
         {
+          format: "aitigrine-full-backup-2",
           center: "Centre Aitigrine",
-          version: "3.20.1",
+          version: "3.30.0",
           createdAt: now.toISOString(),
-          note: "نسخة احتياطية كاملة: قاعدة البيانات (JSON) + الوسائط (الملفات الأصلية)",
+          database: db.databaseName,
+          collections: manifestCollections.sort((a, b) => a.name.localeCompare(b.name)),
+          media: { files: mediaCount, bytes: mediaBytes },
+          typesPreserved: true,
         },
         null,
         2
       ),
+      { name: "backup/manifest.json" }
+    );
+    archive.append(
+      [
+        "نسخة احتياطية كاملة — مركز آيت تقرين النفسي",
+        `التاريخ: ${now.toISOString()}`,
+        "",
+        "المحتويات:",
+        "- backup/database/<المجموعة>.ejson — كل مجموعة بمصفوفة EJSON صارمة تحفظ أنواع BSON",
+        "  (ObjectId والتواريخ والبيانات الثنائية) كما هي حرفياً — بلا أي فقد،",
+        "  وتشمل وسائط GridFS كاملة (media.files وmedia.chunks).",
+        "- backup/media/ — الملفات الأصلية للاستخراج المباشر + index.json.",
+        "- backup/manifest.json — أعداد مستندات كل مجموعة: قارنها بأعداد Atlas للتحقق من الاكتمال.",
+        "",
+        "الاستعادة: داخل مجلد المشروع نفّذ",
+        "  MONGODB_URI=\"<رابط القاعدة الهدف>\" node scripts/restore-full-backup.mjs <مجلد backup المستخرج> --drop",
+        "أو استخدم أرشيف mongodump المعتاد (ملف bat) عند الترحيل بين العناقيد.",
+        "",
+        "ملاحظة أمان: هذا الملف يحوي كل بيانات المركز والمستخدمين — احفظه في مكان آمن فقط.",
+      ].join("\n"),
       { name: "backup/README.txt" }
     );
 
